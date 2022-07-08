@@ -8,7 +8,7 @@ assert() {
   expected=$1
   input=$2
 
-  $DIR/../build/pcc $input > tmp.s
+  $DIR/../build/ucc $input > tmp.s
   cc -o tmp tmp.s
   ./tmp
   actual=$?

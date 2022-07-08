@@ -1,4 +1,4 @@
-TARGET_EXEC := pcc
+TARGET_EXEC := ucc
 
 CFLAGS := -g3 -Wall -Wextra -Wpedantic -Werror
 LDFLAGS :=
