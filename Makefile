@@ -19,14 +19,14 @@ $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
 $(BUILD_DIR)/%.c.o: %.c
-	mkdir -p $(dir $@)
+	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 .PHONY: clean test
 
 clean:
-	rm -r $(BUILD_DIR)
+	@rm -r $(BUILD_DIR)
 
 test:
-	./tests/test.sh
+	@./tests/test.sh
 
