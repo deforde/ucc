@@ -40,15 +40,16 @@ const char* input = NULL;
 void error(const char* loc, const char* fmt, ...);
 bool consume(char op);
 void expect(char op);
-int expectNumber();
-bool isEOF();
+int expectNumber(void);
+bool isEOF(void);
 Token* newToken(TokenType type, Token* cur, const char* str);
 Token* tokenise(const char* p);
 Node* newNode(NodeType type, Node* lhs, Node* rhs);
 Node* newNodeNum(int val);
-Node* primary();
-Node* mul();
-Node* expr();
+Node* primary(void);
+Node* mul(void);
+Node* expr(void);
+Node* unary(void);
 void gen(Node* node);
 
 void error(const char* loc, const char* fmt, ...)
@@ -81,7 +82,7 @@ void expect(char op)
     token = token->next;
 }
 
-int expectNumber()
+int expectNumber(void)
 {
     if(token->type != TK_NUM) {
         error(token->str, "Expected token type: %i (TK_NUM), got: %i", TK_NUM, token->type);
@@ -91,7 +92,7 @@ int expectNumber()
     return val;
 }
 
-bool isEOF()
+bool isEOF(void)
 {
     return token->type == TK_EOF;
 }
@@ -146,7 +147,7 @@ Node* newNodeNum(int val)
     return node;
 }
 
-Node* primary()
+Node* primary(void)
 {
     if(consume('(')) {
         Node* node = expr();
@@ -156,15 +157,15 @@ Node* primary()
     return newNodeNum(expectNumber());
 }
 
-Node* mul()
+Node* mul(void)
 {
-    Node* node = primary();
+    Node* node = unary();
     for(;;) {
         if(consume('*')) {
-            node = newNode(ND_MUL, node, primary());
+            node = newNode(ND_MUL, node, unary());
         }
         else if (consume('/')) {
-            node = newNode(ND_DIV, node, primary());
+            node = newNode(ND_DIV, node, unary());
         }
         else {
             return node;
@@ -172,7 +173,7 @@ Node* mul()
     }
 }
 
-Node* expr()
+Node* expr(void)
 {
     Node* node = mul();
     for(;;) {
@@ -216,6 +217,17 @@ void gen(Node* node)
             error(token->str, "Unexpected node type: %i", node->type);
     }
     puts("  push rax");
+}
+
+Node* unary(void)
+{
+    if(consume('+')) {
+        return primary();
+    }
+    if(consume('-')) {
+        return newNode(ND_SUB, newNodeNum(0), primary());
+    }
+    return primary();
 }
 
 int main(int argc, char* argv[])
