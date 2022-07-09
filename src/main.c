@@ -4,7 +4,7 @@
 int main(int argc, char* argv[])
 {
     if(argc != 2) {
-        fprintf(stderr, "Error! Exactly 1 command line argument should be provided");
+        fprintf(stderr, "Error! Exactly 1 command line argument should be provided\n");
         return EXIT_FAILURE;
     }
 
@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
             printf("  sub rax, %ld\n", strtol(inp, (char**)&inp, 10));
             continue;
         }
-        fprintf(stderr, "Error! Unrecognised operator: '%c'", *inp);
+        fprintf(stderr, "Error! Unrecognised operator: '%c'\n", *inp);
         return EXIT_FAILURE;
     }
 
