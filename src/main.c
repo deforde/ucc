@@ -18,6 +18,22 @@ struct Token {
     const char* str;
 };
 
+typedef enum {
+    ND_ADD,
+    ND_SUB,
+    ND_MUL,
+    ND_DIV,
+    ND_NUM,
+} NodeType;
+
+typedef struct Node Node;
+struct Node {
+    NodeType type;
+    Node* lhs;
+    Node* rhs;
+    int val;
+};
+
 Token* token = NULL;
 const char* input = NULL;
 
@@ -28,6 +44,12 @@ int expectNumber();
 bool isEOF();
 Token* newToken(TokenType type, Token* cur, const char* str);
 Token* tokenise(const char* p);
+Node* newNode(NodeType type, Node* lhs, Node* rhs);
+Node* newNodeNum(int val);
+Node* primary();
+Node* mul();
+Node* expr();
+void gen(Node* node);
 
 void error(const char* loc, const char* fmt, ...)
 {
@@ -92,7 +114,7 @@ Token* tokenise(const char* p)
             ++p;
             continue;
         }
-        if(*p == '+' || *p == '-') {
+        if(*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')') {
             cur = newToken(TK_RESERVED, cur, p++);
             continue;
         }
@@ -107,6 +129,95 @@ Token* tokenise(const char* p)
     return head.next;
 }
 
+Node* newNode(NodeType type, Node* lhs, Node* rhs)
+{
+    Node* node = calloc(1, sizeof(Node));
+    node->type = type;
+    node->lhs = lhs;
+    node->rhs = rhs;
+    return node;
+}
+
+Node* newNodeNum(int val)
+{
+    Node* node = calloc(1, sizeof(Node));
+    node->type = ND_NUM;
+    node->val = val;
+    return node;
+}
+
+Node* primary()
+{
+    if(consume('(')) {
+        Node* node = expr();
+        expect(')');
+        return node;
+    }
+    return newNodeNum(expectNumber());
+}
+
+Node* mul()
+{
+    Node* node = primary();
+    for(;;) {
+        if(consume('*')) {
+            node = newNode(ND_MUL, node, primary());
+        }
+        else if (consume('/')) {
+            node = newNode(ND_DIV, node, primary());
+        }
+        else {
+            return node;
+        }
+    }
+}
+
+Node* expr()
+{
+    Node* node = mul();
+    for(;;) {
+        if(consume('+')) {
+            node = newNode(ND_ADD, node, mul());
+        }
+        else if(consume('-')) {
+            node = newNode(ND_SUB, node, mul());
+        }
+        else {
+            return node;
+        }
+    }
+}
+
+void gen(Node* node)
+{
+    if(node->type == ND_NUM) {
+        printf("  push %d\n", node->val);
+        return;
+    }
+    gen(node->lhs);
+    gen(node->rhs);
+    puts("  pop rdi");
+    puts("  pop rax");
+    switch(node->type) {
+        case ND_ADD:
+            puts("  add rax, rdi");
+            break;
+        case ND_SUB:
+            puts("  sub rax, rdi");
+            break;
+        case ND_MUL:
+            puts("  imul rax, rdi");
+            break;
+        case ND_DIV:
+            puts("  cqo");
+            puts("  idiv rdi");
+            break;
+        default:
+            error(token->str, "Unexpected node type: %i", node->type);
+    }
+    puts("  push rax");
+}
+
 int main(int argc, char* argv[])
 {
     if(argc != 2) {
@@ -115,22 +226,15 @@ int main(int argc, char* argv[])
 
     input = argv[1];
     token = tokenise(input);
+    Node* node = expr();
 
     puts(".intel_syntax noprefix");
     puts(".globl main");
     puts("main:");
 
-    printf("  mov rax, %d\n", expectNumber());
+    gen(node);
 
-    while(!isEOF()) {
-        if(consume('+')) {
-            printf("  add rax, %d\n", expectNumber());
-            continue;
-        }
-        expect('-');
-        printf("  sub rax, %d\n", expectNumber());
-    }
-
+    puts("  pop rax");
     puts("  ret");
     return EXIT_SUCCESS;
 }
