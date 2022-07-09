@@ -1,6 +1,6 @@
 TARGET_EXEC := ucc
 
-CFLAGS := -g3 -Wall -Wextra -Wpedantic -Werror
+CFLAGS := -g3 -Wall -Wextra -Wpedantic -Werror -D_FORTIFY_SOURCE=2
 LDFLAGS :=
 
 BUILD_DIR := build
