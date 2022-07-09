@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef enum {
     TK_RESERVED,
@@ -16,6 +17,7 @@ struct Token {
     Token* next;
     int val;
     const char* str;
+    size_t len;
 };
 
 typedef enum {
@@ -23,6 +25,10 @@ typedef enum {
     ND_SUB,
     ND_MUL,
     ND_DIV,
+    ND_EQ,
+    ND_NE,
+    ND_LT,
+    ND_LE,
     ND_NUM,
 } NodeType;
 
@@ -38,17 +44,21 @@ Token* token = NULL;
 const char* input = NULL;
 
 void error(const char* loc, const char* fmt, ...);
-bool consume(char op);
-void expect(char op);
+bool startsWith(const char* p, const char* q);
+bool consume(char* op);
+void expect(char* op);
 int expectNumber(void);
 bool isEOF(void);
-Token* newToken(TokenType type, Token* cur, const char* str);
+Token* newToken(TokenType type, Token* cur, const char* str, size_t len);
 Token* tokenise(const char* p);
 Node* newNode(NodeType type, Node* lhs, Node* rhs);
 Node* newNodeNum(int val);
+Node* expr(void);
+Node* equality(void);
+Node* relational(void);
+Node* add(void);
 Node* primary(void);
 Node* mul(void);
-Node* expr(void);
 Node* unary(void);
 void gen(Node* node);
 
@@ -65,19 +75,24 @@ void error(const char* loc, const char* fmt, ...)
     exit(EXIT_FAILURE);
 }
 
-bool consume(char op)
+bool startsWith(const char* p, const char* q)
 {
-    if(token->type != TK_RESERVED || token->str[0] != op) {
+    return memcmp(p, q, strlen(q)) == 0;
+}
+
+bool consume(char* op)
+{
+    if(token->type != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len) != 0) {
         return false;
     }
     token = token->next;
     return true;
 }
 
-void expect(char op)
+void expect(char* op)
 {
-    if(token->type != TK_RESERVED || token->str[0] != op) {
-        error(token->str, "Unexpected token: '%c'", op);
+    if(token->type != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len) != 0) {
+        error(token->str, "Expected: '%c'", *op);
     }
     token = token->next;
 }
@@ -85,7 +100,7 @@ void expect(char op)
 int expectNumber(void)
 {
     if(token->type != TK_NUM) {
-        error(token->str, "Expected token type: %i (TK_NUM), got: %i", TK_NUM, token->type);
+        error(token->str, "Expected number");
     }
     const int val = token->val;
     token = token->next;
@@ -97,11 +112,12 @@ bool isEOF(void)
     return token->type == TK_EOF;
 }
 
-Token* newToken(TokenType type, Token* cur, const char* str)
+Token* newToken(TokenType type, Token* cur, const char* str, size_t len)
 {
     Token* tok = calloc(1, sizeof(Token));
     tok->type = type;
     tok->str = str;
+    tok->len = len;
     cur->next = tok;
     return tok;
 }
@@ -115,18 +131,28 @@ Token* tokenise(const char* p)
             ++p;
             continue;
         }
-        if(*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')') {
-            cur = newToken(TK_RESERVED, cur, p++);
+        if(startsWith(p, "==") ||
+           startsWith(p, "!=") ||
+           startsWith(p, "<=") ||
+           startsWith(p, ">=")) {
+            cur = newToken(TK_RESERVED, cur, p, 2);
+            p += 2;
+            continue;
+        }
+        if(strchr("+-*/()<>", *p)) {
+            cur = newToken(TK_RESERVED, cur, p++, 1);
             continue;
         }
         if(isdigit(*p)) {
-            cur = newToken(TK_NUM, cur, p);
+            cur = newToken(TK_NUM, cur, p, 0);
+            const char* q = p;
             cur->val = (int)strtol(p, (char**)&p, 10);
+            cur->len = p - q;
             continue;
         }
-        error(token->str, "Unrecognised token: '%c'", *p);
+        error(p, "Invalid token");
     }
-    newToken(TK_EOF, cur, p);
+    newToken(TK_EOF, cur, p, 0);
     return head.next;
 }
 
@@ -149,9 +175,9 @@ Node* newNodeNum(int val)
 
 Node* primary(void)
 {
-    if(consume('(')) {
+    if(consume("(")) {
         Node* node = expr();
-        expect(')');
+        expect(")");
         return node;
     }
     return newNodeNum(expectNumber());
@@ -161,10 +187,10 @@ Node* mul(void)
 {
     Node* node = unary();
     for(;;) {
-        if(consume('*')) {
+        if(consume("*")) {
             node = newNode(ND_MUL, node, unary());
         }
-        else if (consume('/')) {
+        else if (consume("/")) {
             node = newNode(ND_DIV, node, unary());
         }
         else {
@@ -175,12 +201,55 @@ Node* mul(void)
 
 Node* expr(void)
 {
+    return equality();
+}
+
+Node* equality(void)
+{
+    Node* node = relational();
+    for(;;) {
+        if(consume("==")) {
+            node = newNode(ND_EQ, node, relational());
+        }
+        else if (consume("!=")) {
+            node = newNode(ND_NE, node, relational());
+        }
+        else {
+            return node;
+        }
+    }
+}
+
+Node* relational(void)
+{
+    Node* node = add();
+    for(;;) {
+        if(consume("<")) {
+            node = newNode(ND_LT, node, add());
+        }
+        else if(consume("<=")) {
+            node = newNode(ND_LE, node, add());
+        }
+        else if(consume(">")) {
+            node = newNode(ND_LT, add(), node);
+        }
+        else if(consume(">=")) {
+            node = newNode(ND_LE, add(), node);
+        }
+        else {
+            return node;
+        }
+    }
+}
+
+Node* add(void)
+{
     Node* node = mul();
     for(;;) {
-        if(consume('+')) {
+        if(consume("+")) {
             node = newNode(ND_ADD, node, mul());
         }
-        else if(consume('-')) {
+        else if(consume("-")) {
             node = newNode(ND_SUB, node, mul());
         }
         else {
@@ -213,6 +282,26 @@ void gen(Node* node)
             puts("  cqo");
             puts("  idiv rdi");
             break;
+        case ND_EQ:
+            puts("  cmp rax, rdi");
+            puts("  sete al");
+            puts("  movzb rax, al");
+            break;
+        case ND_NE:
+            puts("  cmp rax, rdi");
+            puts("  setne al");
+            puts("  movzb rax, al");
+            break;
+        case ND_LT:
+            puts("  cmp rax, rdi");
+            puts("  setl al");
+            puts("  movzb rax, al");
+            break;
+        case ND_LE:
+            puts("  cmp rax, rdi");
+            puts("  setle al");
+            puts("  movzb rax, al");
+            break;
         default:
             error(token->str, "Unexpected node type: %i", node->type);
     }
@@ -221,10 +310,10 @@ void gen(Node* node)
 
 Node* unary(void)
 {
-    if(consume('+')) {
+    if(consume("+")) {
         return primary();
     }
-    if(consume('-')) {
+    if(consume("-")) {
         return newNode(ND_SUB, newNodeNum(0), primary());
     }
     return primary();
