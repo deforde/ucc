@@ -19,9 +19,9 @@ struct Token {
 };
 
 Token* token = NULL;
+const char* input = NULL;
 
-
-void error(const char* fmt, ...);
+void error(const char* loc, const char* fmt, ...);
 bool consume(char op);
 void expect(char op);
 int expectNumber();
@@ -29,10 +29,14 @@ bool isEOF();
 Token* newToken(TokenType type, Token* cur, const char* str);
 Token* tokenise(const char* p);
 
-void error(const char* fmt, ...)
+void error(const char* loc, const char* fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
+    const int pos = (int)(loc - input);
+    fprintf(stderr, "%s\n", input);
+    fprintf(stderr, "%*s", pos, " ");
+    fprintf(stderr, "^ ");
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
     exit(EXIT_FAILURE);
@@ -50,7 +54,7 @@ bool consume(char op)
 void expect(char op)
 {
     if(token->type != TK_RESERVED || token->str[0] != op) {
-        error("Unexpected token: '%c'", op);
+        error(token->str, "Unexpected token: '%c'", op);
     }
     token = token->next;
 }
@@ -58,7 +62,7 @@ void expect(char op)
 int expectNumber()
 {
     if(token->type != TK_NUM) {
-        error("Expected token type: %i (TK_NUM), got: %i", TK_NUM, token->type);
+        error(token->str, "Expected token type: %i (TK_NUM), got: %i", TK_NUM, token->type);
     }
     const int val = token->val;
     token = token->next;
@@ -97,7 +101,7 @@ Token* tokenise(const char* p)
             cur->val = (int)strtol(p, (char**)&p, 10);
             continue;
         }
-        error("Unrecognised token: '%c'", *p);
+        error(token->str, "Unrecognised token: '%c'", *p);
     }
     newToken(TK_EOF, cur, p);
     return head.next;
@@ -106,10 +110,11 @@ Token* tokenise(const char* p)
 int main(int argc, char* argv[])
 {
     if(argc != 2) {
-        error("Error! Exactly 1 command line argument should be provided");
+        error(token->str, "Error! Exactly 1 command line argument should be provided");
     }
 
-    token = tokenise(argv[1]);
+    input = argv[1];
+    token = tokenise(input);
 
     puts(".intel_syntax noprefix");
     puts(".globl main");
