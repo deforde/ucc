@@ -27,6 +27,6 @@ $(BUILD_DIR)/%.c.o: %.c
 clean:
 	@rm -r $(BUILD_DIR)
 
-test:
+test: $(BUILD_DIR)/$(TARGET_EXEC)
 	@./tests/test.sh
 
