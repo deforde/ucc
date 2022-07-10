@@ -1,11 +1,28 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "codegen.h"
-#include "err.h"
 #include "parse.h"
 
-extern Token* token;
+typedef enum {
+    ND_ADD,
+    ND_SUB,
+    ND_MUL,
+    ND_DIV,
+    ND_EQ,
+    ND_NE,
+    ND_LT,
+    ND_LE,
+    ND_NUM,
+} NodeType;
+
+struct Node {
+    NodeType type;
+    Node* lhs;
+    Node* rhs;
+    int val;
+};
 
 Node* newNode(NodeType type, Node* lhs, Node* rhs);
 Node* newNodeNum(int val);
@@ -163,7 +180,8 @@ void gen(Node* node)
             puts("  movzb rax, al");
             break;
         default:
-            error(token->str, "Unexpected node type: %i", node->type);
+            assert(false);
+            break;
     }
     puts("  push rax");
 }
