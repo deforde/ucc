@@ -21,15 +21,7 @@ struct Node {
     int val;
 };
 
-Node* newNode(NodeType type, Node* lhs, Node* rhs);
-Node* newNodeNum(int val);
 Node* expr(void);
-Node* equality(void);
-Node* relational(void);
-Node* add(void);
-Node* primary(void);
-Node* mul(void);
-Node* unary(void);
 void gen(Node* node);
 
 #endif //CODEGEN_H

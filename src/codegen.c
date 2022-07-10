@@ -7,6 +7,15 @@
 
 extern Token* token;
 
+Node* newNode(NodeType type, Node* lhs, Node* rhs);
+Node* newNodeNum(int val);
+Node* equality(void);
+Node* relational(void);
+Node* add(void);
+Node* primary(void);
+Node* mul(void);
+Node* unary(void);
+
 Node* newNode(NodeType type, Node* lhs, Node* rhs)
 {
     Node* node = calloc(1, sizeof(Node));

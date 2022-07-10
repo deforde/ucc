@@ -7,6 +7,10 @@
 
 extern Token* token;
 
+bool startsWith(const char* p, const char* q);
+bool isEOF(void);
+Token* newToken(TokenType type, Token* cur, const char* str, size_t len);
+
 bool startsWith(const char* p, const char* q)
 {
     return memcmp(p, q, strlen(q)) == 0;
