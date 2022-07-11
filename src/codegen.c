@@ -24,14 +24,14 @@ struct Node {
     int val;
 };
 
-Node* newNode(NodeType type, Node* lhs, Node* rhs);
-Node* newNodeNum(int val);
-Node* equality(void);
-Node* relational(void);
-Node* add(void);
-Node* primary(void);
-Node* mul(void);
-Node* unary(void);
+static Node* newNode(NodeType type, Node* lhs, Node* rhs);
+static Node* newNodeNum(int val);
+static Node* equality(void);
+static Node* relational(void);
+static Node* add(void);
+static Node* primary(void);
+static Node* mul(void);
+static Node* unary(void);
 
 Node* newNode(NodeType type, Node* lhs, Node* rhs)
 {

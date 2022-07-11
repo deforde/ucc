@@ -23,10 +23,10 @@ struct Token {
     size_t len;
 };
 
-void error(const char* loc, const char* fmt, ...);
-bool startsWith(const char* p, const char* q);
-bool isEOF(void);
-Token* newToken(TokenType type, Token* cur, const char* str, size_t len);
+static void error(const char* loc, const char* fmt, ...);
+static bool startsWith(const char* p, const char* q);
+__attribute__ ((unused)) static bool isEOF(void);
+static Token* newToken(TokenType type, Token* cur, const char* str, size_t len);
 
 void error(const char* loc, const char* fmt, ...)
 {
