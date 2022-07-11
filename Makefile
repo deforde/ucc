@@ -22,7 +22,7 @@ $(BUILD_DIR)/%.c.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-.PHONY: clean test
+.PHONY: clean test compdb
 
 clean:
 	@rm -r $(BUILD_DIR)
@@ -30,3 +30,6 @@ clean:
 test: $(BUILD_DIR)/$(TARGET_EXEC)
 	@./tests/test.sh
 
+compdb: clean
+	@bear -- $(MAKE) && \
+	 mv compile_commands.json build
