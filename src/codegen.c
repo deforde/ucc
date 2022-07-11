@@ -189,10 +189,10 @@ void gen(Node* node)
 Node* unary(void)
 {
     if(consume("+")) {
-        return primary();
+        return unary();
     }
     if(consume("-")) {
-        return newNode(ND_SUB, newNodeNum(0), primary());
+        return newNode(ND_SUB, newNodeNum(0), unary());
     }
     return primary();
 }
