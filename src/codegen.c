@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "parse.h"
 
@@ -27,10 +28,19 @@ struct Node {
   Node *lhs;
   Node *rhs;
   int val;
-  int offset;
+  size_t offset;
+};
+
+typedef struct Lvar Lvar;
+struct Lvar {
+  Lvar *next;
+  const char *name;
+  size_t len;
+  size_t offset;
 };
 
 Node *code[MAX_CODE_LEN] = {NULL};
+static Lvar *locals = NULL;
 
 static Node *assign(void);
 static Node *stmt(void);
@@ -43,6 +53,7 @@ static Node *primary(void);
 static Node *mul(void);
 static Node *unary(void);
 static void genLval(Node *node);
+static Lvar *findLvar(Token* tok);
 
 Node *assign(void) {
   Node *node = equality();
@@ -84,7 +95,20 @@ Node *newNodeNum(int val) {
 Node *newNodeIdent(Token *tok) {
   Node *node = calloc(1, sizeof(Node));
   node->type = ND_LVAR;
-  node->offset = (tok->str[0] - 'a' + 1) * 8;
+
+  Lvar *lvar = findLvar(tok);
+  if (lvar) {
+    node->offset = lvar->offset;
+  } else {
+    lvar = calloc(1, sizeof(Lvar));
+    lvar->next = locals;
+    lvar->name = tok->str;
+    lvar->len = tok->len;
+    lvar->offset = (locals ? locals->offset : 0) + 8;
+    node->offset = lvar->offset;
+    locals = lvar;
+  }
+
   return node;
 }
 
@@ -241,6 +265,15 @@ void genLval(Node *node) {
     fprintf(stderr, "Expected node type LVAR, got %i\n", node->type);
   }
   puts("  mov rax, rbp");
-  printf("  sub rax, %d\n", node->offset);
+  printf("  sub rax, %zu\n", node->offset);
   puts("  push rax");
+}
+
+Lvar *findLvar(Token* tok) {
+  for (Lvar* var = locals; var; var = var->next) {
+    if (var->len == tok->len && memcmp(tok->str, var->name, var->len) == 0) {
+      return var;
+    }
+  }
+  return NULL;
 }
