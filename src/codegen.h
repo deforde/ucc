@@ -3,7 +3,8 @@
 
 typedef struct Node Node;
 
-Node* expr(void);
-void gen(Node* node);
+Node *expr(void);
+void gen(Node *node);
+void program(void);
 
-#endif //CODEGEN_H
+#endif // CODEGEN_H
