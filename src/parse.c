@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +14,7 @@ static void error(const char *loc, const char *fmt, ...);
 static bool startsWith(const char *p, const char *q);
 static Token *newToken(TokenType type, Token *cur, const char *str, size_t len);
 static Token *newIdent(Token *cur, const char **p);
+static bool isIdentChar(char c);
 
 void error(const char *loc, const char *fmt, ...) {
   va_list args;
@@ -109,12 +111,12 @@ Token *tokenise(const char *p) {
       cur->len = p - q;
       continue;
     }
-    if (strncmp(p, "return", 6) == 0 && !isalnum(p[6]) && p[6] != '_') {
+    if (strncmp(p, "return", 6) == 0 && !isIdentChar(p[6])) {
       cur = newToken(TK_RETURN, cur, p, 6);
       p += 6;
       continue;
     }
-    if (*p >= 'a' && *p <= 'z') {
+    if (isIdentChar(*p) && !(*p >= '0' && *p <= '9')) {
       cur = newIdent(cur, &p);
       continue;
     }
@@ -126,10 +128,12 @@ Token *tokenise(const char *p) {
 
 Token *newIdent(Token *cur, const char **p) {
   const char *q = *p;
-  while (*q && (*q >= 'a' && *q <= 'z')) {
+  while (*q && isIdentChar(*q)) {
     q++;
   }
   Token *tok = newToken(TK_IDENT, cur, *p, q - *p);
   *p = q;
   return tok;
 }
+
+bool isIdentChar(char c) { return isalnum(c) || c == '_'; }

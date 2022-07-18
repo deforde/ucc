@@ -77,6 +77,12 @@ assert 7 'foo = 3; bar = 4; return foo + bar; return foo * bar;'
 assert 22 'foo = 3; return bar = 5 * 6 - 8; foo + bar / 2;'
 assert 30 'foo = 4; return bar = 5 * (8 - 2); (foo + bar) / 2; return 6;'
 
+assert 3 'return _foo1 = 3;'
+assert 3 '_foo1 = 3; return _foo1;'
+assert 7 '_foo1 = 3; bar_baz = 4; return _foo1 + bar_baz;'
+assert 14 '_foo1 = 3; bar_baz = 5 * 6 - 8; return _foo1 + bar_baz / 2;'
+assert 17 '_foo1 = 4; bar_baz = 5 * (8 - 2); return (_foo1 + bar_baz) / 2;'
+
 # assert 3 'a = 3; ; a;'
 
 echo OK
