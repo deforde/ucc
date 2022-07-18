@@ -39,6 +39,14 @@ bool consume(char *op) {
   return true;
 }
 
+bool consumeReturn(void) {
+  if (token->type != TK_RETURN) {
+    return false;
+  }
+  token = token->next;
+  return true;
+}
+
 Token *consumeIdent(void) {
   if (token->type != TK_IDENT) {
     return NULL;
@@ -99,6 +107,11 @@ Token *tokenise(const char *p) {
       const char *q = p;
       cur->val = (int)strtol(p, (char **)&p, 10);
       cur->len = p - q;
+      continue;
+    }
+    if (strncmp(p, "return", 6) == 0 && !isalnum(p[6]) && p[6] != '_') {
+      cur = newToken(TK_RETURN, cur, p, 6);
+      p += 6;
       continue;
     }
     if (*p >= 'a' && *p <= 'z') {

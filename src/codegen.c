@@ -21,6 +21,7 @@ typedef enum {
   ND_NUM,
   ND_ASS,
   ND_LVAR,
+  ND_RET,
 } NodeType;
 
 struct Node {
@@ -64,7 +65,14 @@ Node *assign(void) {
 }
 
 Node *stmt(void) {
-  Node *node = expr();
+  Node *node = NULL;
+  if (consumeReturn()) {
+    node = calloc(1, sizeof(Node));
+    node->type = ND_RET;
+    node->lhs = expr();
+  } else {
+    node = expr();
+  }
   expect(";");
   return node;
 }
@@ -184,6 +192,14 @@ Node *add(void) {
 }
 
 void gen(Node *node) {
+  if (node->type == ND_RET) {
+    gen(node->lhs);
+    puts("  pop rax");
+    puts("  mov rsp, rbp");
+    puts("  pop rbp");
+    puts("  ret");
+    return;
+  }
   switch (node->type) {
   case ND_NUM:
     printf("  push %d\n", node->val);

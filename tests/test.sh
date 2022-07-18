@@ -65,6 +65,18 @@ assert 7 'foo = 3; bar = 4; foo + bar;'
 assert 14 'foo = 3; bar = 5 * 6 - 8; foo + bar / 2;'
 assert 17 'foo = 4; bar = 5 * (8 - 2); (foo + bar) / 2;'
 
+assert 3 'return foo = 3;'
+assert 3 'foo = 3; return foo;'
+assert 7 'foo = 3; bar = 4; return foo + bar;'
+assert 14 'foo = 3; bar = 5 * 6 - 8; return foo + bar / 2;'
+assert 17 'foo = 4; bar = 5 * (8 - 2); return (foo + bar) / 2;'
+
+assert 2 'return 2; foo = 3;'
+assert 3 'foo = 3; return foo; foo = 4;'
+assert 7 'foo = 3; bar = 4; return foo + bar; return foo * bar;'
+assert 22 'foo = 3; return bar = 5 * 6 - 8; foo + bar / 2;'
+assert 30 'foo = 4; return bar = 5 * (8 - 2); (foo + bar) / 2; return 6;'
+
 # assert 3 'a = 3; ; a;'
 
 echo OK
