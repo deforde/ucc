@@ -12,6 +12,7 @@ extern const char *input;
 static void error(const char *loc, const char *fmt, ...);
 static bool startsWith(const char *p, const char *q);
 static Token *newToken(TokenType type, Token *cur, const char *str, size_t len);
+static Token *newIdent(Token *cur, const char **p);
 
 void error(const char *loc, const char *fmt, ...) {
   va_list args;
@@ -101,11 +102,21 @@ Token *tokenise(const char *p) {
       continue;
     }
     if (*p >= 'a' && *p <= 'z') {
-      cur = newToken(TK_IDENT, cur, p++, 1);
+      cur = newIdent(cur, &p);
       continue;
     }
     error(p, "Invalid token");
   }
   newToken(TK_EOF, cur, p, 0);
   return head.next;
+}
+
+Token *newIdent(Token *cur, const char **p) {
+  const char *q = *p;
+  while (*q && (*q >= 'a' && *q <= 'z')) {
+    q++;
+  }
+  Token *tok = newToken(TK_IDENT, cur, *p, q - *p);
+  *p = q;
+  return tok;
 }

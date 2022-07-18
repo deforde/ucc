@@ -53,7 +53,7 @@ static Node *primary(void);
 static Node *mul(void);
 static Node *unary(void);
 static void genLval(Node *node);
-static Lvar *findLvar(Token* tok);
+static Lvar *findLvar(Token *tok);
 
 Node *assign(void) {
   Node *node = equality();
@@ -269,8 +269,8 @@ void genLval(Node *node) {
   puts("  push rax");
 }
 
-Lvar *findLvar(Token* tok) {
-  for (Lvar* var = locals; var; var = var->next) {
+Lvar *findLvar(Token *tok) {
+  for (Lvar *var = locals; var; var = var->next) {
     if (var->len == tok->len && memcmp(tok->str, var->name, var->len) == 0) {
       return var;
     }
