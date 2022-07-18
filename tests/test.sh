@@ -65,5 +65,7 @@ assert 7 'foo = 3; bar = 4; foo + bar;'
 assert 14 'foo = 3; bar = 5 * 6 - 8; foo + bar / 2;'
 assert 17 'foo = 4; bar = 5 * (8 - 2); (foo + bar) / 2;'
 
+# assert 3 'a = 3; ; a;'
+
 echo OK
 
