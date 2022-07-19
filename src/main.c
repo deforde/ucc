@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "codegen.h"
+#include "parse.h"
 #include "tokenise.h"
 
 Token *token = NULL;
