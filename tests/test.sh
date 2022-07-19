@@ -83,6 +83,8 @@ assert 7 '_foo1 = 3; bar_baz = 4; return _foo1 + bar_baz;'
 assert 14 '_foo1 = 3; bar_baz = 5 * 6 - 8; return _foo1 + bar_baz / 2;'
 assert 17 '_foo1 = 4; bar_baz = 5 * (8 - 2); return (_foo1 + bar_baz) / 2;'
 
+assert 3 'a = 1; b = 2; if (a) b = 3; return b;'
+assert 2 'a = 0; b = 2; if (a) b = 3; return b;'
 assert 1 '_foo1 = 3; if (_foo1) return 1; return 0;'
 assert 2 '_foo1 = 0; if (_foo1) return 1; return 2;'
 assert 3 '_foo1 = 3; bar_baz = 4; if (bar_baz) return _foo1; return 2;'
