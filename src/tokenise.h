@@ -1,5 +1,5 @@
-#ifndef PARSE_H
-#define PARSE_H
+#ifndef TOKENISE_H
+#define TOKENISE_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -29,4 +29,4 @@ int expectNumber(void);
 Token *tokenise(const char *p);
 bool isEOF(void);
 
-#endif // PARSE_H
+#endif // TOKENISE_H

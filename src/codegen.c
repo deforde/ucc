@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "parse.h"
+#include "tokenise.h"
 
 #define MAX_CODE_LEN 100
 
