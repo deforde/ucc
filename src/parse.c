@@ -22,6 +22,7 @@ typedef enum {
   ND_ASS,
   ND_LVAR,
   ND_RET,
+  ND_IF,
 } NodeType;
 
 struct Node {
@@ -42,6 +43,7 @@ struct Lvar {
 
 Node *code[MAX_CODE_LEN] = {NULL};
 static Lvar *locals = NULL;
+static size_t jump_label_num = 1;
 
 static Node *assign(void);
 static Node *stmt(void);
@@ -66,14 +68,22 @@ Node *assign(void) {
 
 Node *stmt(void) {
   Node *node = NULL;
-  if (consumeReturn()) {
+  if (consumeIf()) {
+    node = calloc(1, sizeof(Node));
+    node->type = ND_IF;
+    expect("(");
+    node->lhs = expr();
+    expect(")");
+    node->rhs = stmt();
+  } else if (consumeReturn()) {
     node = calloc(1, sizeof(Node));
     node->type = ND_RET;
     node->lhs = expr();
+    expect(";");
   } else {
     node = expr();
+    expect(";");
   }
-  expect(";");
   return node;
 }
 
@@ -192,15 +202,23 @@ Node *add(void) {
 }
 
 void gen(Node *node) {
-  if (node->type == ND_RET) {
+  switch (node->type) {
+  case ND_IF:
+    gen(node->lhs);
+    puts("  pop rax");
+    puts("  cmp rax, 0");
+    printf("  je .Lend%zu\n", jump_label_num);
+    gen(node->rhs);
+    printf(".Lend%zu:\n", jump_label_num);
+    jump_label_num++;
+    return;
+  case ND_RET:
     gen(node->lhs);
     puts("  pop rax");
     puts("  mov rsp, rbp");
     puts("  pop rbp");
     puts("  ret");
     return;
-  }
-  switch (node->type) {
   case ND_NUM:
     printf("  push %d\n", node->val);
     return;

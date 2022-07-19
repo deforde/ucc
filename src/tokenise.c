@@ -15,6 +15,7 @@ static bool startsWith(const char *p, const char *q);
 static Token *newToken(TokenType type, Token *cur, const char *str, size_t len);
 static Token *newIdent(Token *cur, const char **p);
 static bool isIdentChar(char c);
+static bool consumeTokType(TokenType type);
 
 void error(const char *loc, const char *fmt, ...) {
   va_list args;
@@ -41,12 +42,28 @@ bool consume(char *op) {
   return true;
 }
 
-bool consumeReturn(void) {
-  if (token->type != TK_RETURN) {
+bool consumeTokType(TokenType type) {
+  if (token->type != type) {
     return false;
   }
   token = token->next;
   return true;
+}
+
+bool consumeReturn(void) {
+  return consumeTokType(TK_RET);
+}
+
+bool consumeIf(void) {
+  return consumeTokType(TK_IF);
+}
+
+bool consumeWhile(void) {
+  return consumeTokType(TK_WHILE);
+}
+
+bool consumeFor(void) {
+  return consumeTokType(TK_FOR);
 }
 
 Token *consumeIdent(void) {
@@ -111,8 +128,23 @@ Token *tokenise(const char *p) {
       cur->len = p - q;
       continue;
     }
+    if (strncmp(p, "if", 2) == 0 && !isIdentChar(p[2])) {
+      cur = newToken(TK_IF, cur, p, 2);
+      p += 2;
+      continue;
+    }
+    if (strncmp(p, "while", 5) == 0 && !isIdentChar(p[5])) {
+      cur = newToken(TK_WHILE, cur, p, 5);
+      p += 5;
+      continue;
+    }
+    if (strncmp(p, "for", 3) == 0 && !isIdentChar(p[3])) {
+      cur = newToken(TK_FOR, cur, p, 3);
+      p += 3;
+      continue;
+    }
     if (strncmp(p, "return", 6) == 0 && !isIdentChar(p[6])) {
-      cur = newToken(TK_RETURN, cur, p, 6);
+      cur = newToken(TK_RET, cur, p, 6);
       p += 6;
       continue;
     }

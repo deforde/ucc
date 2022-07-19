@@ -8,7 +8,10 @@ typedef enum {
   TK_RESERVED,
   TK_IDENT,
   TK_NUM,
-  TK_RETURN,
+  TK_RET,
+  TK_IF,
+  TK_WHILE,
+  TK_FOR,
   TK_EOF,
 } TokenType;
 
@@ -24,6 +27,9 @@ struct Token {
 bool consume(char *op);
 Token *consumeIdent(void);
 bool consumeReturn(void);
+bool consumeIf(void);
+bool consumeWhile(void);
+bool consumeFor(void);
 void expect(char *op);
 int expectNumber(void);
 Token *tokenise(const char *p);
