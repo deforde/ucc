@@ -9,7 +9,7 @@
 
 #include "token.h"
 
-extern Token *token;
+Token *token = NULL;
 extern const char *input;
 
 static void error(const char *loc, const char *fmt, ...);
@@ -97,7 +97,7 @@ Token *newToken(TokenType type, Token *cur, const char *str, size_t len) {
   return tok;
 }
 
-Token *tokenise(const char *p) {
+void tokenise(const char *p) {
   Token head = {0};
   Token *cur = &head;
   while (*p) {
@@ -149,7 +149,7 @@ Token *tokenise(const char *p) {
     error(p, "Invalid token");
   }
   newToken(TK_EOF, cur, p, 0);
-  return head.next;
+  token = head.next;
 }
 
 Token *newIdent(Token *cur, const char **p) {

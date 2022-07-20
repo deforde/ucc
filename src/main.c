@@ -5,9 +5,7 @@
 #include "parse.h"
 #include "tokenise.h"
 
-Token *token = NULL;
 const char *input = NULL;
-extern Node *code[];
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -17,7 +15,7 @@ int main(int argc, char *argv[]) {
   }
 
   input = argv[1];
-  token = tokenise(input);
+  tokenise(input);
   parse();
 
   puts(".intel_syntax noprefix");
@@ -27,10 +25,7 @@ int main(int argc, char *argv[]) {
   puts("  mov rbp, rsp");
   puts("  sub rsp, 208");
 
-  for (size_t i = 0; code[i]; ++i) {
-    gen(code[i]);
-    puts("  pop rax");
-  }
+  gen();
 
   puts("  mov rsp, rbp");
   puts("  pop rbp");

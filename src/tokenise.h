@@ -13,7 +13,7 @@ bool consumeWhile(void);
 bool consumeFor(void);
 void expect(char *op);
 int expectNumber(void);
-Token *tokenise(const char *p);
+void tokenise(const char *p);
 bool isEOF(void);
 
 #endif // TOKENISE_H

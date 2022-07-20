@@ -8,22 +8,31 @@
 #include "parse.h"
 
 static size_t jump_label_num = 1;
+extern Node *code[];
 
 static void genLval(Node *node);
+static void genNode(Node *node);
 
-void gen(Node *node) {
+void gen() {
+  for (size_t i = 0; code[i]; ++i) {
+    genNode(code[i]);
+    puts("  pop rax");
+  }
+}
+
+void genNode(Node *node) {
   switch (node->type) {
   case ND_IF:
-    gen(node->lhs);
+    genNode(node->lhs);
     puts("  pop rax");
     puts("  cmp rax, 0");
     printf("  je .Lend%zu\n", jump_label_num);
-    gen(node->rhs);
+    genNode(node->rhs);
     printf(".Lend%zu:\n", jump_label_num);
     jump_label_num++;
     return;
   case ND_RET:
-    gen(node->lhs);
+    genNode(node->lhs);
     puts("  pop rax");
     puts("  mov rsp, rbp");
     puts("  pop rbp");
@@ -40,7 +49,7 @@ void gen(Node *node) {
     return;
   case ND_ASS:
     genLval(node->lhs);
-    gen(node->rhs);
+    genNode(node->rhs);
     puts("  pop rdi");
     puts("  pop rax");
     puts("  mov [rax], rdi");
@@ -49,8 +58,8 @@ void gen(Node *node) {
   default:
     break;
   }
-  gen(node->lhs);
-  gen(node->rhs);
+  genNode(node->lhs);
+  genNode(node->rhs);
   puts("  pop rdi");
   puts("  pop rax");
   switch (node->type) {

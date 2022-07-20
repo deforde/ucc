@@ -3,6 +3,6 @@
 
 typedef struct Node Node;
 
-void gen(Node *node);
+void gen();
 
 #endif // CODEGEN_H
