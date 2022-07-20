@@ -50,21 +50,13 @@ bool consumeTokType(TokenType type) {
   return true;
 }
 
-bool consumeReturn(void) {
-  return consumeTokType(TK_RET);
-}
+bool consumeReturn(void) { return consumeTokType(TK_RET); }
 
-bool consumeIf(void) {
-  return consumeTokType(TK_IF);
-}
+bool consumeIf(void) { return consumeTokType(TK_IF); }
 
-bool consumeWhile(void) {
-  return consumeTokType(TK_WHILE);
-}
+bool consumeWhile(void) { return consumeTokType(TK_WHILE); }
 
-bool consumeFor(void) {
-  return consumeTokType(TK_FOR);
-}
+bool consumeFor(void) { return consumeTokType(TK_FOR); }
 
 Token *consumeIdent(void) {
   if (token->type != TK_IDENT) {

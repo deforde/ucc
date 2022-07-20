@@ -9,30 +9,6 @@
 
 #define MAX_CODE_LEN 100
 
-typedef enum {
-  ND_ADD,
-  ND_SUB,
-  ND_MUL,
-  ND_DIV,
-  ND_EQ,
-  ND_NE,
-  ND_LT,
-  ND_LE,
-  ND_NUM,
-  ND_ASS,
-  ND_LVAR,
-  ND_RET,
-  ND_IF,
-} NodeType;
-
-struct Node {
-  NodeType type;
-  Node *lhs;
-  Node *rhs;
-  int val;
-  size_t offset;
-};
-
 typedef struct Lvar Lvar;
 struct Lvar {
   Lvar *next;
@@ -43,7 +19,6 @@ struct Lvar {
 
 Node *code[MAX_CODE_LEN] = {NULL};
 static Lvar *locals = NULL;
-static size_t jump_label_num = 1;
 
 static Node *assign(void);
 static Node *stmt(void);
@@ -55,7 +30,6 @@ static Node *add(void);
 static Node *primary(void);
 static Node *mul(void);
 static Node *unary(void);
-static void genLval(Node *node);
 static Lvar *findLvar(Token *tok);
 
 Node *assign(void) {
@@ -201,89 +175,6 @@ Node *add(void) {
   }
 }
 
-void gen(Node *node) {
-  switch (node->type) {
-  case ND_IF:
-    gen(node->lhs);
-    puts("  pop rax");
-    puts("  cmp rax, 0");
-    printf("  je .Lend%zu\n", jump_label_num);
-    gen(node->rhs);
-    printf(".Lend%zu:\n", jump_label_num);
-    jump_label_num++;
-    return;
-  case ND_RET:
-    gen(node->lhs);
-    puts("  pop rax");
-    puts("  mov rsp, rbp");
-    puts("  pop rbp");
-    puts("  ret");
-    return;
-  case ND_NUM:
-    printf("  push %d\n", node->val);
-    return;
-  case ND_LVAR:
-    genLval(node);
-    puts("  pop rax");
-    puts("  mov rax, [rax]");
-    puts("  push rax");
-    return;
-  case ND_ASS:
-    genLval(node->lhs);
-    gen(node->rhs);
-    puts("  pop rdi");
-    puts("  pop rax");
-    puts("  mov [rax], rdi");
-    puts("  push rdi");
-    return;
-  default:
-    break;
-  }
-  gen(node->lhs);
-  gen(node->rhs);
-  puts("  pop rdi");
-  puts("  pop rax");
-  switch (node->type) {
-  case ND_ADD:
-    puts("  add rax, rdi");
-    break;
-  case ND_SUB:
-    puts("  sub rax, rdi");
-    break;
-  case ND_MUL:
-    puts("  imul rax, rdi");
-    break;
-  case ND_DIV:
-    puts("  cqo");
-    puts("  idiv rdi");
-    break;
-  case ND_EQ:
-    puts("  cmp rax, rdi");
-    puts("  sete al");
-    puts("  movzb rax, al");
-    break;
-  case ND_NE:
-    puts("  cmp rax, rdi");
-    puts("  setne al");
-    puts("  movzb rax, al");
-    break;
-  case ND_LT:
-    puts("  cmp rax, rdi");
-    puts("  setl al");
-    puts("  movzb rax, al");
-    break;
-  case ND_LE:
-    puts("  cmp rax, rdi");
-    puts("  setle al");
-    puts("  movzb rax, al");
-    break;
-  default:
-    assert(false);
-    break;
-  }
-  puts("  push rax");
-}
-
 Node *unary(void) {
   if (consume("+")) {
     return unary();
@@ -292,15 +183,6 @@ Node *unary(void) {
     return newNode(ND_SUB, newNodeNum(0), unary());
   }
   return primary();
-}
-
-void genLval(Node *node) {
-  if (node->type != ND_LVAR) {
-    fprintf(stderr, "Expected node type LVAR, got %i\n", node->type);
-  }
-  puts("  mov rax, rbp");
-  printf("  sub rax, %zu\n", node->offset);
-  puts("  push rax");
 }
 
 Lvar *findLvar(Token *tok) {
