@@ -22,10 +22,7 @@ void gen() {
   puts("  mov rbp, rsp");
   puts("  sub rsp, 208");
 
-  for (Node *n = prog.body; n; n = n->next) {
-    genStmt(n);
-    puts("  pop rax");
-  }
+  genStmt(prog.body);
 
   puts("  mov rsp, rbp");
   puts("  pop rbp");
@@ -34,6 +31,12 @@ void gen() {
 
 void genStmt(Node *node) {
   switch (node->type) {
+  case ND_BLK:
+    for (Node *n = node->body; n; n = n->next) {
+      genStmt(n);
+      puts("  pop rax");
+    }
+    return;
   case ND_IF:
     genExpr(node->lhs);
     puts("  pop rax");

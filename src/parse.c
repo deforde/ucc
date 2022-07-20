@@ -32,6 +32,23 @@ static Node *primary(void);
 static Node *mul(void);
 static Node *unary(void);
 static Lvar *findLvar(Token *tok);
+static Node *cmpnd_stmt(void);
+
+void parse() {
+  expect("{");
+  prog.body = cmpnd_stmt();
+}
+
+Node *cmpnd_stmt(void) {
+  Node head = {0};
+  Node *cur = &head;
+  while (!consume("}")) {
+    cur = cur->next = stmt();
+  }
+  Node *node = newNode(ND_BLK, NULL, NULL);
+  node->body = head.next;
+  return node;
+}
 
 Node *assign(void) {
   Node *node = equality();
@@ -43,7 +60,9 @@ Node *assign(void) {
 
 Node *stmt(void) {
   Node *node = NULL;
-  if (consumeIf()) {
+  if (consume("{")) {
+    node = cmpnd_stmt();
+  } else if (consumeIf()) {
     node = calloc(1, sizeof(Node));
     node->type = ND_IF;
     expect("(");
@@ -60,15 +79,6 @@ Node *stmt(void) {
     expect(";");
   }
   return node;
-}
-
-void parse() {
-  Node head = {0};
-  Node *cur = &head;
-  while (!isEOF()) {
-    cur = cur->next = stmt();
-  }
-  prog.body = head.next;
 }
 
 Node *newNode(NodeType type, Node *lhs, Node *rhs) {

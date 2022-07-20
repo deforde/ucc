@@ -111,7 +111,7 @@ void tokenise(const char *p) {
       p += 2;
       continue;
     }
-    if (strchr("+-*/()<>=;", *p)) {
+    if (strchr("+-*/()<>=;{}", *p)) {
       cur = newToken(TK_RESERVED, cur, p++, 1);
       continue;
     }
