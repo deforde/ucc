@@ -9,8 +9,6 @@
 #include "token.h"
 #include "tokenise.h"
 
-#define MAX_CODE_LEN 100
-
 typedef struct Lvar Lvar;
 struct Lvar {
   Lvar *next;
