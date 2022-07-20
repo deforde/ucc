@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
 
   input = argv[1];
   token = tokenise(input);
-  program();
+  parse();
 
   puts(".intel_syntax noprefix");
   puts(".globl main");

@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "token.h"
+
 extern Token *token;
 extern const char *input;
 

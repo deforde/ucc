@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "node.h"
 #include "parse.h"
 
 static size_t jump_label_num = 1;

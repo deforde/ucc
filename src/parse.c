@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "node.h"
+#include "token.h"
 #include "tokenise.h"
 
 #define MAX_CODE_LEN 100
@@ -20,6 +22,7 @@ struct Lvar {
 Node *code[MAX_CODE_LEN] = {NULL};
 static Lvar *locals = NULL;
 
+static Node *expr(void);
 static Node *assign(void);
 static Node *stmt(void);
 static Node *newNode(NodeType type, Node *lhs, Node *rhs);
@@ -61,7 +64,7 @@ Node *stmt(void) {
   return node;
 }
 
-void program() {
+void parse() {
   int i = 0;
   while (!isEOF()) {
     code[i++] = stmt();
