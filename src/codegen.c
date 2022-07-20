@@ -8,10 +8,11 @@
 #include "parse.h"
 
 static size_t jump_label_num = 1;
-extern Node *code[];
+extern Node prog;
 
 static void genLval(Node *node);
-static void genNode(Node *node);
+static void genStmt(Node *node);
+static void genExpr(Node *node);
 
 void gen() {
   puts(".intel_syntax noprefix");
@@ -21,8 +22,8 @@ void gen() {
   puts("  mov rbp, rsp");
   puts("  sub rsp, 208");
 
-  for (size_t i = 0; code[i]; ++i) {
-    genNode(code[i]);
+  for (Node *n = prog.body; n; n = n->next) {
+    genStmt(n);
     puts("  pop rax");
   }
 
@@ -31,19 +32,43 @@ void gen() {
   puts("  ret");
 }
 
-void genNode(Node *node) {
+void genStmt(Node *node) {
   switch (node->type) {
   case ND_IF:
-    genNode(node->lhs);
+    genExpr(node->lhs);
     puts("  pop rax");
     puts("  cmp rax, 0");
     printf("  je .Lend%zu\n", jump_label_num);
-    genNode(node->rhs);
+    genExpr(node->rhs);
     printf(".Lend%zu:\n", jump_label_num);
     jump_label_num++;
     return;
   case ND_RET:
-    genNode(node->lhs);
+    genExpr(node->lhs);
+    puts("  pop rax");
+    puts("  mov rsp, rbp");
+    puts("  pop rbp");
+    puts("  ret");
+    return;
+  default:
+    genExpr(node);
+    break;
+  }
+}
+
+void genExpr(Node *node) {
+  switch (node->type) {
+  case ND_IF:
+    genExpr(node->lhs);
+    puts("  pop rax");
+    puts("  cmp rax, 0");
+    printf("  je .Lend%zu\n", jump_label_num);
+    genExpr(node->rhs);
+    printf(".Lend%zu:\n", jump_label_num);
+    jump_label_num++;
+    return;
+  case ND_RET:
+    genExpr(node->lhs);
     puts("  pop rax");
     puts("  mov rsp, rbp");
     puts("  pop rbp");
@@ -60,7 +85,7 @@ void genNode(Node *node) {
     return;
   case ND_ASS:
     genLval(node->lhs);
-    genNode(node->rhs);
+    genExpr(node->rhs);
     puts("  pop rdi");
     puts("  pop rax");
     puts("  mov [rax], rdi");
@@ -70,8 +95,8 @@ void genNode(Node *node) {
     break;
   }
 
-  genNode(node->lhs);
-  genNode(node->rhs);
+  genExpr(node->lhs);
+  genExpr(node->rhs);
   puts("  pop rdi");
   puts("  pop rax");
 

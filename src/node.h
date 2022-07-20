@@ -22,8 +22,10 @@ typedef enum {
 typedef struct Node Node;
 struct Node {
   NodeType type;
+  Node *next;
   Node *lhs;
   Node *rhs;
+  Node *body;
   int val;
   size_t offset;
 };

@@ -19,7 +19,7 @@ struct Lvar {
   size_t offset;
 };
 
-Node *code[MAX_CODE_LEN] = {NULL};
+Node prog = {0};
 static Lvar *locals = NULL;
 
 static Node *expr(void);
@@ -65,11 +65,12 @@ Node *stmt(void) {
 }
 
 void parse() {
-  int i = 0;
+  Node head = {0};
+  Node *cur = &head;
   while (!isEOF()) {
-    code[i++] = stmt();
+    cur = cur->next = stmt();
   }
-  code[i] = NULL;
+  prog.body = head.next;
 }
 
 Node *newNode(NodeType type, Node *lhs, Node *rhs) {
