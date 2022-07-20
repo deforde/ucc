@@ -14,10 +14,21 @@ static void genLval(Node *node);
 static void genNode(Node *node);
 
 void gen() {
+  puts(".intel_syntax noprefix");
+  puts(".globl main");
+  puts("main:");
+  puts("  push rbp");
+  puts("  mov rbp, rsp");
+  puts("  sub rsp, 208");
+
   for (size_t i = 0; code[i]; ++i) {
     genNode(code[i]);
     puts("  pop rax");
   }
+
+  puts("  mov rsp, rbp");
+  puts("  pop rbp");
+  puts("  ret");
 }
 
 void genNode(Node *node) {
@@ -58,10 +69,12 @@ void genNode(Node *node) {
   default:
     break;
   }
+
   genNode(node->lhs);
   genNode(node->rhs);
   puts("  pop rdi");
   puts("  pop rax");
+
   switch (node->type) {
   case ND_ADD:
     puts("  add rax, rdi");

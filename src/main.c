@@ -15,20 +15,10 @@ int main(int argc, char *argv[]) {
   }
 
   input = argv[1];
+
   tokenise(input);
   parse();
-
-  puts(".intel_syntax noprefix");
-  puts(".globl main");
-  puts("main:");
-  puts("  push rbp");
-  puts("  mov rbp, rsp");
-  puts("  sub rsp, 208");
-
   gen();
 
-  puts("  mov rsp, rbp");
-  puts("  pop rbp");
-  puts("  ret");
   return EXIT_SUCCESS;
 }
