@@ -60,7 +60,9 @@ Node *assign(void) {
 
 Node *stmt(void) {
   Node *node = NULL;
-  if (consume("{")) {
+  if (consume(";")) {
+    node = newNode(ND_BLK, NULL, NULL);
+  } else if (consume("{")) {
     node = cmpnd_stmt();
   } else if (consumeIf()) {
     node = calloc(1, sizeof(Node));

@@ -133,7 +133,8 @@ assert 2 '{_foo1 = 0; if (_foo1) return 1; return 2;}'
 assert 3 '{_foo1 = 3; bar_baz = 4; if (bar_baz) return _foo1; return 2;}'
 assert 3 '{_foo1 = 3; bar_baz = 0; if (bar_baz) return 1; return _foo1;}'
 
-# assert 3 '{a = 3; ; a;}'
+assert 3 '{a = 3; ; a;}'
+assert 5 '{;;; return 5;}'
 
 echo OK
 
