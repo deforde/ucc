@@ -19,6 +19,7 @@ typedef enum {
   ND_RET,
   ND_IF,
   ND_FOR,
+  ND_WHILE,
 } NodeType;
 
 typedef struct Node Node;

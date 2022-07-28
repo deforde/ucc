@@ -56,7 +56,21 @@ void genStmt(Node *node) {
     printf(".L.begin%zu:\n", label_num);
     if (node->cond) {
       genStmt(node->cond);
-      puts("  pop rax");
+      puts("  cmp rax, 0");
+      printf("  je .L.end%zu\n", label_num);
+    }
+    genStmt(node->body);
+    if (node->post) {
+      genExpr(node->post);
+    }
+    printf("  jmp .L.begin%zu\n", label_num);
+    printf(".L.end%zu:\n", label_num);
+    label_num++;
+    return;
+  case ND_WHILE:
+    printf(".L.begin%zu:\n", label_num);
+    if (node->cond) {
+      genStmt(node->cond);
       puts("  cmp rax, 0");
       printf("  je .L.end%zu\n", label_num);
     }

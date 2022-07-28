@@ -85,6 +85,13 @@ Node *stmt(void) {
       expect(")");
     }
     node->body = stmt();
+  } else if (consumeWhile()) {
+    node = calloc(1, sizeof(Node));
+    node->type = ND_WHILE;
+    expect("(");
+    node->cond = expr();
+    expect(")");
+    node->body = stmt();
   } else if (consumeReturn()) {
     node = calloc(1, sizeof(Node));
     node->type = ND_RET;
