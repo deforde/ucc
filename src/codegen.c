@@ -38,12 +38,17 @@ void genStmt(Node *node) {
     }
     return;
   case ND_IF:
-    genExpr(node->lhs);
+    genExpr(node->cond);
     puts("  pop rax");
     puts("  cmp rax, 0");
-    printf("  je .Lend%zu\n", jump_label_num);
-    genExpr(node->rhs);
-    printf(".Lend%zu:\n", jump_label_num);
+    printf("  je .L.else%zu\n", jump_label_num);
+    genStmt(node->then);
+    printf("  jmp .L.end%zu\n", jump_label_num);
+    printf(".L.else%zu:\n", jump_label_num);
+    if (node->els) {
+      genStmt(node->els);
+    }
+    printf(".L.end%zu:\n", jump_label_num);
     jump_label_num++;
     return;
   case ND_RET:
@@ -61,22 +66,6 @@ void genStmt(Node *node) {
 
 void genExpr(Node *node) {
   switch (node->type) {
-  case ND_IF:
-    genExpr(node->lhs);
-    puts("  pop rax");
-    puts("  cmp rax, 0");
-    printf("  je .Lend%zu\n", jump_label_num);
-    genExpr(node->rhs);
-    printf(".Lend%zu:\n", jump_label_num);
-    jump_label_num++;
-    return;
-  case ND_RET:
-    genExpr(node->lhs);
-    puts("  pop rax");
-    puts("  mov rsp, rbp");
-    puts("  pop rbp");
-    puts("  ret");
-    return;
   case ND_NUM:
     printf("  push %d\n", node->val);
     return;

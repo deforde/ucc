@@ -68,9 +68,12 @@ Node *stmt(void) {
     node = calloc(1, sizeof(Node));
     node->type = ND_IF;
     expect("(");
-    node->lhs = expr();
+    node->cond = expr();
     expect(")");
-    node->rhs = stmt();
+    node->then = stmt();
+    if (consumeElse()) {
+      node->els = stmt();
+    }
   } else if (consumeReturn()) {
     node = calloc(1, sizeof(Node));
     node->type = ND_RET;

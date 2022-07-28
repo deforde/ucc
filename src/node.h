@@ -27,6 +27,9 @@ struct Node {
   Node *lhs;
   Node *rhs;
   Node *body;
+  Node *cond;
+  Node *then;
+  Node *els;
   int val;
   size_t offset;
 };

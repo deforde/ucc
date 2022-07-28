@@ -136,5 +136,12 @@ assert 3 '{_foo1 = 3; bar_baz = 0; if (bar_baz) return 1; return _foo1;}'
 assert 3 '{a = 3; ; a;}'
 assert 5 '{;;; return 5;}'
 
+assert 3 '{ if (0) return 2; return 3; }'
+assert 3 '{ if (1-1) return 2; return 3; }'
+assert 2 '{ if (1) return 2; return 3; }'
+assert 2 '{ if (2-1) return 2; return 3; }'
+assert 4 '{ if (0) { 1; 2; return 3; } else { return 4; } }'
+assert 3 '{ if (1) { 1; 2; return 3; } else { return 4; } }'
+
 echo OK
 

@@ -9,6 +9,7 @@ bool consume(char *op);
 Token *consumeIdent(void);
 bool consumeReturn(void);
 bool consumeIf(void);
+bool consumeElse(void);
 bool consumeWhile(void);
 bool consumeFor(void);
 void expect(char *op);

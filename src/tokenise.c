@@ -56,6 +56,8 @@ bool consumeReturn(void) { return consumeTokType(TK_RET); }
 
 bool consumeIf(void) { return consumeTokType(TK_IF); }
 
+bool consumeElse(void) { return consumeTokType(TK_ELSE); }
+
 bool consumeWhile(void) { return consumeTokType(TK_WHILE); }
 
 bool consumeFor(void) { return consumeTokType(TK_FOR); }
@@ -125,6 +127,11 @@ void tokenise(const char *p) {
     if (strncmp(p, "if", 2) == 0 && !isIdentChar(p[2])) {
       cur = newToken(TK_IF, cur, p, 2);
       p += 2;
+      continue;
+    }
+    if (strncmp(p, "else", 4) == 0 && !isIdentChar(p[4])) {
+      cur = newToken(TK_ELSE, cur, p, 4);
+      p += 4;
       continue;
     }
     if (strncmp(p, "while", 5) == 0 && !isIdentChar(p[5])) {
