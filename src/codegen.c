@@ -7,7 +7,7 @@
 #include "node.h"
 #include "parse.h"
 
-static size_t jump_label_num = 1;
+static size_t label_num = 1;
 extern Node prog;
 
 static void genLval(Node *node);
@@ -41,15 +41,32 @@ void genStmt(Node *node) {
     genExpr(node->cond);
     puts("  pop rax");
     puts("  cmp rax, 0");
-    printf("  je .L.else%zu\n", jump_label_num);
+    printf("  je .L.else%zu\n", label_num);
     genStmt(node->then);
-    printf("  jmp .L.end%zu\n", jump_label_num);
-    printf(".L.else%zu:\n", jump_label_num);
+    printf("  jmp .L.end%zu\n", label_num);
+    printf(".L.else%zu:\n", label_num);
     if (node->els) {
       genStmt(node->els);
     }
-    printf(".L.end%zu:\n", jump_label_num);
-    jump_label_num++;
+    printf(".L.end%zu:\n", label_num);
+    label_num++;
+    return;
+  case ND_FOR:
+    genStmt(node->pre);
+    printf(".L.begin%zu:\n", label_num);
+    if (node->cond) {
+      genStmt(node->cond);
+      puts("  pop rax");
+      puts("  cmp rax, 0");
+      printf("  je .L.end%zu\n", label_num);
+    }
+    genStmt(node->body);
+    if (node->post) {
+      genExpr(node->post);
+    }
+    printf("  jmp .L.begin%zu\n", label_num);
+    printf(".L.end%zu:\n", label_num);
+    label_num++;
     return;
   case ND_RET:
     genExpr(node->lhs);

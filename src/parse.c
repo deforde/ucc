@@ -74,6 +74,17 @@ Node *stmt(void) {
     if (consumeElse()) {
       node->els = stmt();
     }
+  } else if (consumeFor()) {
+    node = calloc(1, sizeof(Node));
+    node->type = ND_FOR;
+    expect("(");
+    node->pre = stmt();
+    node->cond = stmt();
+    if (!consume(")")) {
+      node->post = expr();
+      expect(")");
+    }
+    node->body = stmt();
   } else if (consumeReturn()) {
     node = calloc(1, sizeof(Node));
     node->type = ND_RET;

@@ -18,6 +18,7 @@ typedef enum {
   ND_LVAR,
   ND_RET,
   ND_IF,
+  ND_FOR,
 } NodeType;
 
 typedef struct Node Node;
@@ -30,6 +31,8 @@ struct Node {
   Node *cond;
   Node *then;
   Node *els;
+  Node *pre;
+  Node *post;
   int val;
   size_t offset;
 };
