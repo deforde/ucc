@@ -20,6 +20,8 @@ typedef enum {
   ND_IF,
   ND_FOR,
   ND_WHILE,
+  ND_ADDR,
+  ND_DEREF,
 } NodeType;
 
 typedef struct Node Node;

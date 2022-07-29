@@ -217,6 +217,18 @@ Node *unary(void) {
   if (consume("-")) {
     return newNode(ND_SUB, newNodeNum(0), unary());
   }
+  if (consume("*")) {
+    Node *node = calloc(1, sizeof(Node));
+    node->type = ND_DEREF;
+    node->body = unary();
+    return node;
+  }
+  if (consume("&")) {
+    Node *node = calloc(1, sizeof(Node));
+    node->type = ND_ADDR;
+    node->body = unary();
+    return node;
+  }
   return primary();
 }
 

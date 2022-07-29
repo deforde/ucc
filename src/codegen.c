@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "node.h"
 #include "parse.h"
@@ -114,6 +115,14 @@ void genExpr(Node *node) {
     puts("  mov [rax], rdi");
     puts("  push rdi");
     return;
+  case ND_ADDR:
+    genLval(node->body);
+    return;
+  case ND_DEREF:
+    genExpr(node->body);
+    puts("  mov rax, [rax]");
+    puts("  push rax");
+    return;
   default:
     break;
   }
@@ -165,10 +174,18 @@ void genExpr(Node *node) {
 }
 
 void genLval(Node *node) {
-  if (node->type != ND_LVAR) {
-    fprintf(stderr, "Expected node type LVAR, got %i\n", node->type);
+  switch (node->type) {
+  case ND_LVAR:
+    puts("  mov rax, rbp");
+    printf("  sub rax, %zu\n", node->offset);
+    puts("  push rax");
+    return;
+  case ND_DEREF:
+    genExpr(node->body);
+    return;
+  default:
+    break;
   }
-  puts("  mov rax, rbp");
-  printf("  sub rax, %zu\n", node->offset);
-  puts("  push rax");
+  fprintf(stderr, "not an lvalue\n");
+  exit(EXIT_FAILURE);
 }

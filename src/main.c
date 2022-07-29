@@ -10,7 +10,7 @@ const char *input = NULL;
 int main(int argc, char *argv[]) {
   if (argc != 2) {
     fprintf(stderr,
-            "Error! Exactly 1 command line argument should be provided");
+            "error! exactly 1 command line argument should be provided");
     return EXIT_FAILURE;
   }
 
