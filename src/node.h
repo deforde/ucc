@@ -22,11 +22,11 @@ typedef enum {
   ND_WHILE,
   ND_ADDR,
   ND_DEREF,
-} NodeType;
+} NodeKind;
 
 typedef struct Node Node;
 struct Node {
-  NodeType type;
+  NodeKind kind;
   Node *next;
   Node *lhs;
   Node *rhs;

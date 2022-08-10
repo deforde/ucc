@@ -31,7 +31,7 @@ void gen() {
 }
 
 void genStmt(Node *node) {
-  switch (node->type) {
+  switch (node->kind) {
   case ND_BLK:
     for (Node *n = node->body; n; n = n->next) {
       genStmt(n);
@@ -97,7 +97,7 @@ void genStmt(Node *node) {
 }
 
 void genExpr(Node *node) {
-  switch (node->type) {
+  switch (node->kind) {
   case ND_NUM:
     printf("  push %d\n", node->val);
     return;
@@ -132,7 +132,7 @@ void genExpr(Node *node) {
   puts("  pop rdi");
   puts("  pop rax");
 
-  switch (node->type) {
+  switch (node->kind) {
   case ND_ADD:
     puts("  add rax, rdi");
     break;
@@ -174,7 +174,7 @@ void genExpr(Node *node) {
 }
 
 void genLval(Node *node) {
-  switch (node->type) {
+  switch (node->kind) {
   case ND_LVAR:
     puts("  mov rax, rbp");
     printf("  sub rax, %zu\n", node->offset);

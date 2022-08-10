@@ -14,10 +14,10 @@ extern const char *input;
 
 static void error(const char *loc, const char *fmt, ...);
 static bool startsWith(const char *p, const char *q);
-static Token *newToken(TokenType type, Token *cur, const char *str, size_t len);
+static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len);
 static Token *newIdent(Token *cur, const char **p);
 static bool isIdentChar(char c);
-static bool consumeTokType(TokenType type);
+static bool consumeTokKind(TokenKind kind);
 
 void error(const char *loc, const char *fmt, ...) {
   va_list args;
@@ -36,7 +36,7 @@ bool startsWith(const char *p, const char *q) {
 }
 
 bool consume(char *op) {
-  if (token->type != TK_RESERVED || strlen(op) != token->len ||
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
       memcmp(token->str, op, token->len) != 0) {
     return false;
   }
@@ -44,26 +44,26 @@ bool consume(char *op) {
   return true;
 }
 
-bool consumeTokType(TokenType type) {
-  if (token->type != type) {
+bool consumeTokKind(TokenKind kind) {
+  if (token->kind != kind) {
     return false;
   }
   token = token->next;
   return true;
 }
 
-bool consumeReturn(void) { return consumeTokType(TK_RET); }
+bool consumeReturn(void) { return consumeTokKind(TK_RET); }
 
-bool consumeIf(void) { return consumeTokType(TK_IF); }
+bool consumeIf(void) { return consumeTokKind(TK_IF); }
 
-bool consumeElse(void) { return consumeTokType(TK_ELSE); }
+bool consumeElse(void) { return consumeTokKind(TK_ELSE); }
 
-bool consumeWhile(void) { return consumeTokType(TK_WHILE); }
+bool consumeWhile(void) { return consumeTokKind(TK_WHILE); }
 
-bool consumeFor(void) { return consumeTokType(TK_FOR); }
+bool consumeFor(void) { return consumeTokKind(TK_FOR); }
 
 Token *consumeIdent(void) {
-  if (token->type != TK_IDENT) {
+  if (token->kind != TK_IDENT) {
     return NULL;
   }
   Token *cur = token;
@@ -72,7 +72,7 @@ Token *consumeIdent(void) {
 }
 
 void expect(char *op) {
-  if (token->type != TK_RESERVED || strlen(op) != token->len ||
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
       memcmp(token->str, op, token->len) != 0) {
     error(token->str, "Expected: '%c'", *op);
   }
@@ -80,7 +80,7 @@ void expect(char *op) {
 }
 
 int expectNumber(void) {
-  if (token->type != TK_NUM) {
+  if (token->kind != TK_NUM) {
     error(token->str, "Expected number");
   }
   const int val = token->val;
@@ -88,11 +88,11 @@ int expectNumber(void) {
   return val;
 }
 
-bool isEOF(void) { return token->type == TK_EOF; }
+bool isEOF(void) { return token->kind == TK_EOF; }
 
-Token *newToken(TokenType type, Token *cur, const char *str, size_t len) {
+Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len) {
   Token *tok = calloc(1, sizeof(Token));
-  tok->type = type;
+  tok->kind = kind;
   tok->str = str;
   tok->len = len;
   cur->next = tok;

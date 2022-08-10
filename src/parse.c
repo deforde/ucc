@@ -23,7 +23,7 @@ static Lvar *locals = NULL;
 static Node *expr(void);
 static Node *assign(void);
 static Node *stmt(void);
-static Node *newNode(NodeType type, Node *lhs, Node *rhs);
+static Node *newNode(NodeKind kind, Node *lhs, Node *rhs);
 static Node *newNodeNum(int val);
 static Node *equality(void);
 static Node *relational(void);
@@ -66,7 +66,7 @@ Node *stmt(void) {
     node = cmpnd_stmt();
   } else if (consumeIf()) {
     node = calloc(1, sizeof(Node));
-    node->type = ND_IF;
+    node->kind = ND_IF;
     expect("(");
     node->cond = expr();
     expect(")");
@@ -76,7 +76,7 @@ Node *stmt(void) {
     }
   } else if (consumeFor()) {
     node = calloc(1, sizeof(Node));
-    node->type = ND_FOR;
+    node->kind = ND_FOR;
     expect("(");
     node->pre = stmt();
     node->cond = stmt();
@@ -87,14 +87,14 @@ Node *stmt(void) {
     node->body = stmt();
   } else if (consumeWhile()) {
     node = calloc(1, sizeof(Node));
-    node->type = ND_WHILE;
+    node->kind = ND_WHILE;
     expect("(");
     node->cond = expr();
     expect(")");
     node->body = stmt();
   } else if (consumeReturn()) {
     node = calloc(1, sizeof(Node));
-    node->type = ND_RET;
+    node->kind = ND_RET;
     node->lhs = expr();
     expect(";");
   } else {
@@ -104,9 +104,9 @@ Node *stmt(void) {
   return node;
 }
 
-Node *newNode(NodeType type, Node *lhs, Node *rhs) {
+Node *newNode(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
-  node->type = type;
+  node->kind = kind;
   node->lhs = lhs;
   node->rhs = rhs;
   return node;
@@ -114,14 +114,14 @@ Node *newNode(NodeType type, Node *lhs, Node *rhs) {
 
 Node *newNodeNum(int val) {
   Node *node = calloc(1, sizeof(Node));
-  node->type = ND_NUM;
+  node->kind = ND_NUM;
   node->val = val;
   return node;
 }
 
 Node *newNodeIdent(Token *tok) {
   Node *node = calloc(1, sizeof(Node));
-  node->type = ND_LVAR;
+  node->kind = ND_LVAR;
 
   Lvar *lvar = findLvar(tok);
   if (lvar) {
@@ -219,13 +219,13 @@ Node *unary(void) {
   }
   if (consume("*")) {
     Node *node = calloc(1, sizeof(Node));
-    node->type = ND_DEREF;
+    node->kind = ND_DEREF;
     node->body = unary();
     return node;
   }
   if (consume("&")) {
     Node *node = calloc(1, sizeof(Node));
-    node->type = ND_ADDR;
+    node->kind = ND_ADDR;
     node->body = unary();
     return node;
   }

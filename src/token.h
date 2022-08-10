@@ -13,11 +13,11 @@ typedef enum {
   TK_WHILE,
   TK_FOR,
   TK_EOF,
-} TokenType;
+} TokenKind;
 
 typedef struct Token Token;
 struct Token {
-  TokenType type;
+  TokenKind kind;
   Token *next;
   int val;
   const char *str;
