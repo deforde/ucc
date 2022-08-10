@@ -24,9 +24,11 @@ typedef enum {
   ND_DEREF,
 } NodeKind;
 
+typedef struct Type Type;
 typedef struct Node Node;
 struct Node {
   NodeKind kind;
+  Type *ty;
   Node *next;
   Node *lhs;
   Node *rhs;

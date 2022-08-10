@@ -8,6 +8,7 @@
 #include "node.h"
 #include "token.h"
 #include "tokenise.h"
+#include "type.h"
 
 typedef struct Lvar Lvar;
 struct Lvar {
@@ -19,12 +20,15 @@ struct Lvar {
 
 Node prog = {0};
 static Lvar *locals = NULL;
+extern Type *ty_int;
 
 static Node *expr(void);
 static Node *assign(void);
 static Node *stmt(void);
 static Node *newNode(NodeKind kind, Node *lhs, Node *rhs);
 static Node *newNodeNum(int val);
+static Node *newNodeAdd(Node *lhs, Node *rhs);
+static Node *newNodeSub(Node *lhs, Node *rhs);
 static Node *equality(void);
 static Node *relational(void);
 static Node *add(void);
@@ -44,6 +48,7 @@ Node *cmpnd_stmt(void) {
   Node *cur = &head;
   while (!consume("}")) {
     cur = cur->next = stmt();
+    addType(cur);
   }
   Node *node = newNode(ND_BLK, NULL, NULL);
   node->body = head.next;
@@ -117,6 +122,47 @@ Node *newNodeNum(int val) {
   node->kind = ND_NUM;
   node->val = val;
   return node;
+}
+
+Node *newNodeAdd(Node *lhs, Node *rhs) {
+  addType(lhs);
+  addType(rhs);
+  if (isInteger(lhs->ty) && isInteger(rhs->ty)) {
+    return newNode(ND_ADD, lhs, rhs);
+  }
+  if (lhs->ty->base && rhs->ty->base) {
+    fprintf(stderr, "Invalid operands!");
+    exit(EXIT_FAILURE);
+  }
+  if (!lhs->ty->base && rhs->ty->base) {
+    Node *tmp = lhs;
+    lhs = rhs;
+    rhs = tmp;
+  }
+  rhs = newNode(ND_MUL, rhs, newNodeNum(8)); // Size of ptr on 64 system
+  return newNode(ND_ADD, lhs, rhs);
+}
+
+Node *newNodeSub(Node *lhs, Node *rhs) {
+  addType(lhs);
+  addType(rhs);
+  if (isInteger(lhs->ty) && isInteger(rhs->ty)) {
+    return newNode(ND_SUB, lhs, rhs);
+  }
+  if (lhs->ty->base && isInteger(rhs->ty)) {
+    rhs = newNode(ND_MUL, rhs, newNodeNum(8)); // Size of ptr on 64 system
+    addType(rhs);
+    Node *node = newNode(ND_SUB, lhs, rhs);
+    node->ty = lhs->ty;
+    return node;
+  }
+  if (lhs->ty->base && rhs->ty->base) {
+    Node *node = newNode(ND_SUB, lhs, rhs);
+    node->ty = ty_int;
+    return newNode(ND_DIV, node, newNodeNum(8)); // Size of ptr on 64 system
+  }
+  fprintf(stderr, "Invalid operands!");
+  exit(EXIT_FAILURE);
 }
 
 Node *newNodeIdent(Token *tok) {
@@ -201,9 +247,9 @@ Node *add(void) {
   Node *node = mul();
   for (;;) {
     if (consume("+")) {
-      node = newNode(ND_ADD, node, mul());
+      node = newNodeAdd(node, mul());
     } else if (consume("-")) {
-      node = newNode(ND_SUB, node, mul());
+      node = newNodeSub(node, mul());
     } else {
       return node;
     }
