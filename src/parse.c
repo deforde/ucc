@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "comp_err.h"
 #include "node.h"
 #include "token.h"
 #include "tokenise.h"
@@ -131,7 +132,7 @@ Node *newNodeAdd(Node *lhs, Node *rhs) {
     return newNode(ND_ADD, lhs, rhs);
   }
   if (lhs->ty->base && rhs->ty->base) {
-    error("invalid operands");
+    compError("invalid operands");
   }
   if (!lhs->ty->base && rhs->ty->base) {
     Node *tmp = lhs;
@@ -160,7 +161,7 @@ Node *newNodeSub(Node *lhs, Node *rhs) {
     node->ty = ty_int;
     return newNode(ND_DIV, node, newNodeNum(8)); // Size of ptr on 64 system
   }
-  error("invalid operands");
+  compError("invalid operands");
   assert(false);
   return NULL;
 }

@@ -1,42 +1,20 @@
 #include "tokenise.h"
 
 #include <ctype.h>
-#include <stdarg.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "comp_err.h"
 #include "token.h"
 
 Token *token = NULL;
-extern const char *input;
 
-static void errorToken(const char *loc, const char *fmt, ...);
 static bool startsWith(const char *p, const char *q);
 static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len);
 static Token *newIdent(Token *cur, const char **p);
 static bool isIdentChar(char c);
 static bool consumeTokKind(TokenKind kind);
-
-void error(const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  errorToken(token->str, fmt, args);
-}
-
-void errorToken(const char *loc, const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  const int pos = (int)(loc - input);
-  fprintf(stderr, "%s\n", input);
-  fprintf(stderr, "%*s", pos, " ");
-  fprintf(stderr, "^ ");
-  vfprintf(stderr, fmt, args);
-  va_end(args);
-  fprintf(stderr, "\n");
-  exit(EXIT_FAILURE);
-}
 
 bool startsWith(const char *p, const char *q) {
   return memcmp(p, q, strlen(q)) == 0;
@@ -81,14 +59,14 @@ Token *consumeIdent(void) {
 void expect(char *op) {
   if (token->kind != TK_RESERVED || strlen(op) != token->len ||
       memcmp(token->str, op, token->len) != 0) {
-    error("Expected: '%c'", *op);
+    compError("Expected: '%c'", *op);
   }
   token = token->next;
 }
 
 int expectNumber(void) {
   if (token->kind != TK_NUM) {
-    error("Expected number");
+    compError("Expected number");
   }
   const int val = token->val;
   token = token->next;
@@ -160,7 +138,7 @@ void tokenise(const char *p) {
       cur = newIdent(cur, &p);
       continue;
     }
-    errorToken(p, "Invalid token");
+    compErrorToken(p, "Invalid token");
   }
   newToken(TK_EOF, cur, p, 0);
   token = head.next;

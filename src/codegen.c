@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "comp_err.h"
 #include "node.h"
 #include "parse.h"
-#include "tokenise.h"
 
 static size_t label_num = 1;
 extern Node prog;
@@ -187,6 +187,6 @@ void genLval(Node *node) {
   default:
     break;
   }
-  error("not an lvalue");
+  compError("not an lvalue");
   exit(EXIT_FAILURE);
 }

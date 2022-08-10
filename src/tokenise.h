@@ -5,7 +5,6 @@
 
 typedef struct Token Token;
 
-void error(const char *fmt, ...);
 bool consume(char *op);
 Token *consumeIdent(void);
 bool consumeReturn(void);
