@@ -131,8 +131,7 @@ Node *newNodeAdd(Node *lhs, Node *rhs) {
     return newNode(ND_ADD, lhs, rhs);
   }
   if (lhs->ty->base && rhs->ty->base) {
-    fprintf(stderr, "Invalid operands!");
-    exit(EXIT_FAILURE);
+    error("invalid operands");
   }
   if (!lhs->ty->base && rhs->ty->base) {
     Node *tmp = lhs;
@@ -161,8 +160,9 @@ Node *newNodeSub(Node *lhs, Node *rhs) {
     node->ty = ty_int;
     return newNode(ND_DIV, node, newNodeNum(8)); // Size of ptr on 64 system
   }
-  fprintf(stderr, "Invalid operands!");
-  exit(EXIT_FAILURE);
+  error("invalid operands");
+  assert(false);
+  return NULL;
 }
 
 Node *newNodeIdent(Token *tok) {

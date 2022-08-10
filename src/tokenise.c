@@ -12,14 +12,20 @@
 Token *token = NULL;
 extern const char *input;
 
-static void error(const char *loc, const char *fmt, ...);
+static void errorToken(const char *loc, const char *fmt, ...);
 static bool startsWith(const char *p, const char *q);
 static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len);
 static Token *newIdent(Token *cur, const char **p);
 static bool isIdentChar(char c);
 static bool consumeTokKind(TokenKind kind);
 
-void error(const char *loc, const char *fmt, ...) {
+void error(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  errorToken(token->str, fmt, args);
+}
+
+void errorToken(const char *loc, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
   const int pos = (int)(loc - input);
@@ -27,6 +33,7 @@ void error(const char *loc, const char *fmt, ...) {
   fprintf(stderr, "%*s", pos, " ");
   fprintf(stderr, "^ ");
   vfprintf(stderr, fmt, args);
+  va_end(args);
   fprintf(stderr, "\n");
   exit(EXIT_FAILURE);
 }
@@ -74,14 +81,14 @@ Token *consumeIdent(void) {
 void expect(char *op) {
   if (token->kind != TK_RESERVED || strlen(op) != token->len ||
       memcmp(token->str, op, token->len) != 0) {
-    error(token->str, "Expected: '%c'", *op);
+    error("Expected: '%c'", *op);
   }
   token = token->next;
 }
 
 int expectNumber(void) {
   if (token->kind != TK_NUM) {
-    error(token->str, "Expected number");
+    error("Expected number");
   }
   const int val = token->val;
   token = token->next;
@@ -153,7 +160,7 @@ void tokenise(const char *p) {
       cur = newIdent(cur, &p);
       continue;
     }
-    error(p, "Invalid token");
+    errorToken(p, "Invalid token");
   }
   newToken(TK_EOF, cur, p, 0);
   token = head.next;
