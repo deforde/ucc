@@ -168,7 +168,7 @@ void genExpr(Node *node) {
     puts("  movzb rax, al");
     break;
   default:
-    assert(false);
+    compError("invalid expression");
     break;
   }
   puts("  push rax");
