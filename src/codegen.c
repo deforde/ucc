@@ -6,11 +6,12 @@
 #include <stdlib.h>
 
 #include "comp_err.h"
+#include "func.h"
 #include "node.h"
 #include "parse.h"
 
 static size_t label_num = 1;
-extern Node prog;
+extern Function prog;
 
 static void genLval(Node *node);
 static void genStmt(Node *node);
@@ -22,7 +23,7 @@ void gen() {
   puts("main:");
   puts("  push rbp");
   puts("  mov rbp, rsp");
-  puts("  sub rsp, 208");
+  printf("  sub rsp, %zu\n", prog.stack_size);
 
   genStmt(prog.body);
 

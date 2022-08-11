@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "comp_err.h"
+#include "func.h"
 #include "node.h"
 #include "token.h"
 #include "tokenise.h"
@@ -19,8 +20,7 @@ struct Lvar {
   size_t offset;
 };
 
-Node prog = {0};
-static Lvar *locals = NULL;
+Function prog = {0};
 extern Type *ty_int;
 
 static Node *expr(void);
@@ -139,7 +139,7 @@ Node *newNodeAdd(Node *lhs, Node *rhs) {
     lhs = rhs;
     rhs = tmp;
   }
-  rhs = newNode(ND_MUL, rhs, newNodeNum(8)); // Size of ptr on 64 system
+  rhs = newNode(ND_MUL, rhs, newNodeNum(8));
   return newNode(ND_ADD, lhs, rhs);
 }
 
@@ -150,7 +150,7 @@ Node *newNodeSub(Node *lhs, Node *rhs) {
     return newNode(ND_SUB, lhs, rhs);
   }
   if (lhs->ty->base && isInteger(rhs->ty)) {
-    rhs = newNode(ND_MUL, rhs, newNodeNum(8)); // Size of ptr on 64 system
+    rhs = newNode(ND_MUL, rhs, newNodeNum(8));
     addType(rhs);
     Node *node = newNode(ND_SUB, lhs, rhs);
     node->ty = lhs->ty;
@@ -159,7 +159,7 @@ Node *newNodeSub(Node *lhs, Node *rhs) {
   if (lhs->ty->base && rhs->ty->base) {
     Node *node = newNode(ND_SUB, lhs, rhs);
     node->ty = ty_int;
-    return newNode(ND_DIV, node, newNodeNum(8)); // Size of ptr on 64 system
+    return newNode(ND_DIV, node, newNodeNum(8));
   }
   compError("invalid operands");
   assert(false);
@@ -175,12 +175,13 @@ Node *newNodeIdent(Token *tok) {
     node->offset = lvar->offset;
   } else {
     lvar = calloc(1, sizeof(Lvar));
-    lvar->next = locals;
+    lvar->next = prog.locals;
     lvar->name = tok->str;
     lvar->len = tok->len;
-    lvar->offset = (locals ? locals->offset : 0) + 8;
+    lvar->offset = (prog.locals ? prog.locals->offset + 8 : 0);
     node->offset = lvar->offset;
-    locals = lvar;
+    prog.locals = lvar;
+    prog.stack_size += 8;
   }
 
   return node;
@@ -280,7 +281,7 @@ Node *unary(void) {
 }
 
 Lvar *findLvar(Token *tok) {
-  for (Lvar *var = locals; var; var = var->next) {
+  for (Lvar *var = prog.locals; var; var = var->next) {
     if (var->len == tok->len && memcmp(tok->str, var->name, var->len) == 0) {
       return var;
     }
