@@ -6,22 +6,12 @@
 #include <string.h>
 
 #include "comp_err.h"
-#include "func.h"
-#include "node.h"
-#include "token.h"
+#include "defs.h"
 #include "tokenise.h"
-#include "type.h"
 
-typedef struct Lvar Lvar;
-struct Lvar {
-  Lvar *next;
-  const char *name;
-  size_t len;
-  size_t offset;
-};
-
-Function prog = {0};
 extern Type *ty_int;
+Function prog = {0};
+Type *ty_int = &(Type){.kind = TY_INT, .base = NULL};
 
 static Node *expr(void);
 static Node *assign(void);
@@ -38,6 +28,9 @@ static Node *mul(void);
 static Node *unary(void);
 static Lvar *findLvar(Token *tok);
 static Node *cmpnd_stmt(void);
+static Type *pointerTo(Type *base);
+static bool isInteger(Type *ty);
+static void addType(Node *node);
 
 void parse() {
   expect("{");
@@ -287,4 +280,62 @@ Lvar *findLvar(Token *tok) {
     }
   }
   return NULL;
+}
+
+bool isInteger(Type *ty) { return ty->kind == TY_INT; }
+
+void addType(Node *node) {
+  if (!node || node->ty) {
+    return;
+  }
+
+  addType(node->next);
+  addType(node->lhs);
+  addType(node->rhs);
+  addType(node->cond);
+  addType(node->then);
+  addType(node->els);
+  addType(node->pre);
+  addType(node->post);
+
+  for (Node *n = node->body; n; n = n->next) {
+    addType(n);
+  }
+
+  switch (node->kind) {
+  case ND_ADD:
+  case ND_SUB:
+  case ND_MUL:
+  case ND_DIV:
+  case ND_ASS:
+    node->ty = node->lhs->ty;
+    break;
+  case ND_EQ:
+  case ND_NE:
+  case ND_LT:
+  case ND_LE:
+  case ND_NUM:
+  case ND_LVAR:
+    node->ty = ty_int;
+    break;
+  case ND_ADDR:
+    node->ty = pointerTo(node->body->ty);
+    break;
+  case ND_DEREF:
+    if (node->body->ty->kind == TY_PTR) {
+      node->ty = node->body->ty->base;
+    } else {
+      node->ty = ty_int;
+    }
+    break;
+  default:
+    break;
+  }
+}
+
+Type *pointerTo(Type *base) {
+  Type *ty = calloc(1, sizeof(Type));
+  ty->kind = TY_PTR;
+  ty->base = base;
+  return ty;
 }

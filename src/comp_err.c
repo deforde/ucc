@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "token.h"
+#include "defs.h"
 
 extern Token *token;
 extern const char *input;

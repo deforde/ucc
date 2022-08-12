@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "comp_err.h"
-#include "token.h"
+#include "defs.h"
 
 Token *token = NULL;
 

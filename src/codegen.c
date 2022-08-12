@@ -6,8 +6,7 @@
 #include <stdlib.h>
 
 #include "comp_err.h"
-#include "func.h"
-#include "node.h"
+#include "defs.h"
 #include "parse.h"
 
 static size_t label_num = 1;
