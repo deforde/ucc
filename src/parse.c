@@ -26,7 +26,7 @@ static Node *add(void);
 static Node *primary(void);
 static Node *mul(void);
 static Node *unary(void);
-static Lvar *findLvar(Token *tok);
+static Var *findVar(Token *tok);
 static Node *cmpnd_stmt(void);
 static Type *pointerTo(Type *base);
 static bool isInteger(Type *ty);
@@ -161,19 +161,19 @@ Node *newNodeSub(Node *lhs, Node *rhs) {
 
 Node *newNodeIdent(Token *tok) {
   Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_LVAR;
+  node->kind = ND_VAR;
 
-  Lvar *lvar = findLvar(tok);
-  if (lvar) {
-    node->offset = lvar->offset;
+  Var *var = findVar(tok);
+  if (var) {
+    node->offset = var->offset;
   } else {
-    lvar = calloc(1, sizeof(Lvar));
-    lvar->next = prog.locals;
-    lvar->name = tok->str;
-    lvar->len = tok->len;
-    lvar->offset = (prog.locals ? prog.locals->offset + 8 : 0);
-    node->offset = lvar->offset;
-    prog.locals = lvar;
+    var = calloc(1, sizeof(Var));
+    var->next = prog.locals;
+    var->name = tok->str;
+    var->len = tok->len;
+    var->offset = (prog.locals ? prog.locals->offset + 8 : 0);
+    node->offset = var->offset;
+    prog.locals = var;
     prog.stack_size += 8;
   }
 
@@ -273,8 +273,8 @@ Node *unary(void) {
   return primary();
 }
 
-Lvar *findLvar(Token *tok) {
-  for (Lvar *var = prog.locals; var; var = var->next) {
+Var *findVar(Token *tok) {
+  for (Var *var = prog.locals; var; var = var->next) {
     if (var->len == tok->len && memcmp(tok->str, var->name, var->len) == 0) {
       return var;
     }
@@ -315,7 +315,7 @@ void addType(Node *node) {
   case ND_LT:
   case ND_LE:
   case ND_NUM:
-  case ND_LVAR:
+  case ND_VAR:
     node->ty = ty_int;
     break;
   case ND_ADDR:

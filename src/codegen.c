@@ -102,7 +102,7 @@ void genExpr(Node *node) {
   case ND_NUM:
     printf("  push %d\n", node->val);
     return;
-  case ND_LVAR:
+  case ND_VAR:
     genLval(node);
     puts("  pop rax");
     puts("  mov rax, [rax]");
@@ -176,7 +176,7 @@ void genExpr(Node *node) {
 
 void genLval(Node *node) {
   switch (node->kind) {
-  case ND_LVAR:
+  case ND_VAR:
     puts("  mov rax, rbp");
     printf("  sub rax, %zu\n", node->offset);
     puts("  push rax");

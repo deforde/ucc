@@ -4,12 +4,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-typedef struct Lvar Lvar;
+typedef struct Var Var;
 typedef struct Type Type;
 typedef struct Node Node;
 typedef struct Token Token;
 typedef struct Function Function;
-typedef struct Lvar Lvar;
+typedef struct Var Var;
 
 typedef enum {
   ND_ADD,
@@ -23,7 +23,7 @@ typedef enum {
   ND_LE,
   ND_NUM,
   ND_ASS,
-  ND_LVAR,
+  ND_VAR,
   ND_RET,
   ND_IF,
   ND_FOR,
@@ -64,7 +64,7 @@ struct Token {
 
 struct Function {
   Node *body;
-  Lvar *locals;
+  Var *locals;
   size_t stack_size;
 };
 
@@ -84,8 +84,8 @@ struct Node {
   size_t offset;
 };
 
-struct Lvar {
-  Lvar *next;
+struct Var {
+  Var *next;
   const char *name;
   size_t len;
   size_t offset;
