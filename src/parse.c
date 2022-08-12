@@ -1,6 +1,7 @@
 #include "parse.h"
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +21,7 @@ static Node *newNode(NodeKind kind, Node *lhs, Node *rhs);
 static Node *newNodeNum(int val);
 static Node *newNodeAdd(Node *lhs, Node *rhs);
 static Node *newNodeSub(Node *lhs, Node *rhs);
+static Node *newNodeIdent(Token *tok);
 static Node *equality(void);
 static Node *relational(void);
 static Node *add(void);
@@ -27,21 +29,27 @@ static Node *primary(void);
 static Node *mul(void);
 static Node *unary(void);
 static Var *findVar(Token *tok);
-static Node *cmpnd_stmt(void);
+static Node *cmpndStmt(void);
 static Type *pointerTo(Type *base);
 static bool isInteger(Type *ty);
 static void addType(Node *node);
+static Node *declaration(void);
+static Var *newVar(Type *ty);
 
 void parse() {
   expect("{");
-  prog.body = cmpnd_stmt();
+  prog.body = cmpndStmt();
 }
 
-Node *cmpnd_stmt(void) {
+Node *cmpndStmt(void) {
   Node head = {0};
   Node *cur = &head;
   while (!consume("}")) {
-    cur = cur->next = stmt();
+    if (consumeIdentMatch("int")) {
+      cur = cur->next = declaration();
+    } else {
+      cur = cur->next = stmt();
+    }
     addType(cur);
   }
   Node *node = newNode(ND_BLK, NULL, NULL);
@@ -62,7 +70,7 @@ Node *stmt(void) {
   if (consume(";")) {
     node = newNode(ND_BLK, NULL, NULL);
   } else if (consume("{")) {
-    node = cmpnd_stmt();
+    node = cmpndStmt();
   } else if (consumeIf()) {
     node = calloc(1, sizeof(Node));
     node->kind = ND_IF;
@@ -162,21 +170,61 @@ Node *newNodeSub(Node *lhs, Node *rhs) {
 Node *newNodeIdent(Token *tok) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_VAR;
-
   Var *var = findVar(tok);
-  if (var) {
-    node->var = var;
-  } else {
-    var = calloc(1, sizeof(Var));
-    var->next = prog.locals;
-    var->name = tok->str;
-    var->len = tok->len;
-    var->offset = (prog.locals ? prog.locals->offset + 8 : 0);
-    node->var = var;
-    prog.locals = var;
-    prog.stack_size += 8;
+  if (!var) {
+    compErrorToken(tok->str, "undefined variable");
+  }
+  node->var = var;
+  return node;
+}
+
+Var *newVar(Type *ty) {
+  Token *tok = consumeIdent();
+  if(!tok) {
+    compErrorToken(tok->str, "expected identifier");
+  }
+  Var* var = calloc(1, sizeof(Var));
+  var->next = prog.locals;
+  var->name = tok->str;
+  var->len = tok->len;
+  var->offset = (prog.locals ? prog.locals->offset + 8 : 0);
+  var->ty = ty;
+  prog.locals = var;
+  prog.stack_size += 8;
+  return var;
+}
+
+Node *declaration(void) {
+  // Type *basety = declspec();
+
+  Node head = {0};
+  Node *cur = &head;
+  bool first = true;
+
+  while (!consume(";")) {
+    if (!first) {
+      expect(",");
+    }
+    first = false;
+
+    // Type *ty = declarator(basety);
+    Type *ty = ty_int;
+    Var *var = newVar(ty);
+
+    if (!consume("=")) {
+      continue;
+    }
+
+    Node *lhs = calloc(1, sizeof(Node));
+    lhs->kind = ND_VAR;
+    lhs->var = var;
+    Node *rhs = assign();
+    Node *node = newNode(ND_ASS, lhs, rhs);
+    cur = cur->next = node;
   }
 
+  Node *node = newNode(ND_BLK, NULL, NULL);
+  node->body = head.next;
   return node;
 }
 
