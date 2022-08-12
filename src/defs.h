@@ -80,12 +80,13 @@ struct Node {
   Node *els;
   Node *pre;
   Node *post;
+  Var *var;
   int val;
-  size_t offset;
 };
 
 struct Var {
   Var *next;
+  Type *ty;
   const char *name;
   size_t len;
   size_t offset;

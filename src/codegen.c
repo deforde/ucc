@@ -178,7 +178,7 @@ void genLval(Node *node) {
   switch (node->kind) {
   case ND_VAR:
     puts("  mov rax, rbp");
-    printf("  sub rax, %zu\n", node->offset);
+    printf("  sub rax, %zu\n", node->var->offset);
     puts("  push rax");
     return;
   case ND_DEREF:

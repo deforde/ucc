@@ -165,14 +165,14 @@ Node *newNodeIdent(Token *tok) {
 
   Var *var = findVar(tok);
   if (var) {
-    node->offset = var->offset;
+    node->var = var;
   } else {
     var = calloc(1, sizeof(Var));
     var->next = prog.locals;
     var->name = tok->str;
     var->len = tok->len;
     var->offset = (prog.locals ? prog.locals->offset + 8 : 0);
-    node->offset = var->offset;
+    node->var = var;
     prog.locals = var;
     prog.stack_size += 8;
   }
