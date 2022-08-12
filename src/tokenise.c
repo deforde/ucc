@@ -56,8 +56,9 @@ Token *consumeIdent(void) {
   return cur;
 }
 
-bool consumeIdentMatch(char* op) {
-  if (token->kind != TK_IDENT || strlen(op) != token->len || memcmp(token->str, op, token->len) != 0) {
+bool consumeIdentMatch(char *op) {
+  if (token->kind != TK_IDENT || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len) != 0) {
     return false;
   }
   token = token->next;

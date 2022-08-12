@@ -180,10 +180,10 @@ Node *newNodeIdent(Token *tok) {
 
 Var *newVar(Type *ty) {
   Token *tok = consumeIdent();
-  if(!tok) {
+  if (!tok) {
     compErrorToken(tok->str, "expected identifier");
   }
-  Var* var = calloc(1, sizeof(Var));
+  Var *var = calloc(1, sizeof(Var));
   var->next = prog.locals;
   var->name = tok->str;
   var->len = tok->len;
