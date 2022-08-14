@@ -148,6 +148,14 @@ Node *newNodeSub(Node *lhs, Node *rhs) {
 
 Node *newNodeIdent(Token *tok) {
   Node *node = calloc(1, sizeof(Node));
+
+  if (consume("(")) {
+    expect(")");
+    node->kind = ND_FUNCCALL;
+    node->funcname = strndup(tok->str, tok->len);
+    return node;
+  }
+
   node->kind = ND_VAR;
   Var *var = findVar(tok);
   if (!var) {
@@ -342,8 +350,11 @@ void addType(Node *node) {
   case ND_LT:
   case ND_LE:
   case ND_NUM:
-  case ND_VAR:
+  case ND_FUNCCALL:
     node->ty = ty_int;
+    break;
+  case ND_VAR:
+    node->ty = node->var->ty;
     break;
   case ND_ADDR:
     node->ty = pointerTo(node->body->ty);

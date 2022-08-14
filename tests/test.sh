@@ -4,12 +4,17 @@ IFS=$'\n\t'
 
 DIR=${0%/*}
 
+cat <<EOF | gcc -xc -c -o tmp2.o -
+int ret3() { return 3; }
+int ret5() { return 5; }
+EOF
+
 assert() {
   expected=$1
   input=$2
 
   $DIR/../build/ucc $input > tmp.s
-  cc -o tmp tmp.s
+  cc -o tmp tmp.s tmp2.o
   ./tmp
   actual=$?
 
@@ -17,6 +22,7 @@ assert() {
     echo "$input => $actual"
   else
     echo "$input => $expected expected, but got $actual"
+    rm tmp2.o
     exit 1
   fi
 
@@ -158,5 +164,9 @@ assert 7 '{ int x=3; int y=5; *(&x-1)=7; return y; }'
 assert 7 '{ int x=3; int y=5; *(&y+2-1)=7; return x; }'
 assert 5 '{ int x=3; return (&x+2)-&x+3; }'
 
+assert 3 '{ return ret3(); }'
+assert 5 '{ return ret5(); }'
+
 echo OK
 
+rm tmp2.o

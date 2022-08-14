@@ -124,6 +124,11 @@ void genExpr(Node *node) {
     puts("  mov rax, [rax]");
     puts("  push rax");
     return;
+  case ND_FUNCCALL:
+    puts("  mov rax, 0");
+    printf("  call %s\n", node->funcname);
+    puts("  push rax");
+    return;
   default:
     break;
   }

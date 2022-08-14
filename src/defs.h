@@ -13,23 +13,24 @@ typedef struct Var Var;
 
 typedef enum {
   ND_ADD,
+  ND_ADDR,
+  ND_ASS,
   ND_BLK,
-  ND_SUB,
-  ND_MUL,
+  ND_DEREF,
   ND_DIV,
   ND_EQ,
-  ND_NE,
-  ND_LT,
-  ND_LE,
-  ND_NUM,
-  ND_ASS,
-  ND_VAR,
-  ND_RET,
-  ND_IF,
   ND_FOR,
+  ND_FUNCCALL,
+  ND_IF,
+  ND_LE,
+  ND_LT,
+  ND_MUL,
+  ND_NE,
+  ND_NUM,
+  ND_RET,
+  ND_SUB,
+  ND_VAR,
   ND_WHILE,
-  ND_ADDR,
-  ND_DEREF,
 } NodeKind;
 
 typedef enum {
@@ -38,15 +39,15 @@ typedef enum {
 } TypeKind;
 
 typedef enum {
-  TK_RESERVED,
-  TK_IDENT,
-  TK_NUM,
-  TK_RET,
-  TK_IF,
   TK_ELSE,
-  TK_WHILE,
-  TK_FOR,
   TK_EOF,
+  TK_FOR,
+  TK_IDENT,
+  TK_IF,
+  TK_NUM,
+  TK_RESERVED,
+  TK_RET,
+  TK_WHILE,
 } TokenKind;
 
 struct Type {
@@ -81,6 +82,7 @@ struct Node {
   Node *pre;
   Node *post;
   Var *var;
+  const char* funcname;
   int val;
 };
 
