@@ -14,27 +14,31 @@ extern Type *ty_int;
 Function prog = {0};
 Type *ty_int = &(Type){.kind = TY_INT, .base = NULL};
 
-static Node *expr(void);
-static Node *assign(void);
-static Node *stmt(void);
-static Node *newNode(NodeKind kind, Node *lhs, Node *rhs);
-static Node *newNodeNum(int val);
-static Node *newNodeAdd(Node *lhs, Node *rhs);
-static Node *newNodeSub(Node *lhs, Node *rhs);
-static Node *newNodeIdent(Token *tok);
-static Node *equality(void);
-static Node *relational(void);
 static Node *add(void);
-static Node *primary(void);
-static Node *mul(void);
-static Node *unary(void);
-static Var *findVar(Token *tok);
+static Node *assign(void);
 static Node *cmpndStmt(void);
+static Node *declaration(void);
+static Node *equality(void);
+static Node *expr(void);
+static Node *mul(void);
+static Node *newNode(NodeKind kind, Node *lhs, Node *rhs);
+static Node *newNodeAdd(Node *lhs, Node *rhs);
+static Node *newNodeIdent(Token *tok);
+static Node *newNodeNum(int val);
+static Node *newNodeSub(Node *lhs, Node *rhs);
+static Node *primary(void);
+static Node *relational(void);
+static Node *stmt(void);
+static Node *unary(void);
+static Node* newNodeFor(void);
+static Node* newNodeIf(void);
+static Node* newNodeReturn(void);
+static Node* newNodeWhile(void);
 static Type *pointerTo(Type *base);
+static Var *findVar(Token *tok);
+static Var *newVar(Type *ty);
 static bool isInteger(Type *ty);
 static void addType(Node *node);
-static Node *declaration(void);
-static Var *newVar(Type *ty);
 
 void parse() {
   expect("{");
@@ -72,38 +76,13 @@ Node *stmt(void) {
   } else if (consume("{")) {
     node = cmpndStmt();
   } else if (consumeIf()) {
-    node = calloc(1, sizeof(Node));
-    node->kind = ND_IF;
-    expect("(");
-    node->cond = expr();
-    expect(")");
-    node->then = stmt();
-    if (consumeElse()) {
-      node->els = stmt();
-    }
+    node = newNodeIf();
   } else if (consumeFor()) {
-    node = calloc(1, sizeof(Node));
-    node->kind = ND_FOR;
-    expect("(");
-    node->pre = stmt();
-    node->cond = stmt();
-    if (!consume(")")) {
-      node->post = expr();
-      expect(")");
-    }
-    node->body = stmt();
+    node = newNodeFor();
   } else if (consumeWhile()) {
-    node = calloc(1, sizeof(Node));
-    node->kind = ND_WHILE;
-    expect("(");
-    node->cond = expr();
-    expect(")");
-    node->body = stmt();
+    node = newNodeWhile();
   } else if (consumeReturn()) {
-    node = calloc(1, sizeof(Node));
-    node->kind = ND_RET;
-    node->lhs = expr();
-    expect(";");
+    node = newNodeReturn();
   } else {
     node = expr();
     expect(";");
@@ -386,4 +365,49 @@ Type *pointerTo(Type *base) {
   ty->kind = TY_PTR;
   ty->base = base;
   return ty;
+}
+
+Node* newNodeIf(void) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_IF;
+  expect("(");
+  node->cond = expr();
+  expect(")");
+  node->then = stmt();
+  if (consumeElse()) {
+    node->els = stmt();
+  }
+  return node;
+}
+
+Node* newNodeWhile(void) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_WHILE;
+  expect("(");
+  node->cond = expr();
+  expect(")");
+  node->body = stmt();
+  return node;
+}
+
+Node* newNodeFor(void) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_FOR;
+  expect("(");
+  node->pre = stmt();
+  node->cond = stmt();
+  if (!consume(")")) {
+    node->post = expr();
+    expect(")");
+  }
+  node->body = stmt();
+  return node;
+}
+
+Node* newNodeReturn(void) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_RET;
+  node->lhs = expr();
+  expect(";");
+  return node;
 }

@@ -10,11 +10,11 @@
 
 Token *token = NULL;
 
-static bool startsWith(const char *p, const char *q);
-static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len);
 static Token *newIdent(Token *cur, const char **p);
-static bool isIdentChar(char c);
+static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len);
 static bool consumeTokKind(TokenKind kind);
+static bool isIdentChar(char c);
+static bool startsWith(const char *p, const char *q);
 
 bool startsWith(const char *p, const char *q) {
   return memcmp(p, q, strlen(q)) == 0;
