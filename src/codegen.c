@@ -9,8 +9,9 @@
 #include "defs.h"
 #include "parse.h"
 
-static size_t label_num = 1;
 extern Function prog;
+static size_t label_num = 1;
+static const char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 static void genLval(Node *node);
 static void genStmt(Node *node);
@@ -124,11 +125,20 @@ void genExpr(Node *node) {
     puts("  mov rax, [rax]");
     puts("  push rax");
     return;
-  case ND_FUNCCALL:
+  case ND_FUNCCALL: {
+    size_t nargs = 0;
+    for (Node *arg = node->args; arg; arg = arg->next) {
+      genExpr(arg);
+      ++nargs;
+    }
+    for (ssize_t i = (ssize_t)nargs - 1; i >= 0; --i) {
+      printf("  pop %s\n", argreg[i]);
+    }
     puts("  mov rax, 0");
     printf("  call %s\n", node->funcname);
     puts("  push rax");
     return;
+  }
   default:
     break;
   }

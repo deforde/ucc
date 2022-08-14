@@ -20,20 +20,21 @@ static Node *cmpndStmt(void);
 static Node *declaration(void);
 static Node *equality(void);
 static Node *expr(void);
+static Node *funcCall(Token *tok);
 static Node *mul(void);
 static Node *newNode(NodeKind kind, Node *lhs, Node *rhs);
 static Node *newNodeAdd(Node *lhs, Node *rhs);
+static Node *newNodeFor(void);
 static Node *newNodeIdent(Token *tok);
+static Node *newNodeIf(void);
 static Node *newNodeNum(int val);
+static Node *newNodeReturn(void);
 static Node *newNodeSub(Node *lhs, Node *rhs);
+static Node *newNodeWhile(void);
 static Node *primary(void);
 static Node *relational(void);
 static Node *stmt(void);
 static Node *unary(void);
-static Node *newNodeFor(void);
-static Node *newNodeIf(void);
-static Node *newNodeReturn(void);
-static Node *newNodeWhile(void);
 static Type *pointerTo(Type *base);
 static Var *findVar(Token *tok);
 static Var *newVar(Type *ty);
@@ -150,10 +151,7 @@ Node *newNodeIdent(Token *tok) {
   Node *node = calloc(1, sizeof(Node));
 
   if (consume("(")) {
-    expect(")");
-    node->kind = ND_FUNCCALL;
-    node->funcname = strndup(tok->str, tok->len);
-    return node;
+    return funcCall(tok);
   }
 
   node->kind = ND_VAR;
@@ -420,5 +418,23 @@ Node *newNodeReturn(void) {
   node->kind = ND_RET;
   node->lhs = expr();
   expect(";");
+  return node;
+}
+
+Node *funcCall(Token *tok) {
+  Node head = {0};
+  Node *cur = &head;
+
+  while (!consume(")")) {
+    if (cur != &head) {
+      expect(",");
+    }
+    cur = cur->next = assign();
+  }
+
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_FUNCCALL;
+  node->funcname = strndup(tok->str, tok->len);
+  node->args = head.next;
   return node;
 }

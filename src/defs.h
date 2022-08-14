@@ -84,6 +84,7 @@ struct Node {
   Var *var;
   int val;
   const char *funcname;
+  Node *args;
 };
 
 struct Var {

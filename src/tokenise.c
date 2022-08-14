@@ -107,7 +107,7 @@ void tokenise(const char *p) {
       p += 2;
       continue;
     }
-    if (strchr("+-*/()<>=;{}&", *p)) {
+    if (strchr("+-*/()<>=;{}&,", *p)) {
       cur = newToken(TK_RESERVED, cur, p++, 1);
       continue;
     }
@@ -147,7 +147,7 @@ void tokenise(const char *p) {
       cur = newIdent(cur, &p);
       continue;
     }
-    compErrorToken(p, "Invalid token");
+    compErrorToken(p, "invalid token");
   }
   newToken(TK_EOF, cur, p, 0);
   token = head.next;
