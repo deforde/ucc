@@ -82,8 +82,8 @@ struct Node {
   Node *pre;
   Node *post;
   Var *var;
-  const char* funcname;
   int val;
+  const char *funcname;
 };
 
 struct Var {

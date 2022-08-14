@@ -30,10 +30,10 @@ static Node *primary(void);
 static Node *relational(void);
 static Node *stmt(void);
 static Node *unary(void);
-static Node* newNodeFor(void);
-static Node* newNodeIf(void);
-static Node* newNodeReturn(void);
-static Node* newNodeWhile(void);
+static Node *newNodeFor(void);
+static Node *newNodeIf(void);
+static Node *newNodeReturn(void);
+static Node *newNodeWhile(void);
 static Type *pointerTo(Type *base);
 static Var *findVar(Token *tok);
 static Var *newVar(Type *ty);
@@ -378,7 +378,7 @@ Type *pointerTo(Type *base) {
   return ty;
 }
 
-Node* newNodeIf(void) {
+Node *newNodeIf(void) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_IF;
   expect("(");
@@ -391,7 +391,7 @@ Node* newNodeIf(void) {
   return node;
 }
 
-Node* newNodeWhile(void) {
+Node *newNodeWhile(void) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_WHILE;
   expect("(");
@@ -401,7 +401,7 @@ Node* newNodeWhile(void) {
   return node;
 }
 
-Node* newNodeFor(void) {
+Node *newNodeFor(void) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_FOR;
   expect("(");
@@ -415,7 +415,7 @@ Node* newNodeFor(void) {
   return node;
 }
 
-Node* newNodeReturn(void) {
+Node *newNodeReturn(void) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_RET;
   node->lhs = expr();
