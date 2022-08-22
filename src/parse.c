@@ -17,7 +17,7 @@ Type *ty_int = &(Type){.kind = TY_INT, .base = NULL};
 static Node *add(void);
 static Node *assign(void);
 static Node *cmpndStmt(void);
-static Node *declaration(void);
+static Node *declaration(Token *);
 static Node *equality(void);
 static Node *expr(void);
 static Node *funcCall(Token *tok);
@@ -40,6 +40,8 @@ static Var *findVar(Token *tok);
 static Var *newVar(Type *ty);
 static bool isInteger(Type *ty);
 static void addType(Node *node);
+static Type *declspec(Token *ident);
+static Type *declarator(Type *ty);
 
 void parse() {
   expect("{");
@@ -50,8 +52,9 @@ Node *cmpndStmt(void) {
   Node head = {0};
   Node *cur = &head;
   while (!consume("}")) {
-    if (consumeIdentMatch("int")) {
-      cur = cur->next = declaration();
+    Token *tok = NULL;
+    if ((tok = consumeIdentMatch("int"))) {
+      cur = cur->next = declaration(tok);
     } else {
       cur = cur->next = stmt();
     }
@@ -164,10 +167,7 @@ Node *newNodeIdent(Token *tok) {
 }
 
 Var *newVar(Type *ty) {
-  Token *tok = consumeIdent();
-  if (!tok) {
-    compErrorToken(tok->str, "expected identifier");
-  }
+  Token *tok = expectIdent();
   Var *var = calloc(1, sizeof(Var));
   var->next = prog.locals;
   var->name = tok->str;
@@ -179,8 +179,22 @@ Var *newVar(Type *ty) {
   return var;
 }
 
-Node *declaration(void) {
-  // Type *basety = declspec();
+Type *declspec(Token *ident) {
+  if (strncmp(ident->str, "int", ident->len) != 0) {
+    compErrorToken(ident->str, "expected 'int'");
+  }
+  return ty_int;
+}
+
+Type *declarator(Type *ty) {
+  while (consume("*")) {
+    ty = pointerTo(ty);
+  }
+  return ty;
+}
+
+Node *declaration(Token *ident) {
+  Type *basety = declspec(ident);
 
   Node head = {0};
   Node *cur = &head;
@@ -192,8 +206,7 @@ Node *declaration(void) {
     }
     first = false;
 
-    // Type *ty = declarator(basety);
-    Type *ty = ty_int;
+    Type *ty = declarator(basety);
     Var *var = newVar(ty);
 
     if (!consume("=")) {
