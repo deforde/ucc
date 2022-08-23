@@ -7,7 +7,6 @@
 
 #include "comp_err.h"
 #include "defs.h"
-#include "parse.h"
 
 extern Function prog;
 static size_t label_num = 1;

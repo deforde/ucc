@@ -17,7 +17,7 @@ Type *ty_int = &(Type){.kind = TY_INT, .base = NULL};
 static Node *add(void);
 static Node *assign(void);
 static Node *cmpndStmt(void);
-static Node *declaration(Token *);
+static Node *declaration(Token *ident);
 static Node *equality(void);
 static Node *expr(void);
 static Node *funcCall(Token *tok);
