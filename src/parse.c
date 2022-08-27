@@ -186,6 +186,7 @@ Var *newVar(Type *ty) {
 }
 
 Type *declspec(Token *ident) {
+  // TODO: Add mapping of type keywords to Type objects
   if (strncmp(ident->str, "int", ident->len) != 0) {
     compErrorToken(ident->str, "expected 'int'");
   }
@@ -205,9 +206,11 @@ Function *function(void) {
   ty = declarator(ty);
 
   Token *fn_ident = expectIdent();
+
   Function *fn = calloc(1, sizeof(Function));
-  cur_fn = fn;
+  fn->ret_ty = ty;
   fn->name = strndup(fn_ident->str, fn_ident->len);
+  cur_fn = fn;
 
   expect("(");
   expect(")");
