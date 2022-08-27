@@ -11,8 +11,9 @@
 #include "tokenise.h"
 
 extern Type *ty_int;
-Function prog = {0};
+Function *prog = NULL;
 Type *ty_int = &(Type){.kind = TY_INT, .base = NULL};
+static Function *cur_fn = NULL;
 
 static Node *add(void);
 static Node *assign(void);
@@ -42,10 +43,15 @@ static bool isInteger(Type *ty);
 static void addType(Node *node);
 static Type *declspec(Token *ident);
 static Type *declarator(Type *ty);
+static Function *function(void);
 
 void parse() {
-  expect("{");
-  prog.body = cmpndStmt();
+  Function head = {0};
+  Function *cur = &head;
+  while (!isEOF()) {
+    cur = cur->next = function();
+  }
+  prog = head.next;
 }
 
 Node *cmpndStmt(void) {
@@ -169,13 +175,13 @@ Node *newNodeIdent(Token *tok) {
 Var *newVar(Type *ty) {
   Token *tok = expectIdent();
   Var *var = calloc(1, sizeof(Var));
-  var->next = prog.locals;
+  var->next = cur_fn->locals;
   var->name = tok->str;
   var->len = tok->len;
-  var->offset = (prog.locals ? prog.locals->offset + 8 : 0);
+  var->offset = (cur_fn->locals ? cur_fn->locals->offset + 8 : 0);
   var->ty = ty;
-  prog.locals = var;
-  prog.stack_size += 8;
+  cur_fn->locals = var;
+  cur_fn->stack_size += 8;
   return var;
 }
 
@@ -191,6 +197,24 @@ Type *declarator(Type *ty) {
     ty = pointerTo(ty);
   }
   return ty;
+}
+
+Function *function(void) {
+  Token *ty_ident = expectIdent();
+  Type *ty = declspec(ty_ident);
+  ty = declarator(ty);
+
+  Token *fn_ident = expectIdent();
+  Function *fn = calloc(1, sizeof(Function));
+  cur_fn = fn;
+  fn->name = strndup(fn_ident->str, fn_ident->len);
+
+  expect("(");
+  expect(")");
+  expect("{");
+
+  fn->body = cmpndStmt();
+  return fn;
 }
 
 Node *declaration(Token *ident) {
@@ -320,7 +344,7 @@ Node *unary(void) {
 }
 
 Var *findVar(Token *tok) {
-  for (Var *var = prog.locals; var; var = var->next) {
+  for (Var *var = cur_fn->locals; var; var = var->next) {
     if (var->len == tok->len && memcmp(tok->str, var->name, var->len) == 0) {
       return var;
     }

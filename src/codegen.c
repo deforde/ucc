@@ -8,7 +8,7 @@
 #include "comp_err.h"
 #include "defs.h"
 
-extern Function prog;
+extern Function *prog;
 static size_t label_num = 1;
 static const char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
@@ -18,18 +18,21 @@ static void genExpr(Node *node);
 
 void gen() {
   puts(".intel_syntax noprefix");
-  puts(".globl main");
-  puts("main:");
-  puts("  push rbp");
-  puts("  mov rbp, rsp");
-  printf("  sub rsp, %zu\n", prog.stack_size);
+  for (Function *fn = prog; fn; fn = fn->next) {
+    printf(".globl %s\n", fn->name);
+    printf("%s:\n", fn->name);
+    puts("  push rbp");
+    puts("  mov rbp, rsp");
+    printf("  sub rsp, %zu\n", fn->stack_size);
 
-  genStmt(prog.body);
+    genStmt(fn->body);
 
-  puts("  pop rax");
-  puts("  mov rsp, rbp");
-  puts("  pop rbp");
-  puts("  ret");
+    puts("  pop rax");
+    printf(".L.return.%s:\n", fn->name);
+    puts("  mov rsp, rbp");
+    puts("  pop rbp");
+    puts("  ret");
+  }
 }
 
 void genStmt(Node *node) {
