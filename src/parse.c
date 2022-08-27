@@ -59,7 +59,7 @@ Node *cmpndStmt(void) {
   Node *cur = &head;
   while (!consume("}")) {
     Token *tok = NULL;
-    if ((tok = consumeIdentMatch("int"))) {
+    if ((tok = consumeTypeIdent())) {
       cur = cur->next = declaration(tok);
     } else {
       cur = cur->next = stmt();

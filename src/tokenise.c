@@ -8,7 +8,10 @@
 #include "comp_err.h"
 #include "defs.h"
 
+#define NUM_TYPE_IDENTS 1
+
 Token *token = NULL;
+static const char *type_idents[NUM_TYPE_IDENTS] = {"int"};
 
 static Token *newIdent(Token *cur, const char **p);
 static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len);
@@ -64,14 +67,17 @@ Token *expectIdent(void) {
   return tok;
 }
 
-Token *consumeIdentMatch(char *op) {
-  if (token->kind != TK_IDENT || strlen(op) != token->len ||
-      memcmp(token->str, op, token->len) != 0) {
-    return NULL;
+Token *consumeTypeIdent(void) {
+  for (size_t i = 0; i < NUM_TYPE_IDENTS; ++i) {
+    const char *ty_ident = type_idents[i];
+    if (token->kind == TK_IDENT && strlen(ty_ident) == token->len &&
+        memcmp(token->str, ty_ident, token->len) == 0) {
+      Token *tok = token;
+      token = token->next;
+      return tok;
+    }
   }
-  Token *tok = token;
-  token = token->next;
-  return tok;
+  return NULL;
 }
 
 void expect(char *op) {
