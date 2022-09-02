@@ -38,7 +38,8 @@ static Node *stmt(void);
 static Node *unary(void);
 static Type *pointerTo(Type *base);
 static Var *findVar(Token *tok);
-static Var *newVar(Type *ty);
+static Var *newLocalVar(Type *ty);
+static void newParam(Type *ty);
 static bool isInteger(Type *ty);
 static void addType(Node *node);
 static Type *declspec(Token *ident);
@@ -172,17 +173,29 @@ Node *newNodeIdent(Token *tok) {
   return node;
 }
 
-Var *newVar(Type *ty) {
+Var *newLocalVar(Type *ty) {
   Token *tok = expectIdent();
   Var *var = calloc(1, sizeof(Var));
   var->next = cur_fn->locals;
   var->name = tok->str;
   var->len = tok->len;
-  var->offset = (cur_fn->locals ? cur_fn->locals->offset + 8 : 0);
+  var->offset = (cur_fn->locals ? cur_fn->locals->offset + 8 : 8);
   var->ty = ty;
   cur_fn->locals = var;
-  cur_fn->stack_size += 8;
+  cur_fn->stack_size = var->offset + 8;
   return var;
+}
+
+void newParam(Type *ty) {
+  Token *tok = expectIdent();
+  Var *var = calloc(1, sizeof(Var));
+  var->next = cur_fn->params;
+  var->name = tok->str;
+  var->len = tok->len;
+  var->offset = (cur_fn->params ? cur_fn->params->offset + 8 : 8);
+  var->ty = ty;
+  cur_fn->params = var;
+  cur_fn->stack_size = var->offset + 8;
 }
 
 Type *declspec(Token *ident) {
@@ -213,9 +226,20 @@ Function *function(void) {
   cur_fn = fn;
 
   expect("(");
-  expect(")");
+  bool first = true;
+  while (!consume(")")) {
+    if (!first) {
+      expect(",");
+    }
+    first = false;
+    Token *ty_ident = expectIdent();
+    Type *ty = declspec(ty_ident);
+    ty = declarator(ty);
+    newParam(ty);
+  }
   expect("{");
 
+  fn->locals = fn->params;
   fn->body = cmpndStmt();
   return fn;
 }
@@ -234,7 +258,7 @@ Node *declaration(Token *ident) {
     first = false;
 
     Type *ty = declarator(basety);
-    Var *var = newVar(ty);
+    Var *var = newLocalVar(ty);
 
     if (!consume("=")) {
       continue;
@@ -372,6 +396,9 @@ void addType(Node *node) {
   addType(node->post);
 
   for (Node *n = node->body; n; n = n->next) {
+    addType(n);
+  }
+  for (Node *n = node->args; n; n = n->next) {
     addType(n);
   }
 

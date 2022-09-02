@@ -11,6 +11,7 @@
 extern Function *prog;
 static size_t label_num = 1;
 static const char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static Function *cur_fn = NULL;
 
 static void genLval(Node *node);
 static void genStmt(Node *node);
@@ -21,9 +22,22 @@ void gen() {
   for (Function *fn = prog; fn; fn = fn->next) {
     printf(".globl %s\n", fn->name);
     printf("%s:\n", fn->name);
+    cur_fn = fn;
+
     puts("  push rbp");
     puts("  mov rbp, rsp");
     printf("  sub rsp, %zu\n", fn->stack_size);
+
+    size_t param_cnt = 0; // TODO: This is a huge hack, get rid of it!
+    for (Var *param = fn->params; param; param = param->next) {
+      param_cnt++;
+    }
+    size_t i = 0;
+    for (Var *param = fn->params; param; param = param->next) {
+      puts("  mov rax, rbp");
+      printf("  sub rax, %zu\n", param->offset);
+      printf("  mov [rax], %s\n", argreg[param_cnt - (i++) - 1]);
+    }
 
     genStmt(fn->body);
 
@@ -90,9 +104,7 @@ void genStmt(Node *node) {
   case ND_RET:
     genExpr(node->lhs);
     puts("  pop rax");
-    puts("  mov rsp, rbp");
-    puts("  pop rbp");
-    puts("  ret");
+    printf("  jmp .L.return.%s\n", cur_fn->name);
     return;
   default:
     genExpr(node);

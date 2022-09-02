@@ -67,6 +67,7 @@ struct Function {
   Node *body;
   Var *locals;
   Type *ret_ty;
+  Var *params;
   size_t stack_size;
   char *name;
   Function *next;
