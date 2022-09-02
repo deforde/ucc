@@ -195,6 +195,7 @@ void newParam(Type *ty) {
   var->offset = (cur_fn->params ? cur_fn->params->offset + 8 : 8);
   var->ty = ty;
   cur_fn->params = var;
+  cur_fn->param_cnt++;
   cur_fn->stack_size = var->offset + 8;
 }
 

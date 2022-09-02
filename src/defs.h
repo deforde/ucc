@@ -68,6 +68,7 @@ struct Function {
   Var *locals;
   Type *ret_ty;
   Var *params;
+  size_t param_cnt;
   size_t stack_size;
   char *name;
   Function *next;

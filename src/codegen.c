@@ -28,15 +28,11 @@ void gen() {
     puts("  mov rbp, rsp");
     printf("  sub rsp, %zu\n", fn->stack_size);
 
-    size_t param_cnt = 0; // TODO: This is a huge hack, get rid of it!
-    for (Var *param = fn->params; param; param = param->next) {
-      param_cnt++;
-    }
     size_t i = 0;
     for (Var *param = fn->params; param; param = param->next) {
       puts("  mov rax, rbp");
       printf("  sub rax, %zu\n", param->offset);
-      printf("  mov [rax], %s\n", argreg[param_cnt - (i++) - 1]);
+      printf("  mov [rax], %s\n", argreg[fn->param_cnt - (i++) - 1]);
     }
 
     genStmt(fn->body);
