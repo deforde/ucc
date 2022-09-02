@@ -30,9 +30,8 @@ void gen() {
 
     size_t i = 0;
     for (Var *param = fn->params; param; param = param->next) {
-      puts("  mov rax, rbp");
-      printf("  sub rax, %zu\n", param->offset);
-      printf("  mov [rax], %s\n", argreg[fn->param_cnt - (i++) - 1]);
+      printf("  mov [rbp-%zu], %s\n", param->offset,
+             argreg[fn->param_cnt - (i++) - 1]);
     }
 
     genStmt(fn->body);
