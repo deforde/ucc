@@ -83,14 +83,14 @@ Token *consumeTypeIdent(void) {
 void expect(char *op) {
   if (token->kind != TK_RESERVED || strlen(op) != token->len ||
       memcmp(token->str, op, token->len) != 0) {
-    compError("Expected: '%c'", *op);
+    compError("expected: '%c'", *op);
   }
   token = token->next;
 }
 
 int expectNumber(void) {
   if (token->kind != TK_NUM) {
-    compError("Expected number");
+    compError("expected number");
   }
   const int val = token->val;
   token = token->next;

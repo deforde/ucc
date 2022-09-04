@@ -13,9 +13,10 @@ static size_t label_num = 1;
 static const char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static Function *cur_fn = NULL;
 
-static void genLval(Node *node);
+static void genAddr(Node *node);
 static void genStmt(Node *node);
 static void genExpr(Node *node);
+static void load(Type *ty);
 
 void gen() {
   puts(".intel_syntax noprefix");
@@ -36,7 +37,6 @@ void gen() {
 
     genStmt(fn->body);
 
-    puts("  pop rax");
     printf(".L.return.%s:\n", fn->name);
     puts("  mov rsp, rbp");
     puts("  pop rbp");
@@ -53,7 +53,6 @@ void genStmt(Node *node) {
     return;
   case ND_IF:
     genExpr(node->cond);
-    puts("  pop rax");
     puts("  cmp rax, 0");
     printf("  je .L.else%zu\n", label_num);
     genStmt(node->then);
@@ -66,10 +65,12 @@ void genStmt(Node *node) {
     label_num++;
     return;
   case ND_FOR:
-    genStmt(node->pre);
+    if (node->pre) {
+      genStmt(node->pre);
+    }
     printf(".L.begin%zu:\n", label_num);
     if (node->cond) {
-      genStmt(node->cond);
+      genExpr(node->cond);
       puts("  cmp rax, 0");
       printf("  je .L.end%zu\n", label_num);
     }
@@ -84,7 +85,7 @@ void genStmt(Node *node) {
   case ND_WHILE:
     printf(".L.begin%zu:\n", label_num);
     if (node->cond) {
-      genStmt(node->cond);
+      genExpr(node->cond);
       puts("  cmp rax, 0");
       printf("  je .L.end%zu\n", label_num);
     }
@@ -98,46 +99,42 @@ void genStmt(Node *node) {
     return;
   case ND_RET:
     genExpr(node->lhs);
-    puts("  pop rax");
     printf("  jmp .L.return.%s\n", cur_fn->name);
     return;
   default:
-    genExpr(node);
     break;
   }
+  genExpr(node);
 }
 
 void genExpr(Node *node) {
   switch (node->kind) {
   case ND_NUM:
-    printf("  push %d\n", node->val);
+    printf("  mov rax, %d\n", node->val);
     return;
   case ND_VAR:
-    genLval(node);
-    puts("  pop rax");
-    puts("  mov rax, [rax]");
-    puts("  push rax");
+    genAddr(node);
+    load(node->ty);
     return;
   case ND_ASS:
-    genLval(node->lhs);
+    genAddr(node->lhs);
+    puts("  push rax");
     genExpr(node->rhs);
     puts("  pop rdi");
-    puts("  pop rax");
-    puts("  mov [rax], rdi");
-    puts("  push rdi");
+    puts("  mov [rdi], rax");
     return;
   case ND_ADDR:
-    genLval(node->body);
+    genAddr(node->body);
     return;
   case ND_DEREF:
     genExpr(node->body);
-    puts("  mov rax, [rax]");
-    puts("  push rax");
+    load(node->ty);
     return;
   case ND_FUNCCALL: {
     size_t nargs = 0;
     for (Node *arg = node->args; arg; arg = arg->next) {
       genExpr(arg);
+      puts("  push rax");
       ++nargs;
     }
     for (ssize_t i = (ssize_t)nargs - 1; i >= 0; --i) {
@@ -145,65 +142,62 @@ void genExpr(Node *node) {
     }
     puts("  mov rax, 0");
     printf("  call %s\n", node->funcname);
-    puts("  push rax");
     return;
   }
   default:
     break;
   }
 
-  genExpr(node->lhs);
   genExpr(node->rhs);
+  puts("  push rax");
+  genExpr(node->lhs);
   puts("  pop rdi");
-  puts("  pop rax");
 
   switch (node->kind) {
   case ND_ADD:
     puts("  add rax, rdi");
-    break;
+    return;
   case ND_SUB:
     puts("  sub rax, rdi");
-    break;
+    return;
   case ND_MUL:
     puts("  imul rax, rdi");
-    break;
+    return;
   case ND_DIV:
     puts("  cqo");
     puts("  idiv rdi");
-    break;
+    return;
   case ND_EQ:
     puts("  cmp rax, rdi");
     puts("  sete al");
     puts("  movzb rax, al");
-    break;
+    return;
   case ND_NE:
     puts("  cmp rax, rdi");
     puts("  setne al");
     puts("  movzb rax, al");
-    break;
+    return;
   case ND_LT:
     puts("  cmp rax, rdi");
     puts("  setl al");
     puts("  movzb rax, al");
-    break;
+    return;
   case ND_LE:
     puts("  cmp rax, rdi");
     puts("  setle al");
     puts("  movzb rax, al");
-    break;
+    return;
   default:
-    compError("invalid expression");
     break;
   }
-  puts("  push rax");
+
+  compError("invalid expression");
 }
 
-void genLval(Node *node) {
+void genAddr(Node *node) {
   switch (node->kind) {
   case ND_VAR:
-    puts("  mov rax, rbp");
-    printf("  sub rax, %zu\n", node->var->offset);
-    puts("  push rax");
+    printf("  lea rax, [rbp-%zu]\n", node->var->offset);
     return;
   case ND_DEREF:
     genExpr(node->body);
@@ -212,5 +206,6 @@ void genLval(Node *node) {
     break;
   }
   compError("not an lvalue");
-  exit(EXIT_FAILURE);
 }
+
+void load(__attribute__((unused)) Type *ty) { puts("  mov rax, [rax]"); }

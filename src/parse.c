@@ -471,8 +471,14 @@ Node *newNodeFor(void) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_FOR;
   expect("(");
-  node->pre = stmt();
-  node->cond = stmt();
+  if (!consume(";")) {
+    node->pre = expr();
+    expect(";");
+  }
+  if (!consume(";")) {
+    node->cond = expr();
+    expect(";");
+  }
   if (!consume(")")) {
     node->post = expr();
     expect(")");
