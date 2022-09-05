@@ -11,8 +11,9 @@
 #include "tokenise.h"
 
 extern Type *ty_int;
+extern Token *token;
 Function *prog = NULL;
-Type *ty_int = &(Type){.kind = TY_INT, .base = NULL};
+Type *ty_int = &(Type){.kind = TY_INT, .size = 8, .base = NULL};
 static Function *cur_fn = NULL;
 
 static Node *add(void);
@@ -23,7 +24,8 @@ static Node *equality(void);
 static Node *expr(void);
 static Node *funcCall(Token *tok);
 static Node *mul(void);
-static Node *newNode(NodeKind kind, Node *lhs, Node *rhs);
+static Node *newNode(NodeKind kind);
+static Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *newNodeAdd(Node *lhs, Node *rhs);
 static Node *newNodeFor(void);
 static Node *newNodeIdent(Token *tok);
@@ -37,7 +39,9 @@ static Node *relational(void);
 static Node *stmt(void);
 static Node *unary(void);
 static Type *pointerTo(Type *base);
+static Type *arrayOf(Type *base, size_t len);
 static Var *findVar(Token *tok);
+static Var *newVar(Type *ty, Var **vars);
 static Var *newLocalVar(Type *ty);
 static void newParam(Type *ty);
 static bool isInteger(Type *ty);
@@ -67,7 +71,7 @@ Node *cmpndStmt(void) {
     }
     addType(cur);
   }
-  Node *node = newNode(ND_BLK, NULL, NULL);
+  Node *node = newNode(ND_BLK);
   node->body = head.next;
   return node;
 }
@@ -75,7 +79,7 @@ Node *cmpndStmt(void) {
 Node *assign(void) {
   Node *node = equality();
   if (consume("=")) {
-    node = newNode(ND_ASS, node, assign());
+    node = newNodeBinary(ND_ASS, node, assign());
   }
   return node;
 }
@@ -83,7 +87,7 @@ Node *assign(void) {
 Node *stmt(void) {
   Node *node = NULL;
   if (consume(";")) {
-    node = newNode(ND_BLK, NULL, NULL);
+    node = newNode(ND_BLK);
   } else if (consume("{")) {
     node = cmpndStmt();
   } else if (consumeIf()) {
@@ -101,17 +105,22 @@ Node *stmt(void) {
   return node;
 }
 
-Node *newNode(NodeKind kind, Node *lhs, Node *rhs) {
+Node *newNode(NodeKind kind) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
+  node->tok = token;
+  return node;
+}
+
+Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs) {
+  Node *node = newNode(kind);
   node->lhs = lhs;
   node->rhs = rhs;
   return node;
 }
 
 Node *newNodeNum(int val) {
-  Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_NUM;
+  Node *node = newNode(ND_NUM);
   node->val = val;
   return node;
 }
@@ -120,51 +129,50 @@ Node *newNodeAdd(Node *lhs, Node *rhs) {
   addType(lhs);
   addType(rhs);
   if (isInteger(lhs->ty) && isInteger(rhs->ty)) {
-    return newNode(ND_ADD, lhs, rhs);
+    return newNodeBinary(ND_ADD, lhs, rhs);
   }
   if (lhs->ty->base && rhs->ty->base) {
-    compError("invalid operands");
+    compErrorToken(lhs->tok->str, "invalid operands");
   }
   if (!lhs->ty->base && rhs->ty->base) {
     Node *tmp = lhs;
     lhs = rhs;
     rhs = tmp;
   }
-  rhs = newNode(ND_MUL, rhs, newNodeNum(8));
-  return newNode(ND_ADD, lhs, rhs);
+  rhs = newNodeBinary(ND_MUL, rhs, newNodeNum((int)lhs->ty->base->size));
+  return newNodeBinary(ND_ADD, lhs, rhs);
 }
 
 Node *newNodeSub(Node *lhs, Node *rhs) {
   addType(lhs);
   addType(rhs);
   if (isInteger(lhs->ty) && isInteger(rhs->ty)) {
-    return newNode(ND_SUB, lhs, rhs);
+    return newNodeBinary(ND_SUB, lhs, rhs);
   }
   if (lhs->ty->base && isInteger(rhs->ty)) {
-    rhs = newNode(ND_MUL, rhs, newNodeNum(8));
+    rhs = newNodeBinary(ND_MUL, rhs, newNodeNum((int)lhs->ty->base->size));
     addType(rhs);
-    Node *node = newNode(ND_SUB, lhs, rhs);
+    Node *node = newNodeBinary(ND_SUB, lhs, rhs);
     node->ty = lhs->ty;
     return node;
   }
   if (lhs->ty->base && rhs->ty->base) {
-    Node *node = newNode(ND_SUB, lhs, rhs);
+    Node *node = newNodeBinary(ND_SUB, lhs, rhs);
     node->ty = ty_int;
-    return newNode(ND_DIV, node, newNodeNum(8));
+    return newNodeBinary(ND_DIV, node, newNodeNum((int)lhs->ty->base->size));
   }
-  compError("invalid operands");
+  compErrorToken(lhs->tok->str, "invalid operands");
   assert(false);
   return NULL;
 }
 
 Node *newNodeIdent(Token *tok) {
-  Node *node = calloc(1, sizeof(Node));
 
   if (consume("(")) {
     return funcCall(tok);
   }
 
-  node->kind = ND_VAR;
+  Node *node = newNode(ND_VAR);
   Var *var = findVar(tok);
   if (!var) {
     compErrorToken(tok->str, "undefined variable");
@@ -173,30 +181,30 @@ Node *newNodeIdent(Token *tok) {
   return node;
 }
 
-Var *newLocalVar(Type *ty) {
+Var *newVar(Type *ty, Var **vars) {
   Token *tok = expectIdent();
   Var *var = calloc(1, sizeof(Var));
-  var->next = cur_fn->locals;
+  var->next = (*vars);
   var->name = tok->str;
   var->len = tok->len;
-  var->offset = (cur_fn->locals ? cur_fn->locals->offset + 8 : 8);
-  var->ty = ty;
-  cur_fn->locals = var;
-  cur_fn->stack_size = var->offset + 8;
+  if (consume("[")) {
+    const size_t size = expectNumber();
+    expect("]");
+    var->ty = arrayOf(ty, size);
+  } else {
+    var->ty = ty;
+  }
+  var->offset = ((*vars) ? (*vars)->offset + var->ty->size : var->ty->size);
+  (*vars) = var;
+  cur_fn->stack_size = var->offset + var->ty->size;
   return var;
 }
 
+Var *newLocalVar(Type *ty) { return newVar(ty, &cur_fn->locals); }
+
 void newParam(Type *ty) {
-  Token *tok = expectIdent();
-  Var *var = calloc(1, sizeof(Var));
-  var->next = cur_fn->params;
-  var->name = tok->str;
-  var->len = tok->len;
-  var->offset = (cur_fn->params ? cur_fn->params->offset + 8 : 8);
-  var->ty = ty;
-  cur_fn->params = var;
+  newVar(ty, &cur_fn->params);
   cur_fn->param_cnt++;
-  cur_fn->stack_size = var->offset + 8;
 }
 
 Type *declspec(Token *ident) {
@@ -265,15 +273,14 @@ Node *declaration(Token *ident) {
       continue;
     }
 
-    Node *lhs = calloc(1, sizeof(Node));
-    lhs->kind = ND_VAR;
+    Node *lhs = newNode(ND_VAR);
     lhs->var = var;
     Node *rhs = assign();
-    Node *node = newNode(ND_ASS, lhs, rhs);
+    Node *node = newNodeBinary(ND_ASS, lhs, rhs);
     cur = cur->next = node;
   }
 
-  Node *node = newNode(ND_BLK, NULL, NULL);
+  Node *node = newNode(ND_BLK);
   node->body = head.next;
   return node;
 }
@@ -295,9 +302,9 @@ Node *mul(void) {
   Node *node = unary();
   for (;;) {
     if (consume("*")) {
-      node = newNode(ND_MUL, node, unary());
+      node = newNodeBinary(ND_MUL, node, unary());
     } else if (consume("/")) {
-      node = newNode(ND_DIV, node, unary());
+      node = newNodeBinary(ND_DIV, node, unary());
     } else {
       return node;
     }
@@ -310,9 +317,9 @@ Node *equality(void) {
   Node *node = relational();
   for (;;) {
     if (consume("==")) {
-      node = newNode(ND_EQ, node, relational());
+      node = newNodeBinary(ND_EQ, node, relational());
     } else if (consume("!=")) {
-      node = newNode(ND_NE, node, relational());
+      node = newNodeBinary(ND_NE, node, relational());
     } else {
       return node;
     }
@@ -323,13 +330,13 @@ Node *relational(void) {
   Node *node = add();
   for (;;) {
     if (consume("<")) {
-      node = newNode(ND_LT, node, add());
+      node = newNodeBinary(ND_LT, node, add());
     } else if (consume("<=")) {
-      node = newNode(ND_LE, node, add());
+      node = newNodeBinary(ND_LE, node, add());
     } else if (consume(">")) {
-      node = newNode(ND_LT, add(), node);
+      node = newNodeBinary(ND_LT, add(), node);
     } else if (consume(">=")) {
-      node = newNode(ND_LE, add(), node);
+      node = newNodeBinary(ND_LE, add(), node);
     } else {
       return node;
     }
@@ -354,17 +361,15 @@ Node *unary(void) {
     return unary();
   }
   if (consume("-")) {
-    return newNode(ND_SUB, newNodeNum(0), unary());
+    return newNodeBinary(ND_SUB, newNodeNum(0), unary());
   }
   if (consume("*")) {
-    Node *node = calloc(1, sizeof(Node));
-    node->kind = ND_DEREF;
+    Node *node = newNode(ND_DEREF);
     node->body = unary();
     return node;
   }
   if (consume("&")) {
-    Node *node = calloc(1, sizeof(Node));
-    node->kind = ND_ADDR;
+    Node *node = newNode(ND_ADDR);
     node->body = unary();
     return node;
   }
@@ -408,7 +413,12 @@ void addType(Node *node) {
   case ND_SUB:
   case ND_MUL:
   case ND_DIV:
+    node->ty = node->lhs->ty;
+    break;
   case ND_ASS:
+    if (node->lhs->ty->kind == TY_ARR) {
+      compErrorToken(node->tok->str, "not an lvalue");
+    }
     node->ty = node->lhs->ty;
     break;
   case ND_EQ:
@@ -423,14 +433,17 @@ void addType(Node *node) {
     node->ty = node->var->ty;
     break;
   case ND_ADDR:
-    node->ty = pointerTo(node->body->ty);
+    if (node->body->ty->kind == TY_ARR) {
+      node->ty = pointerTo(node->body->ty->base);
+    } else {
+      node->ty = pointerTo(node->body->ty);
+    }
     break;
   case ND_DEREF:
-    if (node->body->ty->kind == TY_PTR) {
-      node->ty = node->body->ty->base;
-    } else {
-      node->ty = ty_int;
+    if (!node->body->ty->base) {
+      compErrorToken(node->tok->str, "invalid pointer dereference");
     }
+    node->ty = node->body->ty->base;
     break;
   default:
     break;
@@ -441,12 +454,21 @@ Type *pointerTo(Type *base) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_PTR;
   ty->base = base;
+  ty->size = 8;
+  return ty;
+}
+
+Type *arrayOf(Type *base, size_t len) {
+  Type *ty = calloc(1, sizeof(Type));
+  ty->kind = TY_ARR;
+  ty->arr_len = len;
+  ty->base = base;
+  ty->size = base->size * ty->arr_len;
   return ty;
 }
 
 Node *newNodeIf(void) {
-  Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_IF;
+  Node *node = newNode(ND_IF);
   expect("(");
   node->cond = expr();
   expect(")");
@@ -458,8 +480,7 @@ Node *newNodeIf(void) {
 }
 
 Node *newNodeWhile(void) {
-  Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_WHILE;
+  Node *node = newNode(ND_WHILE);
   expect("(");
   node->cond = expr();
   expect(")");
@@ -468,8 +489,7 @@ Node *newNodeWhile(void) {
 }
 
 Node *newNodeFor(void) {
-  Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_FOR;
+  Node *node = newNode(ND_FOR);
   expect("(");
   if (!consume(";")) {
     node->pre = expr();
@@ -488,8 +508,7 @@ Node *newNodeFor(void) {
 }
 
 Node *newNodeReturn(void) {
-  Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_RET;
+  Node *node = newNode(ND_RET);
   node->lhs = expr();
   expect(";");
   return node;
@@ -506,8 +525,7 @@ Node *funcCall(Token *tok) {
     cur = cur->next = assign();
   }
 
-  Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_FUNCCALL;
+  Node *node = newNode(ND_FUNCCALL);
   node->funcname = strndup(tok->str, tok->len);
   node->args = head.next;
   return node;

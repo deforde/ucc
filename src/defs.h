@@ -34,6 +34,7 @@ typedef enum {
 } NodeKind;
 
 typedef enum {
+  TY_ARR,
   TY_INT,
   TY_PTR,
 } TypeKind;
@@ -53,6 +54,8 @@ typedef enum {
 struct Type {
   TypeKind kind;
   Type *base;
+  size_t size;
+  size_t arr_len;
 };
 
 struct Token {
@@ -90,6 +93,7 @@ struct Node {
   int val;
   const char *funcname;
   Node *args;
+  Token *tok;
 };
 
 struct Var {

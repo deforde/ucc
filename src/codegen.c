@@ -208,4 +208,9 @@ void genAddr(Node *node) {
   compError("not an lvalue");
 }
 
-void load(__attribute__((unused)) Type *ty) { puts("  mov rax, [rax]"); }
+void load(Type *ty) {
+  if (ty->kind == TY_ARR) {
+    return;
+  }
+  puts("  mov rax, [rax]");
+}
