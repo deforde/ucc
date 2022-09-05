@@ -49,6 +49,7 @@ static void addType(Node *node);
 static Type *declspec(Token *ident);
 static Type *declarator(Type *ty);
 static Function *function(void);
+static Type *typeSuffix(Type *ty);
 
 void parse() {
   Function head = {0};
@@ -181,19 +182,23 @@ Node *newNodeIdent(Token *tok) {
   return node;
 }
 
+Type *typeSuffix(Type *ty) {
+  if (consume("[")) {
+    const size_t size = expectNumber();
+    expect("]");
+    ty = typeSuffix(ty);
+    return arrayOf(ty, size);
+  }
+  return ty;
+}
+
 Var *newVar(Type *ty, Var **vars) {
   Token *tok = expectIdent();
   Var *var = calloc(1, sizeof(Var));
   var->next = (*vars);
   var->name = tok->str;
   var->len = tok->len;
-  if (consume("[")) {
-    const size_t size = expectNumber();
-    expect("]");
-    var->ty = arrayOf(ty, size);
-  } else {
-    var->ty = ty;
-  }
+  var->ty = typeSuffix(ty);
   var->offset = ((*vars) ? (*vars)->offset + var->ty->size : var->ty->size);
   (*vars) = var;
   cur_fn->stack_size = var->offset + var->ty->size;
