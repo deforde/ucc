@@ -4,12 +4,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-typedef struct Var Var;
+typedef struct Obj Var;
 typedef struct Type Type;
 typedef struct Node Node;
 typedef struct Token Token;
-typedef struct Function Function;
-typedef struct Var Var;
+typedef struct Obj Obj;
 
 typedef enum {
   ND_ADD,
@@ -48,6 +47,7 @@ typedef enum {
   TK_NUM,
   TK_RESERVED,
   TK_RET,
+  TK_SIZEOF,
   TK_WHILE,
 } TokenKind;
 
@@ -66,15 +66,18 @@ struct Token {
   size_t len;
 };
 
-struct Function {
+struct Obj {
+  Obj *next;
+  char *name;
+  Type *ty;
+  // variable
+  size_t offset;
+  // function
   Node *body;
-  Var *locals;
-  Type *ret_ty;
-  Var *params;
+  Obj *params;
   size_t param_cnt;
   size_t stack_size;
-  char *name;
-  Function *next;
+  Obj *locals;
 };
 
 struct Node {
@@ -89,19 +92,11 @@ struct Node {
   Node *els;
   Node *pre;
   Node *post;
-  Var *var;
+  Obj *var;
   int val;
   const char *funcname;
   Node *args;
   Token *tok;
-};
-
-struct Var {
-  Var *next;
-  Type *ty;
-  const char *name;
-  size_t len;
-  size_t offset;
 };
 
 #endif // DEFS_H

@@ -13,6 +13,7 @@ bool consumeIf(void);
 bool consumeElse(void);
 bool consumeWhile(void);
 bool consumeFor(void);
+bool consumeSizeof(void);
 void expect(char *op);
 int expectNumber(void);
 Token *expectIdent(void);

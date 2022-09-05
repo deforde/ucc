@@ -8,10 +8,10 @@
 #include "comp_err.h"
 #include "defs.h"
 
-extern Function *prog;
+extern Obj *prog;
 static size_t label_num = 1;
 static const char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-static Function *cur_fn = NULL;
+static Obj *cur_fn = NULL;
 
 static void genAddr(Node *node);
 static void genStmt(Node *node);
@@ -20,7 +20,7 @@ static void load(Type *ty);
 
 void gen() {
   puts(".intel_syntax noprefix");
-  for (Function *fn = prog; fn; fn = fn->next) {
+  for (Obj *fn = prog; fn; fn = fn->next) {
     printf(".globl %s\n", fn->name);
     printf("%s:\n", fn->name);
     cur_fn = fn;
@@ -30,7 +30,7 @@ void gen() {
     printf("  sub rsp, %zu\n", fn->stack_size);
 
     size_t i = 0;
-    for (Var *param = fn->params; param; param = param->next) {
+    for (Obj *param = fn->params; param; param = param->next) {
       printf("  mov [rbp-%zu], %s\n", param->offset,
              argreg[fn->param_cnt - (i++) - 1]);
     }

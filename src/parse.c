@@ -12,9 +12,9 @@
 
 extern Type *ty_int;
 extern Token *token;
-Function *prog = NULL;
+Obj *prog = NULL;
 Type *ty_int = &(Type){.kind = TY_INT, .size = 8, .base = NULL};
-static Function *cur_fn = NULL;
+static Obj *cur_fn = NULL;
 
 static Node *add(void);
 static Node *assign(void);
@@ -42,20 +42,20 @@ static Node *stmt(void);
 static Node *unary(void);
 static Type *pointerTo(Type *base);
 static Type *arrayOf(Type *base, size_t len);
-static Var *findVar(Token *tok);
-static Var *newVar(Type *ty, Var **vars);
-static Var *newLocalVar(Type *ty);
+static Obj *findVar(Token *tok);
+static Obj *newVar(Type *ty, Obj **vars);
+static Obj *newLocalVar(Type *ty);
 static void newParam(Type *ty);
 static bool isInteger(Type *ty);
 static void addType(Node *node);
 static Type *declspec(Token *ident);
 static Type *declarator(Type *ty);
-static Function *function(void);
+static Obj *function(void);
 static Type *typeSuffix(Type *ty);
 
 void parse() {
-  Function head = {0};
-  Function *cur = &head;
+  Obj head = {0};
+  Obj *cur = &head;
   while (!isEOF()) {
     cur = cur->next = function();
   }
@@ -176,7 +176,7 @@ Node *newNodeIdent(Token *tok) {
   }
 
   Node *node = newNode(ND_VAR);
-  Var *var = findVar(tok);
+  Obj *var = findVar(tok);
   if (!var) {
     compErrorToken(tok->str, "undefined variable");
   }
@@ -194,12 +194,11 @@ Type *typeSuffix(Type *ty) {
   return ty;
 }
 
-Var *newVar(Type *ty, Var **vars) {
+Obj *newVar(Type *ty, Obj **vars) {
   Token *tok = expectIdent();
-  Var *var = calloc(1, sizeof(Var));
+  Obj *var = calloc(1, sizeof(Var));
   var->next = (*vars);
-  var->name = tok->str;
-  var->len = tok->len;
+  var->name = strndup(tok->str, tok->len);
   var->ty = typeSuffix(ty);
   var->offset = ((*vars) ? (*vars)->offset + var->ty->size : var->ty->size);
   (*vars) = var;
@@ -207,7 +206,7 @@ Var *newVar(Type *ty, Var **vars) {
   return var;
 }
 
-Var *newLocalVar(Type *ty) { return newVar(ty, &cur_fn->locals); }
+Obj *newLocalVar(Type *ty) { return newVar(ty, &cur_fn->locals); }
 
 void newParam(Type *ty) {
   newVar(ty, &cur_fn->params);
@@ -229,15 +228,15 @@ Type *declarator(Type *ty) {
   return ty;
 }
 
-Function *function(void) {
+Obj *function(void) {
   Token *ty_ident = expectIdent();
   Type *ty = declspec(ty_ident);
   ty = declarator(ty);
 
   Token *fn_ident = expectIdent();
 
-  Function *fn = calloc(1, sizeof(Function));
-  fn->ret_ty = ty;
+  Obj *fn = calloc(1, sizeof(Obj));
+  fn->ty = ty;
   fn->name = strndup(fn_ident->str, fn_ident->len);
   cur_fn = fn;
 
@@ -274,7 +273,7 @@ Node *declaration(Token *ident) {
     first = false;
 
     Type *ty = declarator(basety);
-    Var *var = newLocalVar(ty);
+    Obj *var = newLocalVar(ty);
 
     if (!consume("=")) {
       continue;
@@ -301,6 +300,11 @@ Node *primary(void) {
     Node *node = expr();
     expect(")");
     return node;
+  }
+  if (consumeSizeof()) {
+    Node *node = unary();
+    addType(node);
+    return newNodeNum((int)node->ty->size);
   }
   return newNodeNum(expectNumber());
 }
@@ -381,9 +385,10 @@ Node *unary(void) {
   return postfix();
 }
 
-Var *findVar(Token *tok) {
-  for (Var *var = cur_fn->locals; var; var = var->next) {
-    if (var->len == tok->len && memcmp(tok->str, var->name, var->len) == 0) {
+Obj *findVar(Token *tok) {
+  for (Obj *var = cur_fn->locals; var; var = var->next) {
+    if (strlen(var->name) == tok->len &&
+        memcmp(tok->str, var->name, strlen(var->name)) == 0) {
       return var;
     }
   }

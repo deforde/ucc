@@ -50,6 +50,8 @@ bool consumeWhile(void) { return consumeTokKind(TK_WHILE); }
 
 bool consumeFor(void) { return consumeTokKind(TK_FOR); }
 
+bool consumeSizeof(void) { return consumeTokKind(TK_SIZEOF); }
+
 Token *consumeIdent(void) {
   if (token->kind != TK_IDENT) {
     return NULL;
@@ -155,6 +157,11 @@ void tokenise(const char *p) {
     }
     if (strncmp(p, "return", 6) == 0 && !isIdentChar(p[6])) {
       cur = newToken(TK_RET, cur, p, 6);
+      p += 6;
+      continue;
+    }
+    if (strncmp(p, "sizeof", 6) == 0 && !isIdentChar(p[6])) {
+      cur = newToken(TK_SIZEOF, cur, p, 6);
       p += 6;
       continue;
     }
