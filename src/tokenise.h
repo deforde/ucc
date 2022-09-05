@@ -7,7 +7,7 @@ typedef struct Token Token;
 
 bool consume(char *op);
 Token *consumeIdent(void);
-Token *consumeTypeIdent(void);
+bool isTypeIdent(void);
 bool consumeReturn(void);
 bool consumeIf(void);
 bool consumeElse(void);
@@ -19,5 +19,6 @@ int expectNumber(void);
 Token *expectIdent(void);
 void tokenise(const char *p);
 bool isEOF(void);
+bool isFunc(void);
 
 #endif // TOKENISE_H

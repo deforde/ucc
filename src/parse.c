@@ -13,13 +13,14 @@
 extern Type *ty_int;
 extern Token *token;
 Obj *prog = NULL;
+Obj *globals = NULL;
 Type *ty_int = &(Type){.kind = TY_INT, .size = 8, .base = NULL};
 static Obj *cur_fn = NULL;
 
 static Node *add(void);
 static Node *assign(void);
 static Node *cmpndStmt(void);
-static Node *declaration(Token *ident);
+static Node *declaration(void);
 static Node *equality(void);
 static Node *expr(void);
 static Node *funcCall(Token *tok);
@@ -45,19 +46,26 @@ static Type *arrayOf(Type *base, size_t len);
 static Obj *findVar(Token *tok);
 static Obj *newVar(Type *ty, Obj **vars);
 static Obj *newLocalVar(Type *ty);
+static Obj *newGlobalVar(Type *ty);
 static void newParam(Type *ty);
 static bool isInteger(Type *ty);
 static void addType(Node *node);
-static Type *declspec(Token *ident);
+static Type *declspec(void);
 static Type *declarator(Type *ty);
-static Obj *function(void);
+static Obj *function(Type *ty);
 static Type *typeSuffix(Type *ty);
+static void globalVar(Type *ty);
 
 void parse() {
   Obj head = {0};
   Obj *cur = &head;
   while (!isEOF()) {
-    cur = cur->next = function();
+    Type *ty = declspec();
+    if (isFunc()) {
+      cur = cur->next = function(ty);
+      continue;
+    }
+    globalVar(ty);
   }
   prog = head.next;
 }
@@ -66,9 +74,8 @@ Node *cmpndStmt(void) {
   Node head = {0};
   Node *cur = &head;
   while (!consume("}")) {
-    Token *tok = NULL;
-    if ((tok = consumeTypeIdent())) {
-      cur = cur->next = declaration(tok);
+    if (isTypeIdent()) {
+      cur = cur->next = declaration();
     } else {
       cur = cur->next = stmt();
     }
@@ -206,6 +213,17 @@ Obj *newVar(Type *ty, Obj **vars) {
   return var;
 }
 
+Obj *newGlobalVar(Type *ty) {
+  Token *tok = expectIdent();
+  Obj *var = calloc(1, sizeof(Var));
+  var->next = globals;
+  var->name = strndup(tok->str, tok->len);
+  var->ty = typeSuffix(ty);
+  var->is_global = true;
+  globals = var;
+  return var;
+}
+
 Obj *newLocalVar(Type *ty) { return newVar(ty, &cur_fn->locals); }
 
 void newParam(Type *ty) {
@@ -213,7 +231,8 @@ void newParam(Type *ty) {
   cur_fn->param_cnt++;
 }
 
-Type *declspec(Token *ident) {
+Type *declspec(void) {
+  Token *ident = expectIdent();
   // TODO: Add mapping of type keywords to Type objects
   if (strncmp(ident->str, "int", ident->len) != 0) {
     compErrorToken(ident->str, "expected 'int'");
@@ -228,9 +247,7 @@ Type *declarator(Type *ty) {
   return ty;
 }
 
-Obj *function(void) {
-  Token *ty_ident = expectIdent();
-  Type *ty = declspec(ty_ident);
+Obj *function(Type *ty) {
   ty = declarator(ty);
 
   Token *fn_ident = expectIdent();
@@ -247,8 +264,7 @@ Obj *function(void) {
       expect(",");
     }
     first = false;
-    Token *ty_ident = expectIdent();
-    Type *ty = declspec(ty_ident);
+    Type *ty = declspec();
     ty = declarator(ty);
     newParam(ty);
   }
@@ -259,8 +275,8 @@ Obj *function(void) {
   return fn;
 }
 
-Node *declaration(Token *ident) {
-  Type *basety = declspec(ident);
+Node *declaration(void) {
+  Type *basety = declspec();
 
   Node head = {0};
   Node *cur = &head;
@@ -387,6 +403,12 @@ Node *unary(void) {
 
 Obj *findVar(Token *tok) {
   for (Obj *var = cur_fn->locals; var; var = var->next) {
+    if (strlen(var->name) == tok->len &&
+        memcmp(tok->str, var->name, strlen(var->name)) == 0) {
+      return var;
+    }
+  }
+  for (Obj *var = globals; var; var = var->next) {
     if (strlen(var->name) == tok->len &&
         memcmp(tok->str, var->name, strlen(var->name)) == 0) {
       return var;
@@ -555,4 +577,16 @@ Node *postfix(void) {
     node = newNodeDeref(newNodeAdd(node, idx));
   }
   return node;
+}
+
+void globalVar(Type *base_ty) {
+  bool first = true;
+  while (!consume(";")) {
+    if (!first) {
+      expect(",");
+    }
+    first = false;
+    Type *ty = declarator(base_ty);
+    newGlobalVar(ty);
+  }
 }

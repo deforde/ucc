@@ -69,17 +69,15 @@ Token *expectIdent(void) {
   return tok;
 }
 
-Token *consumeTypeIdent(void) {
+bool isTypeIdent(void) {
   for (size_t i = 0; i < NUM_TYPE_IDENTS; ++i) {
     const char *ty_ident = type_idents[i];
     if (token->kind == TK_IDENT && strlen(ty_ident) == token->len &&
         memcmp(token->str, ty_ident, token->len) == 0) {
-      Token *tok = token;
-      token = token->next;
-      return tok;
+      return true;
     }
   }
-  return NULL;
+  return false;
 }
 
 void expect(char *op) {
@@ -186,3 +184,12 @@ Token *newIdent(Token *cur, const char **p) {
 }
 
 bool isIdentChar(char c) { return isalnum(c) || c == '_'; }
+
+bool isFunc(void) {
+  if (token->kind == TK_IDENT) {
+    if (token->next->len == 1 && token->next->str[0] == '(') {
+      return true;
+    }
+  }
+  return false;
+}

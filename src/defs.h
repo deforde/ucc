@@ -72,6 +72,7 @@ struct Obj {
   Type *ty;
   // variable
   size_t offset;
+  bool is_global;
   // function
   Node *body;
   Obj *params;

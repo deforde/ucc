@@ -9,6 +9,7 @@
 #include "defs.h"
 
 extern Obj *prog;
+extern Obj *globals;
 static size_t label_num = 1;
 static const char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static Obj *cur_fn = NULL;
@@ -20,8 +21,15 @@ static void load(Type *ty);
 
 void gen() {
   puts(".intel_syntax noprefix");
+  for (Obj *var = globals; var; var = var->next) {
+    puts(".data");
+    printf(".globl %s\n", var->name);
+    printf("%s:\n", var->name);
+    printf(".zero %zu\n", var->ty->size);
+  }
   for (Obj *fn = prog; fn; fn = fn->next) {
     printf(".globl %s\n", fn->name);
+    puts(".text");
     printf("%s:\n", fn->name);
     cur_fn = fn;
 
@@ -197,7 +205,11 @@ void genExpr(Node *node) {
 void genAddr(Node *node) {
   switch (node->kind) {
   case ND_VAR:
-    printf("  lea rax, [rbp-%zu]\n", node->var->offset);
+    if (node->var->is_global) {
+      printf("  lea rax, [rip+%s]\n", node->var->name);
+    } else {
+      printf("  lea rax, [rbp-%zu]\n", node->var->offset);
+    }
     return;
   case ND_DEREF:
     genExpr(node->body);
