@@ -24,6 +24,7 @@ static Node *equality(void);
 static Node *expr(void);
 static Node *funcCall(Token *tok);
 static Node *mul(void);
+static Node *postfix(void);
 static Node *newNode(NodeKind kind);
 static Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *newNodeAdd(Node *lhs, Node *rhs);
@@ -34,6 +35,7 @@ static Node *newNodeNum(int val);
 static Node *newNodeReturn(void);
 static Node *newNodeSub(Node *lhs, Node *rhs);
 static Node *newNodeWhile(void);
+static Node *newNodeDeref(Node *body);
 static Node *primary(void);
 static Node *relational(void);
 static Node *stmt(void);
@@ -369,16 +371,14 @@ Node *unary(void) {
     return newNodeBinary(ND_SUB, newNodeNum(0), unary());
   }
   if (consume("*")) {
-    Node *node = newNode(ND_DEREF);
-    node->body = unary();
-    return node;
+    return newNodeDeref(unary());
   }
   if (consume("&")) {
     Node *node = newNode(ND_ADDR);
     node->body = unary();
     return node;
   }
-  return primary();
+  return postfix();
 }
 
 Var *findVar(Token *tok) {
@@ -493,6 +493,12 @@ Node *newNodeWhile(void) {
   return node;
 }
 
+Node *newNodeDeref(Node *body) {
+  Node *node = newNode(ND_DEREF);
+  node->body = body;
+  return node;
+}
+
 Node *newNodeFor(void) {
   Node *node = newNode(ND_FOR);
   expect("(");
@@ -533,5 +539,15 @@ Node *funcCall(Token *tok) {
   Node *node = newNode(ND_FUNCCALL);
   node->funcname = strndup(tok->str, tok->len);
   node->args = head.next;
+  return node;
+}
+
+Node *postfix(void) {
+  Node *node = primary();
+  while (consume("[")) {
+    Node *idx = expr();
+    expect("]");
+    node = newNodeDeref(newNodeAdd(node, idx));
+  }
   return node;
 }
