@@ -15,7 +15,7 @@ static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len);
 static bool consumeTokKind(TokenKind kind);
 static bool isIdentChar(char c);
 static bool startsWith(const char *p, const char *q);
-static int readEscapedChar(const char *p);
+static int readEscapedChar(const char **p);
 
 bool startsWith(const char *p, const char *q) {
   return memcmp(p, q, strlen(q)) == 0;
@@ -177,7 +177,7 @@ void tokenise(const char *p) {
       for (const char *c = start; c != p; c++) {
         if (*c == '\\') {
           c++;
-          ((char *)cur->str)[len++] = (char)readEscapedChar(c);
+          ((char *)cur->str)[len++] = (char)readEscapedChar(&c);
         } else {
           ((char *)cur->str)[len++] = *c;
         }
@@ -213,8 +213,25 @@ bool isFunc(void) {
   return false;
 }
 
-int readEscapedChar(const char *p) {
-  switch (*p) {
+int readEscapedChar(const char **p) {
+  const char *ch = *p;
+  if ('0' <= *ch && *ch <= '7') {
+    int c = *ch - '0';
+    ch++;
+    if ('0' <= *ch && *ch <= '7') {
+      c = (c << 3) + (*ch - '0');
+      ch++;
+      if ('0' <= *ch && *ch <= '7') {
+        c = (c << 3) + (*ch - '0');
+        ch++;
+      }
+    }
+    return c;
+  }
+
+  *p = ch;
+
+  switch (**p) {
   case 'a':
     return '\a';
   case 'b':
@@ -234,5 +251,5 @@ int readEscapedChar(const char *p) {
   default:
     break;
   }
-  return *p;
+  return **p;
 }
