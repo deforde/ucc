@@ -27,6 +27,7 @@ typedef enum {
   ND_NE,
   ND_NUM,
   ND_RET,
+  ND_STMT_EXPR,
   ND_SUB,
   ND_VAR,
   ND_WHILE,

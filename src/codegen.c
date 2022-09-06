@@ -143,6 +143,11 @@ void genExpr(Node *node) {
     genExpr(node->rhs);
     store(node->ty);
     return;
+  case ND_STMT_EXPR:
+    for (Node *n = node->body; n; n = n->next) {
+      genStmt(n);
+    }
+    return;
   case ND_ADDR:
     genAddr(node->body);
     return;

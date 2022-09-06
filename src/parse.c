@@ -344,6 +344,12 @@ Node *primary(void) {
     return newNodeIdent(tok);
   }
   if (consume("(")) {
+    if (consume("{")) {
+      Node *node = newNode(ND_STMT_EXPR);
+      node->body = cmpndStmt()->body;
+      expect(")");
+      return node;
+    }
     Node *node = expr();
     expect(")");
     return node;
@@ -516,6 +522,15 @@ void addType(Node *node) {
     }
     node->ty = node->body->ty->base;
     break;
+  case ND_STMT_EXPR:
+    if (node->body) {
+      Node *stmt = node->body;
+      while (stmt->next) {
+        stmt = stmt->next;
+      }
+      node->ty = stmt->ty;
+    }
+    return;
   default:
     break;
   }

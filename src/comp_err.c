@@ -9,21 +9,20 @@
 extern Token *token;
 extern const char *input;
 
-void compError(const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  compErrorToken(token->str, fmt, args);
-}
+#define COMP_ERR_BODY(LOC)                                                     \
+  va_list args;                                                                \
+  va_start(args, fmt);                                                         \
+  const int pos = (int)((LOC)-input);                                          \
+  fprintf(stderr, "%s\n", input);                                              \
+  fprintf(stderr, "%*s", pos, " ");                                            \
+  fprintf(stderr, "^ ");                                                       \
+  vfprintf(stderr, fmt, args);                                                 \
+  va_end(args);                                                                \
+  fprintf(stderr, "\n");                                                       \
+  exit(EXIT_FAILURE);
+
+void compError(const char *fmt, ...) { COMP_ERR_BODY(token->str); }
 
 void compErrorToken(const char *loc, const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  const int pos = (int)(loc - input);
-  fprintf(stderr, "%s\n", input);
-  fprintf(stderr, "%*s", pos, " ");
-  fprintf(stderr, "^ ");
-  vfprintf(stderr, fmt, args);
-  va_end(args);
-  fprintf(stderr, "\n");
-  exit(EXIT_FAILURE);
+  COMP_ERR_BODY(loc);
 }
