@@ -8,10 +8,7 @@
 #include "comp_err.h"
 #include "defs.h"
 
-#define NUM_TYPE_IDENTS 1
-
 Token *token = NULL;
-static const char *type_idents[NUM_TYPE_IDENTS] = {"int"};
 
 static Token *newIdent(Token *cur, const char **p);
 static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len);
@@ -67,17 +64,6 @@ Token *expectIdent(void) {
     compError("expected identifier");
   }
   return tok;
-}
-
-bool isTypeIdent(void) {
-  for (size_t i = 0; i < NUM_TYPE_IDENTS; ++i) {
-    const char *ty_ident = type_idents[i];
-    if (token->kind == TK_IDENT && strlen(ty_ident) == token->len &&
-        memcmp(token->str, ty_ident, token->len) == 0) {
-      return true;
-    }
-  }
-  return false;
 }
 
 void expect(char *op) {

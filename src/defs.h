@@ -34,6 +34,7 @@ typedef enum {
 
 typedef enum {
   TY_ARR,
+  TY_CHAR,
   TY_INT,
   TY_PTR,
 } TypeKind;

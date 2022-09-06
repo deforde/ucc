@@ -11,13 +11,15 @@
 extern Obj *prog;
 extern Obj *globals;
 static size_t label_num = 1;
-static const char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static const char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static const char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 static Obj *cur_fn = NULL;
 
 static void genAddr(Node *node);
 static void genStmt(Node *node);
 static void genExpr(Node *node);
 static void load(Type *ty);
+static void store(Type *ty);
 
 void gen() {
   puts(".intel_syntax noprefix");
@@ -39,8 +41,13 @@ void gen() {
 
     size_t i = 0;
     for (Obj *param = fn->params; param; param = param->next) {
-      printf("  mov [rbp-%zu], %s\n", param->offset,
-             argreg[fn->param_cnt - (i++) - 1]);
+      if (param->ty->size == 1) {
+        printf("  mov [rbp-%zu], %s\n", param->offset,
+               argreg8[fn->param_cnt - (i++) - 1]);
+      } else {
+        printf("  mov [rbp-%zu], %s\n", param->offset,
+               argreg64[fn->param_cnt - (i++) - 1]);
+      }
     }
 
     genStmt(fn->body);
@@ -128,8 +135,7 @@ void genExpr(Node *node) {
     genAddr(node->lhs);
     puts("  push rax");
     genExpr(node->rhs);
-    puts("  pop rdi");
-    puts("  mov [rdi], rax");
+    store(node->ty);
     return;
   case ND_ADDR:
     genAddr(node->body);
@@ -146,7 +152,7 @@ void genExpr(Node *node) {
       ++nargs;
     }
     for (ssize_t i = (ssize_t)nargs - 1; i >= 0; --i) {
-      printf("  pop %s\n", argreg[i]);
+      printf("  pop %s\n", argreg64[i]);
     }
     puts("  mov rax, 0");
     printf("  call %s\n", node->funcname);
@@ -220,9 +226,22 @@ void genAddr(Node *node) {
   compError("not an lvalue");
 }
 
+void store(Type *ty) {
+  puts("  pop rdi");
+  if (ty->size == 1) {
+    puts("  mov [rdi], al");
+  } else {
+    puts("  mov [rdi], rax");
+  }
+}
+
 void load(Type *ty) {
   if (ty->kind == TY_ARR) {
     return;
   }
-  puts("  mov rax, [rax]");
+  if (ty->size == 1) {
+    puts("  movsbq rax, [rax]");
+  } else {
+    puts("  mov rax, [rax]");
+  }
 }

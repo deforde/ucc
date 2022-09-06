@@ -14,6 +14,12 @@ extern Type *ty_int;
 extern Token *token;
 Obj *prog = NULL;
 Obj *globals = NULL;
+static struct {
+  char *kwd;
+  Type *ty;
+} ty_kwd_map[] = {
+    {.kwd = "int", .ty = &(Type){.kind = TY_INT, .size = 8, .base = NULL}},
+    {.kwd = "char", .ty = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL}}};
 Type *ty_int = &(Type){.kind = TY_INT, .size = 8, .base = NULL};
 static Obj *cur_fn = NULL;
 
@@ -74,7 +80,7 @@ Node *cmpndStmt(void) {
   Node head = {0};
   Node *cur = &head;
   while (!consume("}")) {
-    if (isTypeIdent()) {
+    if (getType(token->str, token->len)) {
       cur = cur->next = declaration();
     } else {
       cur = cur->next = stmt();
@@ -231,13 +237,23 @@ void newParam(Type *ty) {
   cur_fn->param_cnt++;
 }
 
+Type *getType(const char *kwd, size_t len) {
+  for (size_t i = 0; i < sizeof(ty_kwd_map) / sizeof(*ty_kwd_map); ++i) {
+    if (strlen(ty_kwd_map[i].kwd) == len &&
+        strncmp(kwd, ty_kwd_map[i].kwd, len) == 0) {
+      return ty_kwd_map[i].ty;
+    }
+  }
+  return NULL;
+}
+
 Type *declspec(void) {
   Token *ident = expectIdent();
-  // TODO: Add mapping of type keywords to Type objects
-  if (strncmp(ident->str, "int", ident->len) != 0) {
-    compErrorToken(ident->str, "expected 'int'");
+  Type *ty = getType(ident->str, ident->len);
+  if (!ty) {
+    compErrorToken(ident->str, "unidentified type");
   }
-  return ty_int;
+  return ty;
 }
 
 Type *declarator(Type *ty) {
@@ -417,7 +433,7 @@ Obj *findVar(Token *tok) {
   return NULL;
 }
 
-bool isInteger(Type *ty) { return ty->kind == TY_INT; }
+bool isInteger(Type *ty) { return ty->kind == TY_INT || ty->kind == TY_CHAR; }
 
 void addType(Node *node) {
   if (!node || node->ty) {
