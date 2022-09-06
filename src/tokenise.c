@@ -49,6 +49,15 @@ bool consumeFor(void) { return consumeTokKind(TK_FOR); }
 
 bool consumeSizeof(void) { return consumeTokKind(TK_SIZEOF); }
 
+Token *consumeStrLit(void) {
+  if (token->kind != TK_STR) {
+    return NULL;
+  }
+  Token *cur = token;
+  token = token->next;
+  return cur;
+}
+
 Token *consumeIdent(void) {
   if (token->kind != TK_IDENT) {
     return NULL;
@@ -151,6 +160,20 @@ void tokenise(const char *p) {
     }
     if (isIdentChar(*p) && !(*p >= '0' && *p <= '9')) {
       cur = newIdent(cur, &p);
+      continue;
+    }
+    if (*p == '"') {
+      const char *start = ++p;
+      for (; *p != '"'; ++p) {
+        if (*p == '\n' || *p == '\0') {
+          compErrorToken(start, "unclosed string literal");
+        }
+      }
+      const size_t len = p - start + 1;
+      cur = newToken(TK_STR, cur, start, len);
+      cur->str = calloc(1, len);
+      memcpy((char *)cur->str, start, len - 1);
+      p++;
       continue;
     }
     compErrorToken(p, "invalid token");

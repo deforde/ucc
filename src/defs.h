@@ -49,6 +49,7 @@ typedef enum {
   TK_RESERVED,
   TK_RET,
   TK_SIZEOF,
+  TK_STR,
   TK_WHILE,
 } TokenKind;
 
@@ -74,6 +75,7 @@ struct Obj {
   // variable
   size_t offset;
   bool is_global;
+  const char *init_data;
   // function
   Node *body;
   Obj *params;

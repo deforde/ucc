@@ -27,7 +27,13 @@ void gen() {
     puts(".data");
     printf(".globl %s\n", var->name);
     printf("%s:\n", var->name);
-    printf(".zero %zu\n", var->ty->size);
+    if (var->init_data) {
+      for (size_t i = 0; i < var->ty->size; ++i) {
+        printf("  .byte %d\n", var->init_data[i]);
+      }
+    } else {
+      printf("  .zero %zu\n", var->ty->size);
+    }
   }
   for (Obj *fn = prog; fn; fn = fn->next) {
     printf(".globl %s\n", fn->name);

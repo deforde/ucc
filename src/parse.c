@@ -21,6 +21,7 @@ static struct {
     {.kwd = "int", .ty = &(Type){.kind = TY_INT, .size = 8, .base = NULL}},
     {.kwd = "char", .ty = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL}}};
 Type *ty_int = &(Type){.kind = TY_INT, .size = 8, .base = NULL};
+Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL};
 static Obj *cur_fn = NULL;
 
 static Node *add(void);
@@ -53,6 +54,7 @@ static Obj *findVar(Token *tok);
 static Obj *newVar(Type *ty, Obj **vars);
 static Obj *newLocalVar(Type *ty);
 static Obj *newGlobalVar(Type *ty);
+static Obj *newStrLitVar(Token *tok, Type *ty);
 static void newParam(Type *ty);
 static bool isInteger(Type *ty);
 static void addType(Node *node);
@@ -230,6 +232,19 @@ Obj *newGlobalVar(Type *ty) {
   return var;
 }
 
+Obj *newStrLitVar(Token *tok, Type *ty) {
+  Obj *var = calloc(1, sizeof(Var));
+  var->next = globals;
+  static size_t id = 0;
+  var->name = calloc(1, 20); // TODO: 20?
+  sprintf(var->name, ".L..%zu", id++);
+  var->init_data = tok->str;
+  var->ty = ty;
+  var->is_global = true;
+  globals = var;
+  return var;
+}
+
 Obj *newLocalVar(Type *ty) { return newVar(ty, &cur_fn->locals); }
 
 void newParam(Type *ty) {
@@ -337,6 +352,14 @@ Node *primary(void) {
     Node *node = unary();
     addType(node);
     return newNodeNum((int)node->ty->size);
+  }
+  tok = consumeStrLit();
+  if (tok) {
+    Type *ty = arrayOf(ty_char, tok->len);
+    Var *var = newStrLitVar(tok, ty);
+    Node *node = newNode(ND_VAR);
+    node->var = var;
+    return node;
   }
   return newNodeNum(expectNumber());
 }
