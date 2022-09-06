@@ -15,6 +15,7 @@ static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len);
 static bool consumeTokKind(TokenKind kind);
 static bool isIdentChar(char c);
 static bool startsWith(const char *p, const char *q);
+static int readEscapedChar(const char *p);
 
 bool startsWith(const char *p, const char *q) {
   return memcmp(p, q, strlen(q)) == 0;
@@ -169,10 +170,19 @@ void tokenise(const char *p) {
           compErrorToken(start, "unclosed string literal");
         }
       }
-      const size_t len = p - start + 1;
-      cur = newToken(TK_STR, cur, start, len);
-      cur->str = calloc(1, len);
-      memcpy((char *)cur->str, start, len - 1);
+      const size_t max_len = p - start + 1;
+      cur = newToken(TK_STR, cur, start, max_len);
+      cur->str = calloc(1, max_len);
+      size_t len = 0;
+      for (const char *c = start; c != p; c++) {
+        if (*c == '\\') {
+          c++;
+          ((char *)cur->str)[len++] = (char)readEscapedChar(c);
+        } else {
+          ((char *)cur->str)[len++] = *c;
+        }
+      }
+      cur->len = len + 1;
       p++;
       continue;
     }
@@ -201,4 +211,28 @@ bool isFunc(void) {
     }
   }
   return false;
+}
+
+int readEscapedChar(const char *p) {
+  switch (*p) {
+  case 'a':
+    return '\a';
+  case 'b':
+    return '\b';
+  case 'e':
+    return 27;
+  case 'f':
+    return '\f';
+  case 'n':
+    return '\n';
+  case 'r':
+    return '\r';
+  case 't':
+    return '\t';
+  case 'v':
+    return '\v';
+  default:
+    break;
+  }
+  return *p;
 }
