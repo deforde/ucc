@@ -16,6 +16,7 @@ static bool consumeTokKind(TokenKind kind);
 static bool isIdentChar(char c);
 static bool startsWith(const char *p, const char *q);
 static int readEscapedChar(const char **p);
+static int fromHex(char c);
 
 bool startsWith(const char *p, const char *q) {
   return memcmp(p, q, strlen(q)) == 0;
@@ -174,12 +175,12 @@ void tokenise(const char *p) {
       cur = newToken(TK_STR, cur, start, max_len);
       cur->str = calloc(1, max_len);
       size_t len = 0;
-      for (const char *c = start; c != p; c++) {
+      for (const char *c = start; c != p;) {
         if (*c == '\\') {
           c++;
           ((char *)cur->str)[len++] = (char)readEscapedChar(&c);
         } else {
-          ((char *)cur->str)[len++] = *c;
+          ((char *)cur->str)[len++] = *(c++);
         }
       }
       cur->len = len + 1;
@@ -213,8 +214,19 @@ bool isFunc(void) {
   return false;
 }
 
+int fromHex(char c) {
+  if ('0' <= c && c <= '9') {
+    return c - '0';
+  }
+  if ('a' <= c && c <= 'f') {
+    return c - 'a' + 10;
+  }
+  return c - 'A' + 10;
+}
+
 int readEscapedChar(const char **p) {
   const char *ch = *p;
+
   if ('0' <= *ch && *ch <= '7') {
     int c = *ch - '0';
     ch++;
@@ -226,12 +238,24 @@ int readEscapedChar(const char **p) {
         ch++;
       }
     }
+    *p = ch;
     return c;
   }
 
-  *p = ch;
+  if (*ch == 'x') {
+    ch++;
+    if (!isxdigit(*ch)) {
+      compErrorToken(ch, "invalid hex escache sequence");
+    }
+    int c = 0;
+    for (; isxdigit(*ch); ch++) {
+      c = (c << 4) + fromHex(*ch);
+    }
+    *p = ch;
+    return c;
+  }
 
-  switch (**p) {
+  switch (*((*p)++)) {
   case 'a':
     return '\a';
   case 'b':
@@ -251,5 +275,5 @@ int readEscapedChar(const char **p) {
   default:
     break;
   }
-  return **p;
+  return *((*p) - 1);
 }
