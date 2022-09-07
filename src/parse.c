@@ -223,7 +223,7 @@ Obj *newVar(Type *ty, Obj **vars) {
   var->ty = typeSuffix(ty);
   var->offset = ((*vars) ? (*vars)->offset + var->ty->size : var->ty->size);
   (*vars) = var;
-  cur_fn->stack_size = var->offset + var->ty->size;
+  cur_fn->stack_size = (var->offset + 15) / 16 * 16;
   pushScope(var);
   return var;
 }

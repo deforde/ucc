@@ -17,7 +17,8 @@ CFLAGS += $(INC_FLAGS) -MMD -MP
 
 UCC := $(BUILD_DIR)/$(TARGET_EXEC)
 
-TEST_SRCS := $(shell find tests -name '*.c')
+TEST_DIR := test
+TEST_SRCS := $(shell find $(TEST_DIR) -name '*.c')
 TESTS := $(TEST_SRCS:.c=.out)
 
 all: ucc
@@ -41,16 +42,16 @@ clean: clean_test
 	@rm -rf $(BUILD_DIR)
 
 clean_test:
-	@rm -rf tests/*.pre tests/*.out tests/*.pre tests/*.s
+	@rm -rf $(TEST_DIR)/*.pre $(TEST_DIR)/*.out $(TEST_DIR)/*.pre $(TEST_DIR)/*.s
 
-tests/%.out: clean_test ucc
-	@$(CC) -o tests/$*.pre -E -P -C tests/$*.c && \
-	ASAN_OPTIONS=detect_leaks=0 ./$(UCC) -o tests/$*.s tests/$*.pre && \
-	$(CC) -o $@ tests/$*.s -xc tests/common
+$(TEST_DIR)/%.out: clean_test ucc
+	@$(CC) -o $(TEST_DIR)/$*.pre -E -P -C $(TEST_DIR)/$*.c && \
+	ASAN_OPTIONS=detect_leaks=0 ./$(UCC) -o $(TEST_DIR)/$*.s $(TEST_DIR)/$*.pre && \
+	$(CC) -g3 -o $@ $(TEST_DIR)/$*.s -xc $(TEST_DIR)/common
 
 test: $(TESTS)
-	@for i in $^; do echo $$i; ./$$i; echo '\n'; done && \
-	rm -rf tests/*.pre tests/*.out tests/*.pre tests/*.s
+	@for i in $^; do echo $$i; ./$$i; echo; done && \
+	rm -rf $(TEST_DIR)/*.pre $(TEST_DIR)/*.out $(TEST_DIR)/*.pre $(TEST_DIR)/*.s
 
 compdb: clean
 	@bear -- $(MAKE) && \
