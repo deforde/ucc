@@ -189,6 +189,9 @@ void tokenise(const char *file_path) {
         if (*p == '\n' || *p == '\0') {
           compErrorToken(start, "unclosed string literal");
         }
+        if (*p == '\\') {
+          p++;
+        }
       }
       const size_t max_len = p - start + 1;
       cur = newToken(TK_STR, cur, start, max_len);
