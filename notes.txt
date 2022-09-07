@@ -1,2 +1,0 @@
-On:
-  https://github.com/rui314/chibicc/commit/18ac283a5d19c19f1e1a7020a50fe34c2160a0f8
