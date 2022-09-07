@@ -23,6 +23,7 @@ static struct {
 Type *ty_int = &(Type){.kind = TY_INT, .size = 8, .base = NULL};
 Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL};
 static Obj *cur_fn = NULL;
+static Scope *scopes = &(Scope){0};
 
 static Node *add(void);
 static Node *assign(void);
@@ -63,6 +64,9 @@ static Type *declarator(Type *ty);
 static Obj *function(Type *ty);
 static Type *typeSuffix(Type *ty);
 static void globalVar(Type *ty);
+static void enterScope(void);
+static void exitScope(void);
+static void pushScope(Obj *var);
 
 void parse() {
   Obj head = {0};
@@ -81,6 +85,7 @@ void parse() {
 Node *cmpndStmt(void) {
   Node head = {0};
   Node *cur = &head;
+  enterScope();
   while (!consume("}")) {
     if (getType(token->str, token->len)) {
       cur = cur->next = declaration();
@@ -89,6 +94,7 @@ Node *cmpndStmt(void) {
     }
     addType(cur);
   }
+  exitScope();
   Node *node = newNode(ND_BLK);
   node->body = head.next;
   return node;
@@ -218,6 +224,7 @@ Obj *newVar(Type *ty, Obj **vars) {
   var->offset = ((*vars) ? (*vars)->offset + var->ty->size : var->ty->size);
   (*vars) = var;
   cur_fn->stack_size = var->offset + var->ty->size;
+  pushScope(var);
   return var;
 }
 
@@ -229,6 +236,7 @@ Obj *newGlobalVar(Type *ty) {
   var->ty = typeSuffix(ty);
   var->is_global = true;
   globals = var;
+  pushScope(var);
   return var;
 }
 
@@ -242,6 +250,7 @@ Obj *newStrLitVar(Token *tok, Type *ty) {
   var->ty = ty;
   var->is_global = true;
   globals = var;
+  pushScope(var);
   return var;
 }
 
@@ -287,6 +296,7 @@ Obj *function(Type *ty) {
   fn->ty = ty;
   fn->name = strndup(fn_ident->str, fn_ident->len);
   cur_fn = fn;
+  enterScope();
 
   expect("(");
   bool first = true;
@@ -303,6 +313,7 @@ Obj *function(Type *ty) {
 
   fn->locals = fn->params;
   fn->body = cmpndStmt();
+  exitScope();
   return fn;
 }
 
@@ -447,16 +458,12 @@ Node *unary(void) {
 }
 
 Obj *findVar(Token *tok) {
-  for (Obj *var = cur_fn->locals; var; var = var->next) {
-    if (strlen(var->name) == tok->len &&
-        memcmp(tok->str, var->name, strlen(var->name)) == 0) {
-      return var;
-    }
-  }
-  for (Obj *var = globals; var; var = var->next) {
-    if (strlen(var->name) == tok->len &&
-        memcmp(tok->str, var->name, strlen(var->name)) == 0) {
-      return var;
+  for (Scope *sc = scopes; sc; sc = sc->next) {
+    for (VarScope *vs = sc->vars; vs; vs = vs->next) {
+      if (strlen(vs->var->name) == tok->len &&
+          memcmp(tok->str, vs->var->name, strlen(vs->var->name)) == 0) {
+        return vs->var;
+      }
     }
   }
   return NULL;
@@ -643,4 +650,19 @@ void globalVar(Type *base_ty) {
     Type *ty = declarator(base_ty);
     newGlobalVar(ty);
   }
+}
+
+void enterScope(void) {
+  Scope *sc = calloc(1, sizeof(Scope));
+  sc->next = scopes;
+  scopes = sc;
+}
+
+void exitScope(void) { scopes = scopes->next; }
+
+void pushScope(Obj *var) {
+  VarScope *sc = calloc(1, sizeof(VarScope));
+  sc->var = var;
+  sc->next = scopes->vars;
+  scopes->vars = sc;
 }

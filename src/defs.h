@@ -9,6 +9,8 @@ typedef struct Type Type;
 typedef struct Node Node;
 typedef struct Token Token;
 typedef struct Obj Obj;
+typedef struct VarScope VarScope;
+typedef struct Scope Scope;
 
 typedef enum {
   ND_ADD,
@@ -102,6 +104,16 @@ struct Node {
   const char *funcname;
   Node *args;
   Token *tok;
+};
+
+struct VarScope {
+  VarScope *next;
+  Obj *var;
+};
+
+struct Scope {
+  Scope *next;
+  VarScope *vars;
 };
 
 #endif // DEFS_H
