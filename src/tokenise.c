@@ -309,10 +309,9 @@ char *readFile(const char *file_path) {
   char *file_content = calloc(len + 2, 1);
   if (file_content == NULL) {
     fclose(file);
-    fprintf(
-        stderr,
-        "failed to allocate memory for file_contentay read from file: '%s'\n",
-        file_path);
+    fprintf(stderr,
+            "failed to allocate memory for content read from file: '%s'\n",
+            file_path);
     exit(EXIT_FAILURE);
   }
   const size_t bytesRead = fread(file_content, 1, len, file);
