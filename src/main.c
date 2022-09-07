@@ -5,7 +5,7 @@
 #include "parse.h"
 #include "tokenise.h"
 
-const char *input = NULL;
+const char *file_path = NULL;
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -14,9 +14,9 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  input = argv[1];
+  file_path = argv[1];
 
-  tokenise(input);
+  tokenise(file_path);
   parse();
   gen();
 

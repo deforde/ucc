@@ -10,6 +10,7 @@
 #include "defs.h"
 
 Token *token = NULL;
+const char *file_content = NULL;
 
 static Token *newIdent(Token *cur, const char **p);
 static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len);
@@ -108,7 +109,7 @@ Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len) {
 }
 
 void tokenise(const char *file_path) {
-  const char *p = readFile(file_path);
+  const char *p = file_content = readFile(file_path);
 
   Token head = {0};
   Token *cur = &head;
