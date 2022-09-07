@@ -19,7 +19,7 @@ assert() {
   input=$2
 
   echo $input > tmp.c
-  $DIR/../build/ucc tmp.c > tmp.s
+  $DIR/../build/ucc -o tmp.s tmp.c
   cc -o tmp tmp.s tmp2.o
   ./tmp
   actual=$?

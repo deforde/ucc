@@ -10,6 +10,7 @@
 
 extern Obj *prog;
 extern Obj *globals;
+extern FILE *output;
 static size_t label_num = 1;
 static const char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static const char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
@@ -22,46 +23,46 @@ static void load(Type *ty);
 static void store(Type *ty);
 
 void gen() {
-  puts(".intel_syntax noprefix");
+  fprintf(output, ".intel_syntax noprefix\n");
   for (Obj *var = globals; var; var = var->next) {
-    puts(".data");
-    printf(".globl %s\n", var->name);
-    printf("%s:\n", var->name);
+    fprintf(output, ".data\n");
+    fprintf(output, ".globl %s\n", var->name);
+    fprintf(output, "%s:\n", var->name);
     if (var->init_data) {
       for (size_t i = 0; i < var->ty->size; ++i) {
-        printf("  .byte %d\n", var->init_data[i]);
+        fprintf(output, "  .byte %d\n", var->init_data[i]);
       }
     } else {
-      printf("  .zero %zu\n", var->ty->size);
+      fprintf(output, "  .zero %zu\n", var->ty->size);
     }
   }
   for (Obj *fn = prog; fn; fn = fn->next) {
-    printf(".globl %s\n", fn->name);
-    puts(".text");
-    printf("%s:\n", fn->name);
+    fprintf(output, ".globl %s\n", fn->name);
+    fprintf(output, ".text\n");
+    fprintf(output, "%s:\n", fn->name);
     cur_fn = fn;
 
-    puts("  push rbp");
-    puts("  mov rbp, rsp");
-    printf("  sub rsp, %zu\n", fn->stack_size);
+    fprintf(output, "  push rbp\n");
+    fprintf(output, "  mov rbp, rsp\n");
+    fprintf(output, "  sub rsp, %zu\n", fn->stack_size);
 
     size_t i = 0;
     for (Obj *param = fn->params; param; param = param->next) {
       if (param->ty->size == 1) {
-        printf("  mov [rbp-%zu], %s\n", param->offset,
-               argreg8[fn->param_cnt - (i++) - 1]);
+        fprintf(output, "  mov [rbp-%zu], %s\n", param->offset,
+                argreg8[fn->param_cnt - (i++) - 1]);
       } else {
-        printf("  mov [rbp-%zu], %s\n", param->offset,
-               argreg64[fn->param_cnt - (i++) - 1]);
+        fprintf(output, "  mov [rbp-%zu], %s\n", param->offset,
+                argreg64[fn->param_cnt - (i++) - 1]);
       }
     }
 
     genStmt(fn->body);
 
-    printf(".L.return.%s:\n", fn->name);
-    puts("  mov rsp, rbp");
-    puts("  pop rbp");
-    puts("  ret");
+    fprintf(output, ".L.return.%s:\n", fn->name);
+    fprintf(output, "  mov rsp, rbp\n");
+    fprintf(output, "  pop rbp\n");
+    fprintf(output, "  ret\n");
   }
 }
 
@@ -74,53 +75,53 @@ void genStmt(Node *node) {
     return;
   case ND_IF:
     genExpr(node->cond);
-    puts("  cmp rax, 0");
-    printf("  je .L.else%zu\n", label_num);
+    fprintf(output, "  cmp rax, 0\n");
+    fprintf(output, "  je .L.else%zu\n", label_num);
     genStmt(node->then);
-    printf("  jmp .L.end%zu\n", label_num);
-    printf(".L.else%zu:\n", label_num);
+    fprintf(output, "  jmp .L.end%zu\n", label_num);
+    fprintf(output, ".L.else%zu:\n", label_num);
     if (node->els) {
       genStmt(node->els);
     }
-    printf(".L.end%zu:\n", label_num);
+    fprintf(output, ".L.end%zu:\n", label_num);
     label_num++;
     return;
   case ND_FOR:
     if (node->pre) {
       genStmt(node->pre);
     }
-    printf(".L.begin%zu:\n", label_num);
+    fprintf(output, ".L.begin%zu:\n", label_num);
     if (node->cond) {
       genExpr(node->cond);
-      puts("  cmp rax, 0");
-      printf("  je .L.end%zu\n", label_num);
+      fprintf(output, "  cmp rax, 0\n");
+      fprintf(output, "  je .L.end%zu\n", label_num);
     }
     genStmt(node->body);
     if (node->post) {
       genExpr(node->post);
     }
-    printf("  jmp .L.begin%zu\n", label_num);
-    printf(".L.end%zu:\n", label_num);
+    fprintf(output, "  jmp .L.begin%zu\n", label_num);
+    fprintf(output, ".L.end%zu:\n", label_num);
     label_num++;
     return;
   case ND_WHILE:
-    printf(".L.begin%zu:\n", label_num);
+    fprintf(output, ".L.begin%zu:\n", label_num);
     if (node->cond) {
       genExpr(node->cond);
-      puts("  cmp rax, 0");
-      printf("  je .L.end%zu\n", label_num);
+      fprintf(output, "  cmp rax, 0\n");
+      fprintf(output, "  je .L.end%zu\n", label_num);
     }
     genStmt(node->body);
     if (node->post) {
       genExpr(node->post);
     }
-    printf("  jmp .L.begin%zu\n", label_num);
-    printf(".L.end%zu:\n", label_num);
+    fprintf(output, "  jmp .L.begin%zu\n", label_num);
+    fprintf(output, ".L.end%zu:\n", label_num);
     label_num++;
     return;
   case ND_RET:
     genExpr(node->lhs);
-    printf("  jmp .L.return.%s\n", cur_fn->name);
+    fprintf(output, "  jmp .L.return.%s\n", cur_fn->name);
     return;
   default:
     break;
@@ -131,7 +132,7 @@ void genStmt(Node *node) {
 void genExpr(Node *node) {
   switch (node->kind) {
   case ND_NUM:
-    printf("  mov rax, %d\n", node->val);
+    fprintf(output, "  mov rax, %d\n", node->val);
     return;
   case ND_VAR:
     genAddr(node);
@@ -139,7 +140,7 @@ void genExpr(Node *node) {
     return;
   case ND_ASS:
     genAddr(node->lhs);
-    puts("  push rax");
+    fprintf(output, "  push rax\n");
     genExpr(node->rhs);
     store(node->ty);
     return;
@@ -159,14 +160,14 @@ void genExpr(Node *node) {
     size_t nargs = 0;
     for (Node *arg = node->args; arg; arg = arg->next) {
       genExpr(arg);
-      puts("  push rax");
+      fprintf(output, "  push rax\n");
       ++nargs;
     }
     for (ssize_t i = (ssize_t)nargs - 1; i >= 0; --i) {
-      printf("  pop %s\n", argreg64[i]);
+      fprintf(output, "  pop %s\n", argreg64[i]);
     }
-    puts("  mov rax, 0");
-    printf("  call %s\n", node->funcname);
+    fprintf(output, "  mov rax, 0\n");
+    fprintf(output, "  call %s\n", node->funcname);
     return;
   }
   default:
@@ -174,43 +175,43 @@ void genExpr(Node *node) {
   }
 
   genExpr(node->rhs);
-  puts("  push rax");
+  fprintf(output, "  push rax\n");
   genExpr(node->lhs);
-  puts("  pop rdi");
+  fprintf(output, "  pop rdi\n");
 
   switch (node->kind) {
   case ND_ADD:
-    puts("  add rax, rdi");
+    fprintf(output, "  add rax, rdi\n");
     return;
   case ND_SUB:
-    puts("  sub rax, rdi");
+    fprintf(output, "  sub rax, rdi\n");
     return;
   case ND_MUL:
-    puts("  imul rax, rdi");
+    fprintf(output, "  imul rax, rdi\n");
     return;
   case ND_DIV:
-    puts("  cqo");
-    puts("  idiv rdi");
+    fprintf(output, "  cqo\n");
+    fprintf(output, "  idiv rdi\n");
     return;
   case ND_EQ:
-    puts("  cmp rax, rdi");
-    puts("  sete al");
-    puts("  movzb rax, al");
+    fprintf(output, "  cmp rax, rdi\n");
+    fprintf(output, "  sete al\n");
+    fprintf(output, "  movzb rax, al\n");
     return;
   case ND_NE:
-    puts("  cmp rax, rdi");
-    puts("  setne al");
-    puts("  movzb rax, al");
+    fprintf(output, "  cmp rax, rdi\n");
+    fprintf(output, "  setne al\n");
+    fprintf(output, "  movzb rax, al\n");
     return;
   case ND_LT:
-    puts("  cmp rax, rdi");
-    puts("  setl al");
-    puts("  movzb rax, al");
+    fprintf(output, "  cmp rax, rdi\n");
+    fprintf(output, "  setl al\n");
+    fprintf(output, "  movzb rax, al\n");
     return;
   case ND_LE:
-    puts("  cmp rax, rdi");
-    puts("  setle al");
-    puts("  movzb rax, al");
+    fprintf(output, "  cmp rax, rdi\n");
+    fprintf(output, "  setle al\n");
+    fprintf(output, "  movzb rax, al\n");
     return;
   default:
     break;
@@ -223,9 +224,9 @@ void genAddr(Node *node) {
   switch (node->kind) {
   case ND_VAR:
     if (node->var->is_global) {
-      printf("  lea rax, [rip+%s]\n", node->var->name);
+      fprintf(output, "  lea rax, [rip+%s]\n", node->var->name);
     } else {
-      printf("  lea rax, [rbp-%zu]\n", node->var->offset);
+      fprintf(output, "  lea rax, [rbp-%zu]\n", node->var->offset);
     }
     return;
   case ND_DEREF:
@@ -238,11 +239,11 @@ void genAddr(Node *node) {
 }
 
 void store(Type *ty) {
-  puts("  pop rdi");
+  fprintf(output, "  pop rdi\n");
   if (ty->size == 1) {
-    puts("  mov [rdi], al");
+    fprintf(output, "  mov [rdi], al\n");
   } else {
-    puts("  mov [rdi], rax");
+    fprintf(output, "  mov [rdi], rax\n");
   }
 }
 
@@ -251,8 +252,8 @@ void load(Type *ty) {
     return;
   }
   if (ty->size == 1) {
-    puts("  movsbq rax, [rax]");
+    fprintf(output, "  movsbq rax, [rax]\n");
   } else {
-    puts("  mov rax, [rax]");
+    fprintf(output, "  mov rax, [rax]\n");
   }
 }

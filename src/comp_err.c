@@ -8,7 +8,7 @@
 
 extern Token *token;
 extern const char *file_content;
-extern const char *file_path;
+extern const char *input_file_path;
 
 #define COMP_ERR_BODY(LOC)                                                     \
   const char *line_start = (LOC);                                              \
@@ -25,7 +25,7 @@ extern const char *file_path;
       line_num++;                                                              \
     }                                                                          \
   }                                                                            \
-  size_t offset = fprintf(stderr, "%s:%zu: ", file_path, line_num);            \
+  size_t offset = fprintf(stderr, "%s:%zu: ", input_file_path, line_num);      \
   fprintf(stderr, "%.*s\n", (int)(line_end - line_start), line_start);         \
   const int pos = (int)((LOC)-line_start + offset);                            \
   fprintf(stderr, "%*s", pos, " ");                                            \
