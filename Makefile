@@ -15,29 +15,42 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 CFLAGS += $(INC_FLAGS) -MMD -MP
 
-all: executable
+UCC := $(BUILD_DIR)/$(TARGET_EXEC)
 
-debug: executable
+TEST_SRCS := $(shell find tests -name '*.c')
+TESTS := $(TEST_SRCS:.c=.out)
+
+all: ucc
+
+debug: ucc
 debug: CFLAGS += -fsanitize=address,undefined
 debug: LDFLAGS += -fsanitize=address,undefined
 
-executable: $(BUILD_DIR)/$(TARGET_EXEC)
+ucc: $(UCC)
 
-$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
-	$(CC) $(OBJS) -o $@ $(LDFLAGS)
+$(UCC): $(OBJS)
+	@$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
 $(BUILD_DIR)/%.c.o: %.c
-	@mkdir -p $(dir $@)
+	@mkdir -p $(dir $@) && \
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-.PHONY: clean test compdb
+.PHONY: clean test compdb clean_test
 
-clean:
+clean: clean_test
 	@rm -rf $(BUILD_DIR)
 
-test: executable
-	@ASAN_OPTIONS=detect_leaks=0 ./tests/test.sh
+clean_test:
+	@rm -rf tests/*.pre tests/*.out tests/*.pre tests/*.s
+
+tests/%.out: clean_test ucc
+	@$(CC) -o tests/$*.pre -E -P -C tests/$*.c && \
+	ASAN_OPTIONS=detect_leaks=0 ./$(UCC) -o tests/$*.s tests/$*.pre && \
+	$(CC) -o $@ tests/$*.s -xc tests/common
+
+test: $(TESTS)
+	@for i in $^; do echo $$i; ./$$i; echo '\n'; done
 
 compdb: clean
 	@bear -- $(MAKE) && \
-	 mv compile_commands.json build
+	mv compile_commands.json build
