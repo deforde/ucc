@@ -30,10 +30,10 @@ debug: LDFLAGS += -fsanitize=address,undefined
 ucc: $(UCC)
 
 $(UCC): $(OBJS)
-	@$(CC) $(OBJS) -o $@ $(LDFLAGS)
+	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
 $(BUILD_DIR)/%.c.o: %.c
-	@mkdir -p $(dir $@) && \
+	mkdir -p $(dir $@) && \
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 .PHONY: clean test compdb clean_test
