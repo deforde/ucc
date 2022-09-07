@@ -50,7 +50,7 @@ $(TEST_DIR)/%.out: clean_test ucc
 	$(CC) -g3 -o $@ $(TEST_DIR)/$*.s -xc $(TEST_DIR)/common
 
 test: $(TESTS)
-	@for i in $^; do echo $$i; ./$$i; echo; done && \
+	@for i in $^; do echo $$i; ./$$i || exit 1; echo; done && \
 	rm -rf $(TEST_DIR)/*.pre $(TEST_DIR)/*.out $(TEST_DIR)/*.pre $(TEST_DIR)/*.s
 
 compdb: clean
