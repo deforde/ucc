@@ -35,21 +35,19 @@ $(BUILD_DIR)/%.c.o: %.c
 	@mkdir -p $(dir $@) && \
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-.PHONY: clean test compdb clean_test
+.PHONY: clean test compdb
 
-clean: clean_test
+clean:
 	@rm -rf $(BUILD_DIR)
 
-clean_test:
-	@rm -rf tests/*.pre tests/*.out tests/*.pre tests/*.s
-
-tests/%.out: clean_test ucc
+tests/%.out: ucc
 	@$(CC) -o tests/$*.pre -E -P -C tests/$*.c && \
 	ASAN_OPTIONS=detect_leaks=0 ./$(UCC) -o tests/$*.s tests/$*.pre && \
 	$(CC) -o $@ tests/$*.s -xc tests/common
 
 test: $(TESTS)
-	@for i in $^; do echo $$i; ./$$i; echo '\n'; done
+	@for i in $^; do echo $$i; ./$$i; echo '\n'; done && \
+	rm -rf tests/*.pre tests/*.out tests/*.pre tests/*.s
 
 compdb: clean
 	@bear -- $(MAKE) && \
