@@ -18,7 +18,8 @@ assert() {
   expected=$1
   input=$2
 
-  $DIR/../build/ucc $input > tmp.s
+  echo $input > tmp.c
+  $DIR/../build/ucc tmp.c > tmp.s
   cc -o tmp tmp.s tmp2.o
   ./tmp
   actual=$?
@@ -31,7 +32,7 @@ assert() {
     exit 1
   fi
 
-  rm tmp.s tmp
+  rm tmp.c tmp.s tmp
 }
 
 assert 0 'int main() { return 0; }'

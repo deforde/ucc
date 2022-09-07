@@ -17,7 +17,7 @@ Token *consumeStrLit(void);
 void expect(char *op);
 int expectNumber(void);
 Token *expectIdent(void);
-void tokenise(const char *p);
+void tokenise(const char *file_path);
 bool isEOF(void);
 bool isFunc(void);
 

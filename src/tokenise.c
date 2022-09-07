@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,6 +18,7 @@ static bool isIdentChar(char c);
 static bool startsWith(const char *p, const char *q);
 static int readEscapedChar(const char **p);
 static int fromHex(char c);
+static char *readFile(const char *file_path);
 
 bool startsWith(const char *p, const char *q) {
   return memcmp(p, q, strlen(q)) == 0;
@@ -105,7 +107,9 @@ Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len) {
   return tok;
 }
 
-void tokenise(const char *p) {
+void tokenise(const char *file_path) {
+  const char *p = readFile(file_path);
+
   Token head = {0};
   Token *cur = &head;
   while (*p) {
@@ -276,4 +280,38 @@ int readEscapedChar(const char **p) {
     break;
   }
   return *((*p) - 1);
+}
+
+char *readFile(const char *file_path) {
+  FILE *file = fopen(file_path, "rb");
+  if (file == NULL) {
+    fprintf(stderr, "failed to open file: '%s'\n", file_path);
+    exit(EXIT_FAILURE);
+  }
+  fseek(file, 0, SEEK_END);
+  const size_t len = ftell(file);
+  fseek(file, 0, SEEK_SET);
+  char *file_content = calloc(len + 2, 1);
+  if (file_content == NULL) {
+    fclose(file);
+    fprintf(
+        stderr,
+        "failed to allocate memory for file_contentay read from file: '%s'\n",
+        file_path);
+    exit(EXIT_FAILURE);
+  }
+  const size_t bytesRead = fread(file_content, 1, len, file);
+  fclose(file);
+  if (bytesRead != len) {
+    free(file_content);
+    fprintf(stderr,
+            "failed to read the expected number of bytes from file: '%s'. "
+            "attempted to read: %zu, actually read: %zu\n",
+            file_path, len, bytesRead);
+    exit(EXIT_FAILURE);
+  }
+  if (file_content[len - 1] != '\n') {
+    file_content[len] = '\n';
+  }
+  return file_content;
 }
