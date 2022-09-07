@@ -44,7 +44,7 @@ clean: clean_test
 clean_test:
 	@rm -rf $(TEST_DIR)/*.pre $(TEST_DIR)/*.out $(TEST_DIR)/*.pre $(TEST_DIR)/*.s
 
-$(TEST_DIR)/%.out: clean_test ucc
+$(TEST_DIR)/%.out: clean_test debug
 	@$(CC) -o $(TEST_DIR)/$*.pre -E -P -C $(TEST_DIR)/$*.c && \
 	ASAN_OPTIONS=detect_leaks=0 ./$(UCC) -o $(TEST_DIR)/$*.s $(TEST_DIR)/$*.pre && \
 	$(CC) -g3 -o $@ $(TEST_DIR)/$*.s -xc $(TEST_DIR)/common
