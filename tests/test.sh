@@ -16,9 +16,9 @@ EOF
 
 assert() {
   expected=$1
-  input=$2
+  input="$2"
 
-  echo $input > tmp.c
+  echo "$input" > tmp.c
   $DIR/../build/ucc -o tmp.s tmp.c
   cc -o tmp tmp.s tmp2.o
   ./tmp
@@ -214,6 +214,10 @@ assert 2 'int main() { return ({ 0; 1; 2; }); }'
 assert 1 'int main() { ({ 0; return 1; 2; }); return 3; }'
 assert 6 'int main() { return ({ 1; }) + ({ 2; }) + ({ 3; }); }'
 assert 3 'int main() { return ({ int x=3; x; }); }'
+
+assert 2 'int main() { /* return 1; */ return 2; }'
+assert 2 'int main() { // return 1;
+return 2; }'
 
 echo OK
 

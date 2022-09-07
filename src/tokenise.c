@@ -114,6 +114,20 @@ void tokenise(const char *file_path) {
   Token head = {0};
   Token *cur = &head;
   while (*p) {
+    if (startsWith(p, "//")) {
+      while (*p != '\n') {
+        p++;
+      }
+      continue;
+    }
+    if (startsWith(p, "/*")) {
+      char *q = strstr(p + 2, "*/");
+      if (!q) {
+        compErrorToken(p, "unclosed block comment");
+      }
+      p = q + 2;
+      continue;
+    }
     if (isspace(*p)) {
       ++p;
       continue;
