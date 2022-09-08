@@ -12,8 +12,9 @@
 Token *token = NULL;
 const char *file_content = NULL;
 
-static Token *newIdent(Token *cur, const char **p);
-static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len);
+static Token *newIdent(Token *cur, const char **p, size_t line_num);
+static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len,
+                       size_t line_num);
 static bool consumeTokKind(TokenKind kind);
 static bool isIdentChar(char c);
 static bool startsWith(const char *p, const char *q);
@@ -99,11 +100,13 @@ int expectNumber(void) {
 
 bool isEOF(void) { return token->kind == TK_EOF; }
 
-Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len) {
+Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len,
+                size_t line_num) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
   tok->str = str;
   tok->len = len;
+  tok->line_num = line_num;
   cur->next = tok;
   return tok;
 }
@@ -113,6 +116,7 @@ void tokenise(const char *file_path) {
 
   Token head = {0};
   Token *cur = &head;
+  size_t line_num = 1;
   while (*p) {
     if (startsWith(p, "//")) {
       while (*p != '\n') {
@@ -129,58 +133,61 @@ void tokenise(const char *file_path) {
       continue;
     }
     if (isspace(*p)) {
+      if (*p == '\n') {
+        line_num++;
+      }
       ++p;
       continue;
     }
     if (startsWith(p, "==") || startsWith(p, "!=") || startsWith(p, "<=") ||
         startsWith(p, ">=")) {
-      cur = newToken(TK_RESERVED, cur, p, 2);
+      cur = newToken(TK_RESERVED, cur, p, 2, line_num);
       p += 2;
       continue;
     }
     if (strchr("+-*/()<>=;{}&,[]", *p)) {
-      cur = newToken(TK_RESERVED, cur, p++, 1);
+      cur = newToken(TK_RESERVED, cur, p++, 1, line_num);
       continue;
     }
     if (isdigit(*p)) {
-      cur = newToken(TK_NUM, cur, p, 0);
+      cur = newToken(TK_NUM, cur, p, 0, line_num);
       const char *q = p;
       cur->val = (int)strtol(p, (char **)&p, 10);
       cur->len = p - q;
       continue;
     }
     if (strncmp(p, "if", 2) == 0 && !isIdentChar(p[2])) {
-      cur = newToken(TK_IF, cur, p, 2);
+      cur = newToken(TK_IF, cur, p, 2, line_num);
       p += 2;
       continue;
     }
     if (strncmp(p, "else", 4) == 0 && !isIdentChar(p[4])) {
-      cur = newToken(TK_ELSE, cur, p, 4);
+      cur = newToken(TK_ELSE, cur, p, 4, line_num);
       p += 4;
       continue;
     }
     if (strncmp(p, "while", 5) == 0 && !isIdentChar(p[5])) {
-      cur = newToken(TK_WHILE, cur, p, 5);
+      cur = newToken(TK_WHILE, cur, p, 5, line_num);
       p += 5;
       continue;
     }
     if (strncmp(p, "for", 3) == 0 && !isIdentChar(p[3])) {
-      cur = newToken(TK_FOR, cur, p, 3);
+      cur = newToken(TK_FOR, cur, p, 3, line_num);
       p += 3;
       continue;
     }
     if (strncmp(p, "return", 6) == 0 && !isIdentChar(p[6])) {
-      cur = newToken(TK_RET, cur, p, 6);
+      cur = newToken(TK_RET, cur, p, 6, line_num);
       p += 6;
       continue;
     }
     if (strncmp(p, "sizeof", 6) == 0 && !isIdentChar(p[6])) {
-      cur = newToken(TK_SIZEOF, cur, p, 6);
+      cur = newToken(TK_SIZEOF, cur, p, 6, line_num);
       p += 6;
       continue;
     }
     if (isIdentChar(*p) && !(*p >= '0' && *p <= '9')) {
-      cur = newIdent(cur, &p);
+      cur = newIdent(cur, &p, line_num);
       continue;
     }
     if (*p == '"') {
@@ -194,7 +201,7 @@ void tokenise(const char *file_path) {
         }
       }
       const size_t max_len = p - start + 1;
-      cur = newToken(TK_STR, cur, start, max_len);
+      cur = newToken(TK_STR, cur, start, max_len, line_num);
       cur->str = calloc(1, max_len);
       size_t len = 0;
       for (const char *c = start; c != p;) {
@@ -211,16 +218,16 @@ void tokenise(const char *file_path) {
     }
     compErrorToken(p, "invalid token");
   }
-  newToken(TK_EOF, cur, p, 0);
+  newToken(TK_EOF, cur, p, 0, line_num);
   token = head.next;
 }
 
-Token *newIdent(Token *cur, const char **p) {
+Token *newIdent(Token *cur, const char **p, size_t line_num) {
   const char *q = *p;
   while (*q && isIdentChar(*q)) {
     q++;
   }
-  Token *tok = newToken(TK_IDENT, cur, *p, q - *p);
+  Token *tok = newToken(TK_IDENT, cur, *p, q - *p, line_num);
   *p = q;
   return tok;
 }

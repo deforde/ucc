@@ -10,7 +10,7 @@ extern Token *token;
 extern const char *file_content;
 extern const char *input_file_path;
 
-#define COMP_ERR_BODY(LOC)                                                     \
+#define COMP_ERR_BODY(LINE_NUM, LOC)                                           \
   const char *line_start = (LOC);                                              \
   while (file_content < line_start && line_start[-1] != '\n') {                \
     line_start--;                                                              \
@@ -19,13 +19,7 @@ extern const char *input_file_path;
   while (*line_end != '\n') {                                                  \
     line_end++;                                                                \
   }                                                                            \
-  size_t line_num = 1;                                                         \
-  for (const char *p = file_content; p < line_start; p++) {                    \
-    if (*p == '\n') {                                                          \
-      line_num++;                                                              \
-    }                                                                          \
-  }                                                                            \
-  size_t offset = fprintf(stderr, "%s:%zu: ", input_file_path, line_num);      \
+  size_t offset = fprintf(stderr, "%s:%zu: ", input_file_path, LINE_NUM);      \
   fprintf(stderr, "%.*s\n", (int)(line_end - line_start), line_start);         \
   const int pos = (int)((LOC)-line_start + offset);                            \
   fprintf(stderr, "%*s", pos, " ");                                            \
@@ -37,8 +31,16 @@ extern const char *input_file_path;
   fprintf(stderr, "\n");                                                       \
   exit(EXIT_FAILURE);
 
-void compError(const char *fmt, ...) { COMP_ERR_BODY(token->str); }
+void compError(const char *fmt, ...) {
+  COMP_ERR_BODY(token->line_num, token->str);
+}
 
 void compErrorToken(const char *loc, const char *fmt, ...) {
-  COMP_ERR_BODY(loc);
+  size_t line_num = 1;
+  for (const char *p = file_content; p < loc; p++) {
+    if (*p == '\n') {
+      line_num++;
+    }
+  }
+  COMP_ERR_BODY(line_num, loc);
 }

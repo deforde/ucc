@@ -69,6 +69,7 @@ struct Token {
   int val;
   const char *str;
   size_t len;
+  size_t line_num;
 };
 
 struct Obj {
