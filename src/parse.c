@@ -394,7 +394,13 @@ Node *mul(void) {
   }
 }
 
-Node *expr(void) { return assign(); }
+Node *expr(void) {
+  Node *node = assign();
+  if (consume(",")) {
+    return newNodeBinary(ND_COMMA, node, expr());
+  }
+  return node;
+}
 
 Node *equality(void) {
   Node *node = relational();
@@ -516,6 +522,9 @@ void addType(Node *node) {
   case ND_VAR:
     node->ty = node->var->ty;
     break;
+  case ND_COMMA:
+    node->ty = node->rhs->ty;
+    return;
   case ND_ADDR:
     if (node->body->ty->kind == TY_ARR) {
       node->ty = pointerTo(node->body->ty->base);

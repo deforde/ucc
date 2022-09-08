@@ -160,6 +160,10 @@ void genExpr(Node *node) {
     genExpr(node->body);
     load(node->ty);
     return;
+  case ND_COMMA:
+    genExpr(node->lhs);
+    genExpr(node->rhs);
+    return;
   case ND_FUNCCALL: {
     size_t nargs = 0;
     for (Node *arg = node->args; arg; arg = arg->next) {
@@ -235,6 +239,10 @@ void genAddr(Node *node) {
     return;
   case ND_DEREF:
     genExpr(node->body);
+    return;
+  case ND_COMMA:
+    genExpr(node->lhs);
+    genAddr(node->rhs);
     return;
   default:
     break;
