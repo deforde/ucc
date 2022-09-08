@@ -11,6 +11,7 @@
 extern Obj *prog;
 extern Obj *globals;
 extern FILE *output;
+extern const char *input_file_path;
 static size_t label_num = 1;
 static const char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static const char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
@@ -23,6 +24,7 @@ static void load(Type *ty);
 static void store(Type *ty);
 
 void gen() {
+  fprintf(output, ".file 1 \"%s\"\n", input_file_path);
   fprintf(output, ".intel_syntax noprefix\n");
   for (Obj *var = globals; var; var = var->next) {
     fprintf(output, ".data\n");
@@ -67,6 +69,7 @@ void gen() {
 }
 
 void genStmt(Node *node) {
+  fprintf(output, "  .loc 1 %zu\n", node->tok->line_num);
   switch (node->kind) {
   case ND_BLK:
     for (Node *n = node->body; n; n = n->next) {
@@ -130,6 +133,7 @@ void genStmt(Node *node) {
 }
 
 void genExpr(Node *node) {
+  fprintf(output, "  .loc 1 %zu\n", node->tok->line_num);
   switch (node->kind) {
   case ND_NUM:
     fprintf(output, "  mov rax, %d\n", node->val);
