@@ -1,2 +1,5 @@
 build/
 .cache/
+test/*.out
+test/*.pre
+test/*.s
