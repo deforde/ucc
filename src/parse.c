@@ -18,6 +18,8 @@ static struct {
   char *kwd;
   Type *ty;
 } ty_kwd_map[] = {
+    {.kwd = "struct",
+     .ty = &(Type){.kind = TY_STRUCT, .size = 0, .base = NULL}},
     {.kwd = "int", .ty = &(Type){.kind = TY_INT, .size = 8, .base = NULL}},
     {.kwd = "char", .ty = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL}}};
 Type *ty_int = &(Type){.kind = TY_INT, .size = 8, .base = NULL};
@@ -45,6 +47,7 @@ static Node *newNodeReturn(void);
 static Node *newNodeSub(Node *lhs, Node *rhs);
 static Node *newNodeWhile(void);
 static Node *newNodeDeref(Node *body);
+static Node *newNodeMember(Node *body);
 static Node *primary(void);
 static Node *relational(void);
 static Node *stmt(void);
@@ -217,7 +220,7 @@ Type *typeSuffix(Type *ty) {
 
 Obj *newVar(Type *ty, Obj **vars) {
   Token *tok = expectIdent();
-  Obj *var = calloc(1, sizeof(Var));
+  Obj *var = calloc(1, sizeof(Obj));
   var->next = *vars;
   var->name = strndup(tok->str, tok->len);
   var->ty = typeSuffix(ty);
@@ -234,7 +237,7 @@ Obj *newVar(Type *ty, Obj **vars) {
 
 Obj *newGlobalVar(Type *ty) {
   Token *tok = expectIdent();
-  Obj *var = calloc(1, sizeof(Var));
+  Obj *var = calloc(1, sizeof(Obj));
   var->next = globals;
   var->name = strndup(tok->str, tok->len);
   var->ty = typeSuffix(ty);
@@ -245,7 +248,7 @@ Obj *newGlobalVar(Type *ty) {
 }
 
 Obj *newStrLitVar(Token *tok, Type *ty) {
-  Obj *var = calloc(1, sizeof(Var));
+  Obj *var = calloc(1, sizeof(Obj));
   var->next = globals;
   static size_t id = 0;
   var->name = calloc(1, 20); // TODO: 20?
@@ -280,6 +283,33 @@ Type *declspec(void) {
   Type *ty = getType(ident->str, ident->len);
   if (!ty) {
     compErrorToken(ident->str, "unidentified type");
+  }
+  if (ty->kind == TY_STRUCT) {
+    expect("{");
+    Obj head = {0};
+    Obj *cur = &head;
+    while (!consume("}")) {
+      Type *mem_ty = declspec();
+      bool first = true;
+      while (!consume(";")) {
+        if (!first) {
+          expect(",");
+        }
+        first = false;
+        Token *tok = expectIdent();
+        Obj *mem = calloc(1, sizeof(Obj));
+        mem->name = strndup(tok->str, tok->len);
+        mem->ty = typeSuffix(declarator(mem_ty));
+        cur = cur->next = mem;
+      }
+    }
+    ty->members = head.next;
+    size_t offset = 0;
+    for (Obj *mem = ty->members; mem; mem = mem->next) {
+      mem->offset = offset;
+      offset += mem->ty->size;
+    }
+    ty->size = offset;
   }
   return ty;
 }
@@ -377,7 +407,7 @@ Node *primary(void) {
   tok = consumeStrLit();
   if (tok) {
     Type *ty = arrayOf(ty_char, tok->len);
-    Var *var = newStrLitVar(tok, ty);
+    Obj *var = newStrLitVar(tok, ty);
     Node *node = newNode(ND_VAR);
     node->var = var;
     return node;
@@ -529,6 +559,9 @@ void addType(Node *node) {
   case ND_COMMA:
     node->ty = node->rhs->ty;
     return;
+  case ND_MEMBER:
+    node->ty = node->var->ty;
+    return;
   case ND_ADDR:
     if (node->body->ty->kind == TY_ARR) {
       node->ty = pointerTo(node->body->ty->base);
@@ -600,6 +633,12 @@ Node *newNodeDeref(Node *body) {
   return node;
 }
 
+Node *newNodeMember(Node *body) {
+  Node *node = newNode(ND_MEMBER);
+  node->lhs = body;
+  return node;
+}
+
 Node *newNodeFor(void) {
   Node *node = newNode(ND_FOR);
   expect("(");
@@ -645,10 +684,34 @@ Node *funcCall(Token *tok) {
 
 Node *postfix(void) {
   Node *node = primary();
-  while (consume("[")) {
-    Node *idx = expr();
-    expect("]");
-    node = newNodeDeref(newNodeAdd(node, idx));
+  for (;;) {
+    if (consume("[")) {
+      Node *idx = expr();
+      expect("]");
+      node = newNodeDeref(newNodeAdd(node, idx));
+      continue;
+    }
+    if (consume(".")) {
+      Token *tok = consumeIdent();
+      addType(node);
+      if (node->ty->kind != TY_STRUCT) {
+        compErrorToken(node->tok->str, "not a struct");
+      }
+      Node *mem_node = newNodeMember(node);
+      for (Obj *mem = node->ty->members; mem; mem = mem->next) {
+        if (strlen(mem->name) == tok->len &&
+            strncmp(mem->name, tok->str, tok->len) == 0) {
+          mem_node->var = mem;
+          break;
+        }
+      }
+      if (!mem_node->var) {
+        compErrorToken(tok->str, "no such member");
+      }
+      node = mem_node;
+      continue;
+    }
+    break;
   }
   return node;
 }

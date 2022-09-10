@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-typedef struct Obj Var;
 typedef struct Type Type;
 typedef struct Node Node;
 typedef struct Token Token;
@@ -26,6 +25,7 @@ typedef enum {
   ND_IF,
   ND_LE,
   ND_LT,
+  ND_MEMBER,
   ND_MUL,
   ND_NE,
   ND_NUM,
@@ -41,6 +41,7 @@ typedef enum {
   TY_CHAR,
   TY_INT,
   TY_PTR,
+  TY_STRUCT,
 } TypeKind;
 
 typedef enum {
@@ -60,6 +61,7 @@ typedef enum {
 struct Type {
   TypeKind kind;
   Type *base;
+  Obj *members;
   size_t size;
   size_t arr_len;
 };

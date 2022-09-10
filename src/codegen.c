@@ -139,6 +139,7 @@ void genExpr(Node *node) {
     fprintf(output, "  mov rax, %d\n", node->val);
     return;
   case ND_VAR:
+  case ND_MEMBER:
     genAddr(node);
     load(node->ty);
     return;
@@ -243,6 +244,10 @@ void genAddr(Node *node) {
   case ND_COMMA:
     genExpr(node->lhs);
     genAddr(node->rhs);
+    return;
+  case ND_MEMBER:
+    genAddr(node->lhs);
+    fprintf(output, "  add rax, %zu\n", node->var->offset);
     return;
   default:
     break;
