@@ -18,8 +18,6 @@ static struct {
   char *kwd;
   Type *ty;
 } ty_kwd_map[] = {
-    {.kwd = "struct",
-     .ty = &(Type){.kind = TY_STRUCT, .size = 0, .base = NULL}},
     {.kwd = "int", .ty = &(Type){.kind = TY_INT, .size = 8, .base = NULL}},
     {.kwd = "char", .ty = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL}}};
 Type *ty_int = &(Type){.kind = TY_INT, .size = 8, .base = NULL};
@@ -269,6 +267,12 @@ void newParam(Type *ty) {
 }
 
 Type *getType(const char *kwd, size_t len) {
+  static const char struct_kwd[] = "struct";
+  if ((sizeof(struct_kwd) - 1) == len && strncmp(kwd, struct_kwd, len) == 0) {
+    Type *struct_ty = calloc(1, sizeof(Type));
+    struct_ty->kind = TY_STRUCT;
+    return struct_ty;
+  }
   for (size_t i = 0; i < sizeof(ty_kwd_map) / sizeof(*ty_kwd_map); ++i) {
     if (strlen(ty_kwd_map[i].kwd) == len &&
         strncmp(kwd, ty_kwd_map[i].kwd, len) == 0) {

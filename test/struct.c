@@ -15,7 +15,7 @@ int main() {
   ASSERT(6, ({ struct {char a[3]; char b[5];} x; char *p=&x; x.a[0]=6; p[0]; }));
   ASSERT(7, ({ struct {char a[3]; char b[5];} x; char *p=&x; x.b[0]=7; p[3]; }));
 
-  // ASSERT(6, ({ struct { struct { char b; } a; } x; x.a.b=6; x.a.b; }));
+  ASSERT(6, ({ struct { struct { char b; } a; } x; x.a.b=6; x.a.b; }));
 
   ASSERT(8, ({ struct {int a;} x; sizeof(x); }));
   ASSERT(16, ({ struct {int a; int b;} x; sizeof(x); }));
