@@ -218,12 +218,16 @@ Type *typeSuffix(Type *ty) {
 Obj *newVar(Type *ty, Obj **vars) {
   Token *tok = expectIdent();
   Obj *var = calloc(1, sizeof(Var));
-  var->next = (*vars);
+  var->next = *vars;
   var->name = strndup(tok->str, tok->len);
   var->ty = typeSuffix(ty);
-  var->offset = ((*vars) ? (*vars)->offset + var->ty->size : var->ty->size);
-  (*vars) = var;
-  cur_fn->stack_size = (var->offset + 15) / 16 * 16;
+  *vars = var;
+  for (Obj *ext_var = *vars; ext_var; ext_var = ext_var->next) {
+    ext_var->offset += var->ty->size;
+    if (!ext_var->next) {
+      cur_fn->stack_size = (ext_var->offset + 15) / 16 * 16;
+    }
+  }
   pushScope(var);
   return var;
 }
