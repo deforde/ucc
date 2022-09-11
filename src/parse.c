@@ -72,6 +72,7 @@ static void exitScope(void);
 static void pushScope(Obj *var);
 static size_t alignTo(size_t n, size_t align);
 static Type *newType(TypeKind kind, size_t size, size_t align);
+static Type *structDecl(Type *ty);
 
 void parse() {
   Obj head = {0};
@@ -227,12 +228,13 @@ Obj *newVar(Type *ty, Obj **vars) {
   var->name = strndup(tok->str, tok->len);
   var->ty = typeSuffix(ty);
   *vars = var;
+  size_t offset = 0;
   for (Obj *ext_var = *vars; ext_var; ext_var = ext_var->next) {
-    ext_var->offset += var->ty->size;
-    if (!ext_var->next) {
-      cur_fn->stack_size = alignTo(ext_var->offset, 16);
-    }
+    offset += ext_var->ty->size;
+    offset = alignTo(offset, ext_var->ty->align);
+    ext_var->offset = offset;
   }
+  cur_fn->stack_size = alignTo(offset, 16);
   pushScope(var);
   return var;
 }
@@ -291,36 +293,41 @@ Type *declspec(void) {
     compErrorToken(ident->str, "unidentified type");
   }
   if (ty->kind == TY_STRUCT) {
-    expect("{");
-    Obj head = {0};
-    Obj *cur = &head;
-    while (!consume("}")) {
-      Type *mem_ty = declspec();
-      bool first = true;
-      while (!consume(";")) {
-        if (!first) {
-          expect(",");
-        }
-        first = false;
-        Token *tok = expectIdent();
-        Obj *mem = calloc(1, sizeof(Obj));
-        mem->name = strndup(tok->str, tok->len);
-        mem->ty = typeSuffix(declarator(mem_ty));
-        cur = cur->next = mem;
-      }
-    }
-    ty->members = head.next;
-    size_t offset = 0;
-    for (Obj *mem = ty->members; mem; mem = mem->next) {
-      offset = alignTo(offset, mem->ty->align);
-      mem->offset = offset;
-      offset += mem->ty->size;
-      if (mem->ty->align > ty->align) {
-        ty->align = mem->ty->align;
-      }
-    }
-    ty->size = alignTo(offset, ty->align);
+    ty = structDecl(ty);
   }
+  return ty;
+}
+
+Type *structDecl(Type *ty) {
+  expect("{");
+  Obj head = {0};
+  Obj *cur = &head;
+  while (!consume("}")) {
+    Type *mem_ty = declspec();
+    bool first = true;
+    while (!consume(";")) {
+      if (!first) {
+        expect(",");
+      }
+      first = false;
+      Token *tok = expectIdent();
+      Obj *mem = calloc(1, sizeof(Obj));
+      mem->name = strndup(tok->str, tok->len);
+      mem->ty = typeSuffix(declarator(mem_ty));
+      cur = cur->next = mem;
+    }
+  }
+  ty->members = head.next;
+  size_t offset = 0;
+  for (Obj *mem = ty->members; mem; mem = mem->next) {
+    offset = alignTo(offset, mem->ty->align);
+    mem->offset = offset;
+    offset += mem->ty->size;
+    if (mem->ty->align > ty->align) {
+      ty->align = mem->ty->align;
+    }
+  }
+  ty->size = alignTo(offset, ty->align);
   return ty;
 }
 
