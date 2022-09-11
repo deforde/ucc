@@ -18,10 +18,12 @@ static struct {
   char *kwd;
   Type *ty;
 } ty_kwd_map[] = {
-    {.kwd = "int", .ty = &(Type){.kind = TY_INT, .size = 8, .base = NULL}},
-    {.kwd = "char", .ty = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL}}};
-Type *ty_int = &(Type){.kind = TY_INT, .size = 8, .base = NULL};
-Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL};
+    {.kwd = "int",
+     .ty = &(Type){.kind = TY_INT, .size = 8, .base = NULL, .align = 8}},
+    {.kwd = "char",
+     .ty = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL, .align = 1}}};
+Type *ty_int = &(Type){.kind = TY_INT, .size = 8, .base = NULL, .align = 8};
+Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL, .align = 1};
 static Obj *cur_fn = NULL;
 static Scope *scopes = &(Scope){0};
 
@@ -68,6 +70,8 @@ static void globalVar(Type *ty);
 static void enterScope(void);
 static void exitScope(void);
 static void pushScope(Obj *var);
+static size_t alignTo(size_t n, size_t align);
+static Type *newType(TypeKind kind, size_t size, size_t align);
 
 void parse() {
   Obj head = {0};
@@ -226,7 +230,7 @@ Obj *newVar(Type *ty, Obj **vars) {
   for (Obj *ext_var = *vars; ext_var; ext_var = ext_var->next) {
     ext_var->offset += var->ty->size;
     if (!ext_var->next) {
-      cur_fn->stack_size = (ext_var->offset + 15) / 16 * 16;
+      cur_fn->stack_size = alignTo(ext_var->offset, 16);
     }
   }
   pushScope(var);
@@ -269,9 +273,7 @@ void newParam(Type *ty) {
 Type *getType(const char *kwd, size_t len) {
   static const char struct_kwd[] = "struct";
   if ((sizeof(struct_kwd) - 1) == len && strncmp(kwd, struct_kwd, len) == 0) {
-    Type *struct_ty = calloc(1, sizeof(Type));
-    struct_ty->kind = TY_STRUCT;
-    return struct_ty;
+    return newType(TY_STRUCT, 0, 1);
   }
   for (size_t i = 0; i < sizeof(ty_kwd_map) / sizeof(*ty_kwd_map); ++i) {
     if (strlen(ty_kwd_map[i].kwd) == len &&
@@ -310,10 +312,14 @@ Type *declspec(void) {
     ty->members = head.next;
     size_t offset = 0;
     for (Obj *mem = ty->members; mem; mem = mem->next) {
+      offset = alignTo(offset, mem->ty->align);
       mem->offset = offset;
       offset += mem->ty->size;
+      if (mem->ty->align > ty->align) {
+        ty->align = mem->ty->align;
+      }
     }
-    ty->size = offset;
+    ty->size = alignTo(offset, ty->align);
   }
   return ty;
 }
@@ -594,19 +600,15 @@ void addType(Node *node) {
 }
 
 Type *pointerTo(Type *base) {
-  Type *ty = calloc(1, sizeof(Type));
-  ty->kind = TY_PTR;
+  Type *ty = newType(TY_PTR, 8, 8);
   ty->base = base;
-  ty->size = 8;
   return ty;
 }
 
 Type *arrayOf(Type *base, size_t len) {
-  Type *ty = calloc(1, sizeof(Type));
-  ty->kind = TY_ARR;
-  ty->arr_len = len;
+  Type *ty = newType(TY_ARR, base->size * len, base->align);
   ty->base = base;
-  ty->size = base->size * ty->arr_len;
+  ty->arr_len = len;
   return ty;
 }
 
@@ -745,4 +747,16 @@ void pushScope(Obj *var) {
   sc->var = var;
   sc->next = scopes->vars;
   scopes->vars = sc;
+}
+
+size_t alignTo(size_t n, size_t align) {
+  return (n + align - 1) / align * align;
+}
+
+Type *newType(TypeKind kind, size_t size, size_t align) {
+  Type *ty = calloc(1, sizeof(Type));
+  ty->kind = kind;
+  ty->size = size;
+  ty->align = align;
+  return ty;
 }
