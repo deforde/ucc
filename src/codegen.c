@@ -257,6 +257,13 @@ void genAddr(Node *node) {
 
 void store(Type *ty) {
   fprintf(output, "  pop rdi\n");
+  if (ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
+    for (size_t i = 0; i < ty->size; i++) {
+      fprintf(output, "  mov r8b, [rax+%zu]\n", i);
+      fprintf(output, "  mov [rdi+%zu], r8b\n", i);
+    }
+    return;
+  }
   if (ty->size == 1) {
     fprintf(output, "  mov [rdi], al\n");
   } else {
@@ -265,7 +272,7 @@ void store(Type *ty) {
 }
 
 void load(Type *ty) {
-  if (ty->kind == TY_ARR) {
+  if (ty->kind == TY_ARR || ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
     return;
   }
   if (ty->size == 1) {
