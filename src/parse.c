@@ -73,7 +73,9 @@ static void exitScope(void);
 static void pushScope(Obj *var);
 static size_t alignTo(size_t n, size_t align);
 static Type *newType(TypeKind kind, size_t size, size_t align);
+static Type *structUnionDecl(Type *ty);
 static Type *structDecl(Type *ty);
+static Type *unionDecl(Type *ty);
 static void pushTagScope(Token *tok, Type *ty);
 static Node *structRef(Node *node);
 
@@ -277,8 +279,12 @@ void newParam(Type *ty) {
 
 Type *getType(const char *kwd, size_t len) {
   static const char struct_kwd[] = "struct";
+  static const char union_kwd[] = "union";
   if ((sizeof(struct_kwd) - 1) == len && strncmp(kwd, struct_kwd, len) == 0) {
     return newType(TY_STRUCT, 0, 1);
+  }
+  if ((sizeof(union_kwd) - 1) == len && strncmp(kwd, union_kwd, len) == 0) {
+    return newType(TY_UNION, 0, 1);
   }
   for (size_t i = 0; i < sizeof(ty_kwd_map) / sizeof(*ty_kwd_map); ++i) {
     if (strlen(ty_kwd_map[i].kwd) == len &&
@@ -295,19 +301,26 @@ Type *declspec(void) {
   if (!ty) {
     compErrorToken(ident->str, "unidentified type");
   }
-  if (ty->kind == TY_STRUCT) {
+  switch (ty->kind) {
+  case TY_STRUCT:
     ty = structDecl(ty);
+    break;
+  case TY_UNION:
+    ty = unionDecl(ty);
+    break;
+  default:
+    break;
   }
   return ty;
 }
 
-Type *structDecl(Type *ty) {
-  Token *struct_tag = consumeIdent();
-  if (struct_tag) {
+Type *structUnionDecl(Type *ty) {
+  Token *tag = consumeIdent();
+  if (tag) {
     if (!consume("{")) {
-      Type *ty = findTag(struct_tag);
+      ty = findTag(tag);
       if (!ty) {
-        compErrorToken(struct_tag->str, "unkown struct type");
+        compErrorToken(tag->str, "unkown struct/union tag");
       }
       return ty;
     }
@@ -333,6 +346,17 @@ Type *structDecl(Type *ty) {
     }
   }
   ty->members = head.next;
+  ty->align = 1;
+
+  if (tag) {
+    pushTagScope(tag, ty);
+  }
+
+  return ty;
+}
+
+Type *structDecl(Type *ty) {
+  ty = structUnionDecl(ty);
 
   size_t offset = 0;
   for (Obj *mem = ty->members; mem; mem = mem->next) {
@@ -345,9 +369,21 @@ Type *structDecl(Type *ty) {
   }
   ty->size = alignTo(offset, ty->align);
 
-  if (struct_tag) {
-    pushTagScope(struct_tag, ty);
+  return ty;
+}
+
+Type *unionDecl(Type *ty) {
+  ty = structUnionDecl(ty);
+
+  for (Obj *mem = ty->members; mem; mem = mem->next) {
+    if (mem->ty->align > ty->align) {
+      ty->align = mem->ty->align;
+    }
+    if (mem->ty->size > ty->size) {
+      ty->size = mem->ty->size;
+    }
   }
+  ty->size = alignTo(ty->size, ty->align);
 
   return ty;
 }
@@ -731,8 +767,8 @@ Node *funcCall(Token *tok) {
 Node *structRef(Node *node) {
   Token *tok = expectIdent();
   addType(node);
-  if (node->ty->kind != TY_STRUCT) {
-    compErrorToken(node->tok->str, "not a struct");
+  if (node->ty->kind != TY_STRUCT && node->ty->kind != TY_UNION) {
+    compErrorToken(node->tok->str, "not a struct or a union");
   }
   Node *mem_node = newNodeMember(node);
   for (Obj *mem = node->ty->members; mem; mem = mem->next) {
