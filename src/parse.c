@@ -19,10 +19,10 @@ static struct {
   Type *ty;
 } ty_kwd_map[] = {
     {.kwd = "int",
-     .ty = &(Type){.kind = TY_INT, .size = 8, .base = NULL, .align = 8}},
+     .ty = &(Type){.kind = TY_INT, .size = 4, .base = NULL, .align = 4}},
     {.kwd = "char",
      .ty = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL, .align = 1}}};
-Type *ty_int = &(Type){.kind = TY_INT, .size = 8, .base = NULL, .align = 8};
+Type *ty_int = &(Type){.kind = TY_INT, .size = 4, .base = NULL, .align = 4};
 Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL, .align = 1};
 static Obj *cur_fn = NULL;
 static Scope *scopes = &(Scope){0};

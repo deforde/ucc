@@ -13,8 +13,9 @@ extern Obj *globals;
 extern FILE *output;
 extern const char *input_file_path;
 static size_t label_num = 1;
-static const char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static const char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
+static const char *argreg32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
+static const char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static Obj *cur_fn = NULL;
 
 static void genAddr(Node *node);
@@ -22,6 +23,7 @@ static void genStmt(Node *node);
 static void genExpr(Node *node);
 static void load(Type *ty);
 static void store(Type *ty);
+static void storeArgReg(size_t r, size_t offset, size_t sz);
 
 void gen() {
   fprintf(output, ".file 1 \"%s\"\n", input_file_path);
@@ -50,13 +52,7 @@ void gen() {
 
     size_t i = 0;
     for (Obj *param = fn->params; param; param = param->next) {
-      if (param->ty->size == 1) {
-        fprintf(output, "  mov [rbp-%zu], %s\n", param->offset,
-                argreg8[fn->param_cnt - (i++) - 1]);
-      } else {
-        fprintf(output, "  mov [rbp-%zu], %s\n", param->offset,
-                argreg64[fn->param_cnt - (i++) - 1]);
-      }
+      storeArgReg(fn->param_cnt - (i++) - 1, param->offset, param->ty->size);
     }
 
     genStmt(fn->body);
@@ -266,9 +262,26 @@ void store(Type *ty) {
   }
   if (ty->size == 1) {
     fprintf(output, "  mov [rdi], al\n");
+  } else if (ty->size == 4) {
+    fprintf(output, "  mov [rdi], eax\n");
   } else {
     fprintf(output, "  mov [rdi], rax\n");
   }
+}
+
+void storeArgReg(size_t r, size_t offset, size_t sz) {
+  switch (sz) {
+  case 1:
+    fprintf(output, "  mov [rbp-%zu], %s\n", offset, argreg8[r]);
+    return;
+  case 4:
+    fprintf(output, "  mov [rbp-%zu], %s\n", offset, argreg32[r]);
+    return;
+  case 8:
+    fprintf(output, "  mov [rbp-%zu], %s\n", offset, argreg64[r]);
+    return;
+  }
+  assert(false);
 }
 
 void load(Type *ty) {
@@ -277,6 +290,8 @@ void load(Type *ty) {
   }
   if (ty->size == 1) {
     fprintf(output, "  movsbq rax, [rax]\n");
+  } else if (ty->size == 4) {
+    fprintf(output, "  movsxd rax, [rax]\n");
   } else {
     fprintf(output, "  mov rax, [rax]\n");
   }
