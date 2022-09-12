@@ -14,6 +14,7 @@ extern FILE *output;
 extern const char *input_file_path;
 static size_t label_num = 1;
 static const char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
+static const char *argreg16[] = {"di", "si", "dx", "cx", "r8w", "r9w"};
 static const char *argreg32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
 static const char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static Obj *cur_fn = NULL;
@@ -262,6 +263,8 @@ void store(Type *ty) {
   }
   if (ty->size == 1) {
     fprintf(output, "  mov [rdi], al\n");
+  } else if (ty->size == 2) {
+    fprintf(output, "  mov [rdi], ax\n");
   } else if (ty->size == 4) {
     fprintf(output, "  mov [rdi], eax\n");
   } else {
@@ -273,6 +276,9 @@ void storeArgReg(size_t r, size_t offset, size_t sz) {
   switch (sz) {
   case 1:
     fprintf(output, "  mov [rbp-%zu], %s\n", offset, argreg8[r]);
+    return;
+  case 2:
+    fprintf(output, "  mov [rbp-%zu], %s\n", offset, argreg16[r]);
     return;
   case 4:
     fprintf(output, "  mov [rbp-%zu], %s\n", offset, argreg32[r]);
@@ -290,6 +296,8 @@ void load(Type *ty) {
   }
   if (ty->size == 1) {
     fprintf(output, "  movsbq rax, [rax]\n");
+  } else if (ty->size == 2) {
+    fprintf(output, "  movswq rax, [rax]\n");
   } else if (ty->size == 4) {
     fprintf(output, "  movsxd rax, [rax]\n");
   } else {

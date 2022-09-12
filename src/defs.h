@@ -44,6 +44,7 @@ typedef enum {
   TY_INT,
   TY_LONG,
   TY_PTR,
+  TY_SHORT,
   TY_STRUCT,
   TY_UNION,
 } TypeKind;

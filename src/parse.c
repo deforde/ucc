@@ -16,6 +16,8 @@
   &(Type) { .kind = TY_LONG, .size = 8, .base = NULL, .align = 8 }
 #define TY_CHAR_CMPND_LIT                                                      \
   &(Type) { .kind = TY_CHAR, .size = 1, .base = NULL, .align = 1 }
+#define TY_SHORT_CMPND_LIT                                                     \
+  &(Type) { .kind = TY_SHORT, .size = 2, .base = NULL, .align = 2 }
 
 extern Type *ty_int;
 extern Token *token;
@@ -26,10 +28,12 @@ static struct {
   Type *ty;
 } ty_kwd_map[] = {{.kwd = "int", .ty = TY_INT_CMPND_LIT},
                   {.kwd = "char", .ty = TY_CHAR_CMPND_LIT},
+                  {.kwd = "short", .ty = TY_SHORT_CMPND_LIT},
                   {.kwd = "long", .ty = TY_LONG_CMPND_LIT}};
 Type *ty_int = TY_INT_CMPND_LIT;
 Type *ty_long = TY_LONG_CMPND_LIT;
 Type *ty_char = TY_CHAR_CMPND_LIT;
+Type *ty_short = TY_SHORT_CMPND_LIT;
 static Obj *cur_fn = NULL;
 static Scope *scopes = &(Scope){0};
 
@@ -602,7 +606,16 @@ Type *findTag(Token *tok) {
 }
 
 bool isInteger(Type *ty) {
-  return ty->kind == TY_INT || ty->kind == TY_CHAR || ty->kind == TY_LONG;
+  switch (ty->kind) {
+  case TY_INT:
+  case TY_CHAR:
+  case TY_LONG:
+  case TY_SHORT:
+    return true;
+  default:
+    break;
+  }
+  return false;
 }
 
 void addType(Node *node) {
