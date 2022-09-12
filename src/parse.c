@@ -75,6 +75,7 @@ static size_t alignTo(size_t n, size_t align);
 static Type *newType(TypeKind kind, size_t size, size_t align);
 static Type *structDecl(Type *ty);
 static void pushTagScope(Token *tok, Type *ty);
+static Node *structRef(Node *node);
 
 void parse() {
   Obj head = {0};
@@ -727,6 +728,26 @@ Node *funcCall(Token *tok) {
   return node;
 }
 
+Node *structRef(Node *node) {
+  Token *tok = expectIdent();
+  addType(node);
+  if (node->ty->kind != TY_STRUCT) {
+    compErrorToken(node->tok->str, "not a struct");
+  }
+  Node *mem_node = newNodeMember(node);
+  for (Obj *mem = node->ty->members; mem; mem = mem->next) {
+    if (strlen(mem->name) == tok->len &&
+        strncmp(mem->name, tok->str, tok->len) == 0) {
+      mem_node->var = mem;
+      break;
+    }
+  }
+  if (!mem_node->var) {
+    compErrorToken(tok->str, "no such member");
+  }
+  return mem_node;
+}
+
 Node *postfix(void) {
   Node *node = primary();
   for (;;) {
@@ -737,23 +758,12 @@ Node *postfix(void) {
       continue;
     }
     if (consume(".")) {
-      Token *tok = consumeIdent();
-      addType(node);
-      if (node->ty->kind != TY_STRUCT) {
-        compErrorToken(node->tok->str, "not a struct");
-      }
-      Node *mem_node = newNodeMember(node);
-      for (Obj *mem = node->ty->members; mem; mem = mem->next) {
-        if (strlen(mem->name) == tok->len &&
-            strncmp(mem->name, tok->str, tok->len) == 0) {
-          mem_node->var = mem;
-          break;
-        }
-      }
-      if (!mem_node->var) {
-        compErrorToken(tok->str, "no such member");
-      }
-      node = mem_node;
+      node = structRef(node);
+      continue;
+    }
+    if (consume("->")) {
+      node = newNodeDeref(node);
+      node = structRef(node);
       continue;
     }
     break;

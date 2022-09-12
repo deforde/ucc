@@ -140,7 +140,7 @@ void tokenise(const char *file_path) {
       continue;
     }
     if (startsWith(p, "==") || startsWith(p, "!=") || startsWith(p, "<=") ||
-        startsWith(p, ">=")) {
+        startsWith(p, ">=") || startsWith(p, "->")) {
       cur = newToken(TK_RESERVED, cur, p, 2, line_num);
       p += 2;
       continue;
