@@ -402,6 +402,16 @@ Type *declarator(Type *ty, Token **ident) {
   while (consume("*")) {
     ty = pointerTo(ty);
   }
+  if (consume("(")) {
+    Type *super_ty = declarator(ty_int, ident);
+    expect(")");
+    ty = typeSuffix(ty);
+    if (super_ty->kind == TY_PTR || super_ty->kind == TY_ARR) {
+      super_ty->base = ty;
+      return super_ty;
+    }
+    return ty;
+  }
   *ident = expectIdent();
   ty = typeSuffix(ty);
   return ty;
