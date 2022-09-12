@@ -55,6 +55,7 @@ static Node *unary(void);
 static Type *pointerTo(Type *base);
 static Type *arrayOf(Type *base, size_t len);
 static Obj *findVar(Token *tok);
+static Type *findTag(Token *tok);
 static Obj *newVar(Type *ty, Obj **vars);
 static Obj *newLocalVar(Type *ty);
 static Obj *newGlobalVar(Type *ty);
@@ -73,6 +74,7 @@ static void pushScope(Obj *var);
 static size_t alignTo(size_t n, size_t align);
 static Type *newType(TypeKind kind, size_t size, size_t align);
 static Type *structDecl(Type *ty);
+static void pushTagScope(Token *tok, Type *ty);
 
 void parse() {
   Obj head = {0};
@@ -299,7 +301,19 @@ Type *declspec(void) {
 }
 
 Type *structDecl(Type *ty) {
-  expect("{");
+  Token *struct_tag = consumeIdent();
+  if (struct_tag) {
+    if (!consume("{")) {
+      Type *ty = findTag(struct_tag);
+      if (!ty) {
+        compErrorToken(struct_tag->str, "unkown struct type");
+      }
+      return ty;
+    }
+  } else {
+    expect("{");
+  }
+
   Obj head = {0};
   Obj *cur = &head;
   while (!consume("}")) {
@@ -318,6 +332,7 @@ Type *structDecl(Type *ty) {
     }
   }
   ty->members = head.next;
+
   size_t offset = 0;
   for (Obj *mem = ty->members; mem; mem = mem->next) {
     offset = alignTo(offset, mem->ty->align);
@@ -328,6 +343,11 @@ Type *structDecl(Type *ty) {
     }
   }
   ty->size = alignTo(offset, ty->align);
+
+  if (struct_tag) {
+    pushTagScope(struct_tag, ty);
+  }
+
   return ty;
 }
 
@@ -520,6 +540,18 @@ Obj *findVar(Token *tok) {
       if (strlen(vs->var->name) == tok->len &&
           memcmp(tok->str, vs->var->name, strlen(vs->var->name)) == 0) {
         return vs->var;
+      }
+    }
+  }
+  return NULL;
+}
+
+Type *findTag(Token *tok) {
+  for (Scope *sc = scopes; sc; sc = sc->next) {
+    for (TagScope *ts = sc->tags; ts; ts = ts->next) {
+      if (strlen(ts->name) == tok->len &&
+          memcmp(tok->str, ts->name, tok->len) == 0) {
+        return ts->ty;
       }
     }
   }
@@ -766,4 +798,12 @@ Type *newType(TypeKind kind, size_t size, size_t align) {
   ty->size = size;
   ty->align = align;
   return ty;
+}
+
+void pushTagScope(Token *tok, Type *ty) {
+  TagScope *sc = calloc(1, sizeof(TagScope));
+  sc->name = strndup(tok->str, tok->len);
+  sc->ty = ty;
+  sc->next = scopes->tags;
+  scopes->tags = sc;
 }

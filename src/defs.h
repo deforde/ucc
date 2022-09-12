@@ -10,6 +10,7 @@ typedef struct Token Token;
 typedef struct Obj Obj;
 typedef struct VarScope VarScope;
 typedef struct Scope Scope;
+typedef struct TagScope TagScope;
 
 typedef enum {
   ND_ADD,
@@ -119,6 +120,13 @@ struct VarScope {
 struct Scope {
   Scope *next;
   VarScope *vars;
+  TagScope *tags;
+};
+
+struct TagScope {
+  TagScope *next;
+  const char *name;
+  Type *ty;
 };
 
 #endif // DEFS_H
