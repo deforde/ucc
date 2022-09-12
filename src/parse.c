@@ -37,6 +37,7 @@ Type *ty_int = TY_INT_CMPND_LIT;
 Type *ty_long = TY_LONG_CMPND_LIT;
 Type *ty_char = TY_CHAR_CMPND_LIT;
 Type *ty_short = TY_SHORT_CMPND_LIT;
+Type *ty_void = TY_VOID_CMPND_LIT;
 static Obj *cur_fn = NULL;
 static Scope *scopes = &(Scope){0};
 
@@ -48,49 +49,51 @@ static Node *equality(void);
 static Node *expr(void);
 static Node *funcCall(Token *tok);
 static Node *mul(void);
-static Node *postfix(void);
 static Node *newNode(NodeKind kind);
-static Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *newNodeAdd(Node *lhs, Node *rhs);
+static Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs);
+static Node *newNodeDeref(Node *body);
 static Node *newNodeFor(void);
 static Node *newNodeIdent(Token *tok);
 static Node *newNodeIf(void);
+static Node *newNodeMember(Node *body);
 static Node *newNodeNum(int64_t val);
 static Node *newNodeReturn(void);
 static Node *newNodeSub(Node *lhs, Node *rhs);
 static Node *newNodeWhile(void);
-static Node *newNodeDeref(Node *body);
-static Node *newNodeMember(Node *body);
+static Node *postfix(void);
 static Node *primary(void);
 static Node *relational(void);
 static Node *stmt(void);
+static Node *structRef(Node *node);
 static Node *unary(void);
-static Type *pointerTo(Type *base);
-static Type *arrayOf(Type *base, size_t len);
 static Obj *findVar(Token *tok);
-static Type *findTag(Token *tok);
-static Obj *newVar(Type *ty, Token *ident, Obj **vars);
-static Obj *newLocalVar(Type *ty, Token *ident);
-static Obj *newGlobalVar(Type *ty, Token *ident);
-static Obj *newStrLitVar(Token *tok, Type *ty);
-static void newParam(Type *ty, Token *ident);
-static bool isInteger(Type *ty);
-static void addType(Node *node);
-static Type *declspec(void);
-static Type *declarator(Type *ty, Token **ident);
 static Obj *function(Type *ty);
+static Obj *newGlobalVar(Type *ty, Token *ident);
+static Obj *newLocalVar(Type *ty, Token *ident);
+static Obj *newStrLitVar(Token *tok, Type *ty);
+static Obj *newVar(Type *ty, Token *ident, Obj **vars);
+static Type *arrayOf(Type *base, size_t len);
+static Type *declarator(Type *ty, Token **ident);
+static Type *declspec(void);
+static Type *findTag(Token *tok);
+static Type *getType(Token *tok);
+static Type *newType(TypeKind kind, size_t size, size_t align);
+static Type *pointerTo(Type *base);
+static Type *structDecl(Type *ty);
+static Type *structUnionDecl(Type *ty);
 static Type *typeSuffix(Type *ty);
-static void globalVar(Type *ty);
+static Type *unionDecl(Type *ty);
+static bool equal(Token *tok, const char *str);
+static bool isInteger(Type *ty);
+static size_t alignTo(size_t n, size_t align);
+static void addType(Node *node);
 static void enterScope(void);
 static void exitScope(void);
+static void globalVar(Type *ty);
+static void newParam(Type *ty, Token *ident);
 static void pushScope(Obj *var);
-static size_t alignTo(size_t n, size_t align);
-static Type *newType(TypeKind kind, size_t size, size_t align);
-static Type *structUnionDecl(Type *ty);
-static Type *structDecl(Type *ty);
-static Type *unionDecl(Type *ty);
 static void pushTagScope(Token *tok, Type *ty);
-static Node *structRef(Node *node);
 
 void parse() {
   Obj head = {0};
@@ -111,7 +114,7 @@ Node *cmpndStmt(void) {
   Node *cur = &head;
   enterScope();
   while (!consume("}")) {
-    if (getType(token->str, token->len)) {
+    if (getType(token)) {
       cur = cur->next = declaration();
     } else {
       cur = cur->next = stmt();
@@ -290,18 +293,17 @@ void newParam(Type *ty, Token *ident) {
   cur_fn->param_cnt++;
 }
 
-Type *getType(const char *kwd, size_t len) {
+Type *getType(Token *tok) {
   static const char struct_kwd[] = "struct";
   static const char union_kwd[] = "union";
-  if ((sizeof(struct_kwd) - 1) == len && strncmp(kwd, struct_kwd, len) == 0) {
+  if (equal(tok, struct_kwd)) {
     return newType(TY_STRUCT, 0, 1);
   }
-  if ((sizeof(union_kwd) - 1) == len && strncmp(kwd, union_kwd, len) == 0) {
+  if (equal(tok, union_kwd)) {
     return newType(TY_UNION, 0, 1);
   }
   for (size_t i = 0; i < sizeof(ty_kwd_map) / sizeof(*ty_kwd_map); ++i) {
-    if (strlen(ty_kwd_map[i].kwd) == len &&
-        strncmp(kwd, ty_kwd_map[i].kwd, len) == 0) {
+    if (equal(tok, ty_kwd_map[i].kwd)) {
       return ty_kwd_map[i].ty;
     }
   }
@@ -309,21 +311,74 @@ Type *getType(const char *kwd, size_t len) {
 }
 
 Type *declspec(void) {
-  Token *ident = expectKeyword();
-  Type *ty = getType(ident->str, ident->len);
-  if (!ty) {
-    compErrorToken(ident->str, "unidentified type");
+  enum {
+    VOID = 1 << 0,
+    CHAR = 1 << 2,
+    SHORT = 1 << 4,
+    INT = 1 << 6,
+    LONG = 1 << 8,
+    OTHER = 1 << 10,
+  };
+
+  size_t counter = 0;
+  Token *kwd = NULL;
+  Type *ty = NULL;
+  while ((kwd = consumeKeyword())) {
+    ty = getType(kwd);
+    if (!ty) {
+      compErrorToken(kwd->str, "unidentified type");
+    }
+
+    switch (ty->kind) {
+    case TY_STRUCT:
+      ty = structDecl(ty);
+      counter += OTHER;
+      continue;
+    case TY_UNION:
+      ty = unionDecl(ty);
+      counter += OTHER;
+      continue;
+    default:
+      break;
+    }
+
+    if (equal(kwd, "void")) {
+      counter += VOID;
+    } else if (equal(kwd, "char")) {
+      counter += CHAR;
+    } else if (equal(kwd, "short")) {
+      counter += SHORT;
+    } else if (equal(kwd, "int")) {
+      counter += INT;
+    } else if (equal(kwd, "long")) {
+      counter += LONG;
+    } else {
+      assert(false);
+    }
+
+    switch (counter) {
+    case VOID:
+      ty = ty_void;
+      break;
+    case CHAR:
+      ty = ty_char;
+      break;
+    case SHORT:
+    case SHORT + INT:
+      ty = ty_short;
+      break;
+    case INT:
+      ty = ty_int;
+      break;
+    case LONG:
+    case LONG + INT:
+      ty = ty_long;
+      break;
+    default:
+      compErrorToken(kwd->str, "invalid type");
+    }
   }
-  switch (ty->kind) {
-  case TY_STRUCT:
-    ty = structDecl(ty);
-    break;
-  case TY_UNION:
-    ty = unionDecl(ty);
-    break;
-  default:
-    break;
-  }
+
   return ty;
 }
 
@@ -818,8 +873,7 @@ Node *structRef(Node *node) {
   }
   Node *mem_node = newNodeMember(node);
   for (Obj *mem = node->ty->members; mem; mem = mem->next) {
-    if (strlen(mem->name) == tok->len &&
-        strncmp(mem->name, tok->str, tok->len) == 0) {
+    if (equal(tok, mem->name)) {
       mem_node->var = mem;
       break;
     }
@@ -899,4 +953,8 @@ void pushTagScope(Token *tok, Type *ty) {
   sc->ty = ty;
   sc->next = scopes->tags;
   scopes->tags = sc;
+}
+
+bool equal(Token *tok, const char *str) {
+  return tok->len == strlen(str) && strncmp(tok->str, str, tok->len) == 0;
 }

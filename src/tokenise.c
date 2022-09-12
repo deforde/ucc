@@ -17,11 +17,11 @@ static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len,
                        size_t line_num);
 static bool consumeTokKind(TokenKind kind);
 static bool isIdentChar(char c);
-static bool startsWith(const char *p, const char *q);
-static int readEscapedChar(const char **p);
-static int fromHex(char c);
-static char *readFile(const char *file_path);
 static bool isKeyword(const char *str, size_t len);
+static bool startsWith(const char *p, const char *q);
+static char *readFile(const char *file_path);
+static int fromHex(char c);
+static int readEscapedChar(const char **p);
 
 bool startsWith(const char *p, const char *q) {
   return memcmp(p, q, strlen(q)) == 0;

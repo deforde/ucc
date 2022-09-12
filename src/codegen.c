@@ -20,8 +20,8 @@ static const char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static Obj *cur_fn = NULL;
 
 static void genAddr(Node *node);
-static void genStmt(Node *node);
 static void genExpr(Node *node);
+static void genStmt(Node *node);
 static void load(Type *ty);
 static void store(Type *ty);
 static void storeArgReg(size_t r, size_t offset, size_t sz);
