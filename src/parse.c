@@ -66,15 +66,15 @@ static Type *pointerTo(Type *base);
 static Type *arrayOf(Type *base, size_t len);
 static Obj *findVar(Token *tok);
 static Type *findTag(Token *tok);
-static Obj *newVar(Type *ty, Obj **vars);
-static Obj *newLocalVar(Type *ty);
-static Obj *newGlobalVar(Type *ty);
+static Obj *newVar(Type *ty, Token *ident, Obj **vars);
+static Obj *newLocalVar(Type *ty, Token *ident);
+static Obj *newGlobalVar(Type *ty, Token *ident);
 static Obj *newStrLitVar(Token *tok, Type *ty);
-static void newParam(Type *ty);
+static void newParam(Type *ty, Token *ident);
 static bool isInteger(Type *ty);
 static void addType(Node *node);
 static Type *declspec(void);
-static Type *declarator(Type *ty);
+static Type *declarator(Type *ty, Token **ident);
 static Obj *function(Type *ty);
 static Type *typeSuffix(Type *ty);
 static void globalVar(Type *ty);
@@ -236,12 +236,11 @@ Type *typeSuffix(Type *ty) {
   return ty;
 }
 
-Obj *newVar(Type *ty, Obj **vars) {
-  Token *tok = expectIdent();
+Obj *newVar(Type *ty, Token *ident, Obj **vars) {
   Obj *var = calloc(1, sizeof(Obj));
   var->next = *vars;
-  var->name = strndup(tok->str, tok->len);
-  var->ty = typeSuffix(ty);
+  var->name = strndup(ident->str, ident->len);
+  var->ty = ty;
   *vars = var;
   size_t offset = 0;
   for (Obj *ext_var = *vars; ext_var; ext_var = ext_var->next) {
@@ -254,12 +253,11 @@ Obj *newVar(Type *ty, Obj **vars) {
   return var;
 }
 
-Obj *newGlobalVar(Type *ty) {
-  Token *tok = expectIdent();
+Obj *newGlobalVar(Type *ty, Token *ident) {
   Obj *var = calloc(1, sizeof(Obj));
   var->next = globals;
-  var->name = strndup(tok->str, tok->len);
-  var->ty = typeSuffix(ty);
+  var->name = strndup(ident->str, ident->len);
+  var->ty = ty;
   var->is_global = true;
   globals = var;
   pushScope(var);
@@ -280,10 +278,12 @@ Obj *newStrLitVar(Token *tok, Type *ty) {
   return var;
 }
 
-Obj *newLocalVar(Type *ty) { return newVar(ty, &cur_fn->locals); }
+Obj *newLocalVar(Type *ty, Token *ident) {
+  return newVar(ty, ident, &cur_fn->locals);
+}
 
-void newParam(Type *ty) {
-  newVar(ty, &cur_fn->params);
+void newParam(Type *ty, Token *ident) {
+  newVar(ty, ident, &cur_fn->params);
   cur_fn->param_cnt++;
 }
 
@@ -348,10 +348,10 @@ Type *structUnionDecl(Type *ty) {
         expect(",");
       }
       first = false;
-      Token *tok = expectIdent();
       Obj *mem = calloc(1, sizeof(Obj));
-      mem->name = strndup(tok->str, tok->len);
-      mem->ty = typeSuffix(declarator(mem_ty));
+      Token *ident = NULL;
+      mem->ty = declarator(mem_ty, &ident);
+      mem->name = strndup(ident->str, ident->len);
       cur = cur->next = mem;
     }
   }
@@ -398,17 +398,18 @@ Type *unionDecl(Type *ty) {
   return ty;
 }
 
-Type *declarator(Type *ty) {
+Type *declarator(Type *ty, Token **ident) {
   while (consume("*")) {
     ty = pointerTo(ty);
   }
+  *ident = expectIdent();
+  ty = typeSuffix(ty);
   return ty;
 }
 
 Obj *function(Type *ty) {
-  ty = declarator(ty);
-
-  Token *fn_ident = expectIdent();
+  Token *fn_ident = NULL;
+  ty = declarator(ty, &fn_ident);
 
   Obj *fn = calloc(1, sizeof(Obj));
   fn->ty = ty;
@@ -424,8 +425,9 @@ Obj *function(Type *ty) {
     }
     first = false;
     Type *ty = declspec();
-    ty = declarator(ty);
-    newParam(ty);
+    Token *param_ident = NULL;
+    ty = declarator(ty, &param_ident);
+    newParam(ty, param_ident);
   }
   expect("{");
 
@@ -448,8 +450,9 @@ Node *declaration(void) {
     }
     first = false;
 
-    Type *ty = declarator(basety);
-    Obj *var = newLocalVar(ty);
+    Token *ident = NULL;
+    Type *ty = declarator(basety, &ident);
+    Obj *var = newLocalVar(ty, ident);
 
     if (!consume("=")) {
       continue;
@@ -835,8 +838,9 @@ void globalVar(Type *base_ty) {
       expect(",");
     }
     first = false;
-    Type *ty = declarator(base_ty);
-    newGlobalVar(ty);
+    Token *ident = NULL;
+    Type *ty = declarator(base_ty, &ident);
+    newGlobalVar(ty, ident);
   }
 }
 
