@@ -89,11 +89,11 @@ void expect(char *op) {
   token = token->next;
 }
 
-int expectNumber(void) {
+int64_t expectNumber(void) {
   if (token->kind != TK_NUM) {
     compError("expected number");
   }
-  const int val = token->val;
+  const int64_t val = token->val;
   token = token->next;
   return val;
 }

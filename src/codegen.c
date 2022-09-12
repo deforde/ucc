@@ -132,7 +132,7 @@ void genExpr(Node *node) {
   fprintf(output, "  .loc 1 %zu\n", node->tok->line_num);
   switch (node->kind) {
   case ND_NUM:
-    fprintf(output, "  mov rax, %d\n", node->val);
+    fprintf(output, "  mov rax, %ld\n", node->val);
     return;
   case ND_VAR:
   case ND_MEMBER:

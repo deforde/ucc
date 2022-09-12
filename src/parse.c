@@ -10,6 +10,13 @@
 #include "defs.h"
 #include "tokenise.h"
 
+#define TY_INT_CMPND_LIT                                                       \
+  &(Type) { .kind = TY_INT, .size = 4, .base = NULL, .align = 4 }
+#define TY_LONG_CMPND_LIT                                                      \
+  &(Type) { .kind = TY_LONG, .size = 8, .base = NULL, .align = 8 }
+#define TY_CHAR_CMPND_LIT                                                      \
+  &(Type) { .kind = TY_CHAR, .size = 1, .base = NULL, .align = 1 }
+
 extern Type *ty_int;
 extern Token *token;
 Obj *prog = NULL;
@@ -17,13 +24,12 @@ Obj *globals = NULL;
 static struct {
   char *kwd;
   Type *ty;
-} ty_kwd_map[] = {
-    {.kwd = "int",
-     .ty = &(Type){.kind = TY_INT, .size = 4, .base = NULL, .align = 4}},
-    {.kwd = "char",
-     .ty = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL, .align = 1}}};
-Type *ty_int = &(Type){.kind = TY_INT, .size = 4, .base = NULL, .align = 4};
-Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .base = NULL, .align = 1};
+} ty_kwd_map[] = {{.kwd = "int", .ty = TY_INT_CMPND_LIT},
+                  {.kwd = "char", .ty = TY_CHAR_CMPND_LIT},
+                  {.kwd = "long", .ty = TY_LONG_CMPND_LIT}};
+Type *ty_int = TY_INT_CMPND_LIT;
+Type *ty_long = TY_LONG_CMPND_LIT;
+Type *ty_char = TY_CHAR_CMPND_LIT;
 static Obj *cur_fn = NULL;
 static Scope *scopes = &(Scope){0};
 
@@ -42,7 +48,7 @@ static Node *newNodeAdd(Node *lhs, Node *rhs);
 static Node *newNodeFor(void);
 static Node *newNodeIdent(Token *tok);
 static Node *newNodeIf(void);
-static Node *newNodeNum(int val);
+static Node *newNodeNum(int64_t val);
 static Node *newNodeReturn(void);
 static Node *newNodeSub(Node *lhs, Node *rhs);
 static Node *newNodeWhile(void);
@@ -154,7 +160,7 @@ Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs) {
   return node;
 }
 
-Node *newNodeNum(int val) {
+Node *newNodeNum(int64_t val) {
   Node *node = newNode(ND_NUM);
   node->val = val;
   return node;
@@ -595,7 +601,9 @@ Type *findTag(Token *tok) {
   return NULL;
 }
 
-bool isInteger(Type *ty) { return ty->kind == TY_INT || ty->kind == TY_CHAR; }
+bool isInteger(Type *ty) {
+  return ty->kind == TY_INT || ty->kind == TY_CHAR || ty->kind == TY_LONG;
+}
 
 void addType(Node *node) {
   if (!node || node->ty) {
@@ -637,7 +645,7 @@ void addType(Node *node) {
   case ND_LE:
   case ND_NUM:
   case ND_FUNCCALL:
-    node->ty = ty_int;
+    node->ty = ty_long;
     break;
   case ND_VAR:
     node->ty = node->var->ty;

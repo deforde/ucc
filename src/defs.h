@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 typedef struct Type Type;
 typedef struct Node Node;
@@ -41,6 +42,7 @@ typedef enum {
   TY_ARR,
   TY_CHAR,
   TY_INT,
+  TY_LONG,
   TY_PTR,
   TY_STRUCT,
   TY_UNION,
@@ -72,7 +74,7 @@ struct Type {
 struct Token {
   TokenKind kind;
   Token *next;
-  int val;
+  int64_t val;
   const char *str;
   size_t len;
   size_t line_num;
@@ -107,7 +109,7 @@ struct Node {
   Node *pre;
   Node *post;
   Obj *var;
-  int val;
+  int64_t val;
   const char *funcname;
   Node *args;
   Token *tok;
