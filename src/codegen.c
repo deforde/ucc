@@ -42,6 +42,10 @@ void gen() {
     }
   }
   for (Obj *fn = prog; fn; fn = fn->next) {
+    if (!fn->body) {
+      continue;
+    }
+
     fprintf(output, ".globl %s\n", fn->name);
     fprintf(output, ".text\n");
     fprintf(output, "%s:\n", fn->name);

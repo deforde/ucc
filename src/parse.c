@@ -439,10 +439,13 @@ Obj *function(Type *ty) {
     ty = declarator(ty, &param_ident);
     newParam(ty, param_ident);
   }
-  expect("{");
 
-  fn->locals = fn->params;
-  fn->body = cmpndStmt();
+  if (!consume(";")) {
+    expect("{");
+    fn->locals = fn->params;
+    fn->body = cmpndStmt();
+  }
+
   exitScope();
   return fn;
 }
