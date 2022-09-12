@@ -21,6 +21,7 @@ static bool startsWith(const char *p, const char *q);
 static int readEscapedChar(const char **p);
 static int fromHex(char c);
 static char *readFile(const char *file_path);
+static bool isKeyword(const char *str, size_t len);
 
 bool startsWith(const char *p, const char *q) {
   return memcmp(p, q, strlen(q)) == 0;
@@ -64,6 +65,15 @@ Token *consumeStrLit(void) {
   return cur;
 }
 
+Token *consumeKeyword(void) {
+  if (token->kind != TK_KWD) {
+    return NULL;
+  }
+  Token *cur = token;
+  token = token->next;
+  return cur;
+}
+
 Token *consumeIdent(void) {
   if (token->kind != TK_IDENT) {
     return NULL;
@@ -77,6 +87,14 @@ Token *expectIdent(void) {
   Token *tok = consumeIdent();
   if (tok == NULL) {
     compError("expected identifier");
+  }
+  return tok;
+}
+
+Token *expectKeyword(void) {
+  Token *tok = consumeKeyword();
+  if (tok == NULL) {
+    compError("expected keyword");
   }
   return tok;
 }
@@ -188,6 +206,9 @@ void tokenise(const char *file_path) {
     }
     if (isIdentChar(*p) && !(*p >= '0' && *p <= '9')) {
       cur = newIdent(cur, &p, line_num);
+      if (isKeyword(cur->str, cur->len)) {
+        cur->kind = TK_KWD;
+      }
       continue;
     }
     if (*p == '"') {
@@ -338,4 +359,15 @@ char *readFile(const char *file_path) {
     file_content[len] = '\n';
   }
   return file_content;
+}
+
+bool isKeyword(const char *str, size_t len) {
+  static const char *kwds[] = {"int",  "char",   "short", "void",
+                               "long", "struct", "union"};
+  for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
+    if (strlen(kwds[i]) == len && strncmp(str, kwds[i], len) == 0) {
+      return true;
+    }
+  }
+  return false;
 }

@@ -309,7 +309,7 @@ Type *getType(const char *kwd, size_t len) {
 }
 
 Type *declspec(void) {
-  Token *ident = expectIdent();
+  Token *ident = expectKeyword();
   Type *ty = getType(ident->str, ident->len);
   if (!ty) {
     compErrorToken(ident->str, "unidentified type");

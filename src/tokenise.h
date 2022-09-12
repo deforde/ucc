@@ -8,6 +8,7 @@ typedef struct Token Token;
 
 bool consume(char *op);
 Token *consumeIdent(void);
+Token *consumeKeyword(void);
 bool consumeReturn(void);
 bool consumeIf(void);
 bool consumeElse(void);
@@ -18,6 +19,7 @@ Token *consumeStrLit(void);
 void expect(char *op);
 int64_t expectNumber(void);
 Token *expectIdent(void);
+Token *expectKeyword(void);
 void tokenise(const char *file_path);
 bool isEOF(void);
 bool isFunc(void);

@@ -56,6 +56,7 @@ typedef enum {
   TK_FOR,
   TK_IDENT,
   TK_IF,
+  TK_KWD,
   TK_NUM,
   TK_RESERVED,
   TK_RET,
