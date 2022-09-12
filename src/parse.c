@@ -11,13 +11,15 @@
 #include "tokenise.h"
 
 #define TY_INT_CMPND_LIT                                                       \
-  &(Type) { .kind = TY_INT, .size = 4, .base = NULL, .align = 4 }
+  &(Type) { .kind = TY_INT, .size = 4, .align = 4 }
 #define TY_LONG_CMPND_LIT                                                      \
-  &(Type) { .kind = TY_LONG, .size = 8, .base = NULL, .align = 8 }
+  &(Type) { .kind = TY_LONG, .size = 8, .align = 8 }
 #define TY_CHAR_CMPND_LIT                                                      \
-  &(Type) { .kind = TY_CHAR, .size = 1, .base = NULL, .align = 1 }
+  &(Type) { .kind = TY_CHAR, .size = 1, .align = 1 }
 #define TY_SHORT_CMPND_LIT                                                     \
-  &(Type) { .kind = TY_SHORT, .size = 2, .base = NULL, .align = 2 }
+  &(Type) { .kind = TY_SHORT, .size = 2, .align = 2 }
+#define TY_VOID_CMPND_LIT                                                      \
+  &(Type) { .kind = TY_VOID, .size = 1, .align = 1 }
 
 extern Type *ty_int;
 extern Token *token;
@@ -29,6 +31,7 @@ static struct {
 } ty_kwd_map[] = {{.kwd = "int", .ty = TY_INT_CMPND_LIT},
                   {.kwd = "char", .ty = TY_CHAR_CMPND_LIT},
                   {.kwd = "short", .ty = TY_SHORT_CMPND_LIT},
+                  {.kwd = "void", .ty = TY_VOID_CMPND_LIT},
                   {.kwd = "long", .ty = TY_LONG_CMPND_LIT}};
 Type *ty_int = TY_INT_CMPND_LIT;
 Type *ty_long = TY_LONG_CMPND_LIT;
@@ -465,6 +468,9 @@ Node *declaration(void) {
 
     Token *ident = NULL;
     Type *ty = declarator(basety, &ident);
+    if (ty->kind == TY_VOID) {
+      compError(ident->str, "variable declared void");
+    }
     Obj *var = newLocalVar(ty, ident);
 
     if (!consume("=")) {
@@ -695,6 +701,9 @@ void addType(Node *node) {
   case ND_DEREF:
     if (!node->body->ty->base) {
       compErrorToken(node->tok->str, "invalid pointer dereference");
+    }
+    if (node->body->ty->base->kind == TY_VOID) {
+      compErrorToken(node->tok->str, "dereferencing void pointer");
     }
     node->ty = node->body->ty->base;
     break;

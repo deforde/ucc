@@ -47,6 +47,7 @@ typedef enum {
   TY_SHORT,
   TY_STRUCT,
   TY_UNION,
+  TY_VOID,
 } TypeKind;
 
 typedef enum {
