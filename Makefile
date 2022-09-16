@@ -7,8 +7,8 @@ BUILD_DIR := build
 SRC_DIRS := src
 
 SRCS := $(shell find $(SRC_DIRS) -name '*.c')
-
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
+DEPS := $(OBJS:.o=.d)
 
 INC_DIRS := $(shell find $(SRC_DIRS) -type d)
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
@@ -52,3 +52,5 @@ test: $(TESTS)
 compdb: clean
 	@bear -- $(MAKE)
 	@mv compile_commands.json build
+
+-include $(DEPS)
