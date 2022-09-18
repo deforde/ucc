@@ -56,6 +56,7 @@ static Obj *newStrLitVar(Token *tok, Type *ty);
 static Obj *newVar(Type *ty, Token *ident, Obj **vars);
 static Type *arrayOf(Type *base, size_t len);
 static Type *declarator(Type *ty, Token **ident);
+static Type *abstractDeclarator(Type *ty);
 static Type *declspec(VarAttr *attr);
 static Type *findTag(Token *tok);
 static Type *newType(TypeKind kind, size_t size, size_t align);
@@ -77,6 +78,7 @@ static void pushTagScope(Token *tok, Type *ty);
 static void parseTypedef(Type *basety);
 static Type *findTypedef(Token *tok);
 static bool isTypename(Token *tok);
+static Type *typename(void);
 
 void parse() {
   Obj head = {0};
@@ -184,7 +186,7 @@ Node *newNodeAdd(Node *lhs, Node *rhs) {
     lhs = rhs;
     rhs = tmp;
   }
-  rhs = newNodeBinary(ND_MUL, rhs, newNodeNum((int)lhs->ty->base->size));
+  rhs = newNodeBinary(ND_MUL, rhs, newNodeNum((int64_t)lhs->ty->base->size));
   return newNodeBinary(ND_ADD, lhs, rhs);
 }
 
@@ -195,7 +197,7 @@ Node *newNodeSub(Node *lhs, Node *rhs) {
     return newNodeBinary(ND_SUB, lhs, rhs);
   }
   if (lhs->ty->base && isInteger(rhs->ty)) {
-    rhs = newNodeBinary(ND_MUL, rhs, newNodeNum((int)lhs->ty->base->size));
+    rhs = newNodeBinary(ND_MUL, rhs, newNodeNum((int64_t)lhs->ty->base->size));
     addType(rhs);
     Node *node = newNodeBinary(ND_SUB, lhs, rhs);
     node->ty = lhs->ty;
@@ -204,7 +206,8 @@ Node *newNodeSub(Node *lhs, Node *rhs) {
   if (lhs->ty->base && rhs->ty->base) {
     Node *node = newNodeBinary(ND_SUB, lhs, rhs);
     node->ty = ty_int;
-    return newNodeBinary(ND_DIV, node, newNodeNum((int)lhs->ty->base->size));
+    return newNodeBinary(ND_DIV, node,
+                         newNodeNum((int64_t)lhs->ty->base->size));
   }
   compErrorToken(lhs->tok->str, "invalid operands");
   assert(false);
@@ -449,6 +452,24 @@ Type *unionDecl(Type *ty) {
   return ty;
 }
 
+Type *abstractDeclarator(Type *ty) {
+  while (consume("*")) {
+    ty = pointerTo(ty);
+  }
+  if (consume("(")) {
+    Type *super_ty = abstractDeclarator(ty_int);
+    expect(")");
+    ty = typeSuffix(ty);
+    if (super_ty->kind == TY_PTR || super_ty->kind == TY_ARR) {
+      super_ty->base = ty;
+      return super_ty;
+    }
+    return ty;
+  }
+  ty = typeSuffix(ty);
+  return ty;
+}
+
 Type *declarator(Type *ty, Token **ident) {
   while (consume("*")) {
     ty = pointerTo(ty);
@@ -552,9 +573,15 @@ Node *primary(void) {
     return node;
   }
   if (consumeSizeof()) {
+    if (equal(token, "(") && isTypename(token->next)) {
+      expect("(");
+      Type *ty = typename();
+      expect(")");
+      return newNodeNum((int64_t)ty->size);
+    }
     Node *node = unary();
     addType(node);
-    return newNodeNum((int)node->ty->size);
+    return newNodeNum((int64_t)node->ty->size);
   }
   tok = consumeStrLit();
   if (tok) {
@@ -983,4 +1010,9 @@ bool isTypename(Token *tok) {
     return true;
   }
   return findTypedef(tok) != NULL;
+}
+
+Type *typename(void) {
+  Type *ty = declspec(NULL);
+  return abstractDeclarator(ty);
 }
