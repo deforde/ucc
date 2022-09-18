@@ -12,6 +12,7 @@ typedef struct Obj Obj;
 typedef struct VarScope VarScope;
 typedef struct Scope Scope;
 typedef struct TagScope TagScope;
+typedef struct VarAttr VarAttr;
 
 typedef enum {
   ND_ADD,
@@ -120,7 +121,9 @@ struct Node {
 
 struct VarScope {
   VarScope *next;
+  char *name;
   Obj *var;
+  Type *type_def;
 };
 
 struct Scope {
@@ -133,6 +136,10 @@ struct TagScope {
   TagScope *next;
   const char *name;
   Type *ty;
+};
+
+struct VarAttr {
+  bool is_typedef;
 };
 
 #endif // DEFS_H

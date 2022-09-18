@@ -10,41 +10,22 @@
 #include "defs.h"
 #include "tokenise.h"
 
-#define TY_INT_CMPND_LIT                                                       \
-  &(Type) { .kind = TY_INT, .size = 4, .align = 4 }
-#define TY_LONG_CMPND_LIT                                                      \
-  &(Type) { .kind = TY_LONG, .size = 8, .align = 8 }
-#define TY_CHAR_CMPND_LIT                                                      \
-  &(Type) { .kind = TY_CHAR, .size = 1, .align = 1 }
-#define TY_SHORT_CMPND_LIT                                                     \
-  &(Type) { .kind = TY_SHORT, .size = 2, .align = 2 }
-#define TY_VOID_CMPND_LIT                                                      \
-  &(Type) { .kind = TY_VOID, .size = 1, .align = 1 }
-
 extern Type *ty_int;
 extern Token *token;
-Obj *prog = NULL;
-Obj *globals = NULL;
-static struct {
-  char *kwd;
-  Type *ty;
-} ty_kwd_map[] = {{.kwd = "int", .ty = TY_INT_CMPND_LIT},
-                  {.kwd = "char", .ty = TY_CHAR_CMPND_LIT},
-                  {.kwd = "short", .ty = TY_SHORT_CMPND_LIT},
-                  {.kwd = "void", .ty = TY_VOID_CMPND_LIT},
-                  {.kwd = "long", .ty = TY_LONG_CMPND_LIT}};
-Type *ty_int = TY_INT_CMPND_LIT;
-Type *ty_long = TY_LONG_CMPND_LIT;
-Type *ty_char = TY_CHAR_CMPND_LIT;
-Type *ty_short = TY_SHORT_CMPND_LIT;
-Type *ty_void = TY_VOID_CMPND_LIT;
 static Obj *cur_fn = NULL;
 static Scope *scopes = &(Scope){0};
+Obj *prog = NULL;
+Obj *globals = NULL;
+Type *ty_int = &(Type){.kind = TY_INT, .size = 4, .align = 4};
+Type *ty_long = &(Type){.kind = TY_LONG, .size = 8, .align = 8};
+Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .align = 1};
+Type *ty_short = &(Type){.kind = TY_SHORT, .size = 2, .align = 2};
+Type *ty_void = &(Type){.kind = TY_VOID, .size = 1, .align = 1};
 
 static Node *add(void);
 static Node *assign(void);
 static Node *cmpndStmt(void);
-static Node *declaration(void);
+static Node *declaration(Type *basety);
 static Node *equality(void);
 static Node *expr(void);
 static Node *funcCall(Token *tok);
@@ -67,7 +48,7 @@ static Node *relational(void);
 static Node *stmt(void);
 static Node *structRef(Node *node);
 static Node *unary(void);
-static Obj *findVar(Token *tok);
+static VarScope *findVarScope(Token *tok);
 static Obj *function(Type *ty);
 static Obj *newGlobalVar(Type *ty, Token *ident);
 static Obj *newLocalVar(Type *ty, Token *ident);
@@ -75,9 +56,8 @@ static Obj *newStrLitVar(Token *tok, Type *ty);
 static Obj *newVar(Type *ty, Token *ident, Obj **vars);
 static Type *arrayOf(Type *base, size_t len);
 static Type *declarator(Type *ty, Token **ident);
-static Type *declspec(void);
+static Type *declspec(VarAttr *attr);
 static Type *findTag(Token *tok);
-static Type *getType(Token *tok);
 static Type *newType(TypeKind kind, size_t size, size_t align);
 static Type *pointerTo(Type *base);
 static Type *structDecl(Type *ty);
@@ -92,14 +72,22 @@ static void enterScope(void);
 static void exitScope(void);
 static void globalVar(Type *ty);
 static void newParam(Type *ty, Token *ident);
-static void pushScope(Obj *var);
+static void pushScope(char *name, Obj *var, Type *type_def);
 static void pushTagScope(Token *tok, Type *ty);
+static void parseTypedef(Type *basety);
+static Type *findTypedef(Token *tok);
+static bool isTypename(Token *tok);
 
 void parse() {
   Obj head = {0};
   Obj *cur = &head;
   while (!isEOF()) {
-    Type *ty = declspec();
+    VarAttr attr = {0};
+    Type *ty = declspec(&attr);
+    if (attr.is_typedef) {
+      parseTypedef(ty);
+      continue;
+    }
     if (isFunc()) {
       cur = cur->next = function(ty);
       continue;
@@ -114,8 +102,14 @@ Node *cmpndStmt(void) {
   Node *cur = &head;
   enterScope();
   while (!consume("}")) {
-    if (getType(token)) {
-      cur = cur->next = declaration();
+    if (isTypename(token)) {
+      VarAttr attr = {0};
+      Type *basety = declspec(&attr);
+      if (attr.is_typedef) {
+        parseTypedef(basety);
+        continue;
+      }
+      cur = cur->next = declaration(basety);
     } else {
       cur = cur->next = stmt();
     }
@@ -218,17 +212,17 @@ Node *newNodeSub(Node *lhs, Node *rhs) {
 }
 
 Node *newNodeIdent(Token *tok) {
-
   if (consume("(")) {
     return funcCall(tok);
   }
 
-  Node *node = newNode(ND_VAR);
-  Obj *var = findVar(tok);
-  if (!var) {
+  VarScope *sc = findVarScope(tok);
+  if (!sc || !sc->var) {
     compErrorToken(tok->str, "undefined variable");
   }
-  node->var = var;
+
+  Node *node = newNode(ND_VAR);
+  node->var = sc->var;
   return node;
 }
 
@@ -255,7 +249,7 @@ Obj *newVar(Type *ty, Token *ident, Obj **vars) {
     ext_var->offset = offset;
   }
   cur_fn->stack_size = alignTo(offset, 16);
-  pushScope(var);
+  pushScope(var->name, var, NULL);
   return var;
 }
 
@@ -266,7 +260,7 @@ Obj *newGlobalVar(Type *ty, Token *ident) {
   var->ty = ty;
   var->is_global = true;
   globals = var;
-  pushScope(var);
+  pushScope(var->name, var, NULL);
   return var;
 }
 
@@ -280,7 +274,7 @@ Obj *newStrLitVar(Token *tok, Type *ty) {
   var->ty = ty;
   var->is_global = true;
   globals = var;
-  pushScope(var);
+  pushScope(var->name, var, NULL);
   return var;
 }
 
@@ -293,24 +287,7 @@ void newParam(Type *ty, Token *ident) {
   cur_fn->param_cnt++;
 }
 
-Type *getType(Token *tok) {
-  static const char struct_kwd[] = "struct";
-  static const char union_kwd[] = "union";
-  if (equal(tok, struct_kwd)) {
-    return newType(TY_STRUCT, 0, 1);
-  }
-  if (equal(tok, union_kwd)) {
-    return newType(TY_UNION, 0, 1);
-  }
-  for (size_t i = 0; i < sizeof(ty_kwd_map) / sizeof(*ty_kwd_map); ++i) {
-    if (equal(tok, ty_kwd_map[i].kwd)) {
-      return ty_kwd_map[i].ty;
-    }
-  }
-  return NULL;
-}
-
-Type *declspec(void) {
+Type *declspec(VarAttr *attr) {
   enum {
     VOID = 1 << 0,
     CHAR = 1 << 2,
@@ -321,36 +298,50 @@ Type *declspec(void) {
   };
 
   size_t counter = 0;
-  Token *kwd = NULL;
-  Type *ty = NULL;
-  while ((kwd = consumeKeyword())) {
-    ty = getType(kwd);
-    if (!ty) {
-      compErrorToken(kwd->str, "unidentified type");
+  Type *ty = ty_int;
+
+  while (isTypename(token)) {
+    Token *tok = token;
+    token = token->next;
+
+    if (equal(tok, "typedef")) {
+      if (!attr) {
+        compErrorToken(
+            tok->str, "storage class specifier is not allowed in this context");
+      }
+      attr->is_typedef = true;
+      continue;
     }
 
-    switch (ty->kind) {
-    case TY_STRUCT:
-      ty = structDecl(ty);
+    Type *typedef_ty = NULL;
+    bool isStructKwd = false;
+    bool isUnionKwd = false;
+    if ((isStructKwd = equal(tok, "struct")) ||
+        (isUnionKwd = equal(tok, "union")) || (typedef_ty = findTypedef(tok))) {
+      if (counter) {
+        token = tok;
+        break;
+      }
+      if (isStructKwd) {
+        ty = structDecl(newType(TY_STRUCT, 0, 1));
+      } else if (isUnionKwd) {
+        ty = unionDecl(newType(TY_UNION, 0, 1));
+      } else {
+        ty = typedef_ty;
+      }
       counter += OTHER;
       continue;
-    case TY_UNION:
-      ty = unionDecl(ty);
-      counter += OTHER;
-      continue;
-    default:
-      break;
     }
 
-    if (equal(kwd, "void")) {
+    if (equal(tok, "void")) {
       counter += VOID;
-    } else if (equal(kwd, "char")) {
+    } else if (equal(tok, "char")) {
       counter += CHAR;
-    } else if (equal(kwd, "short")) {
+    } else if (equal(tok, "short")) {
       counter += SHORT;
-    } else if (equal(kwd, "int")) {
+    } else if (equal(tok, "int")) {
       counter += INT;
-    } else if (equal(kwd, "long")) {
+    } else if (equal(tok, "long")) {
       counter += LONG;
     } else {
       assert(false);
@@ -377,7 +368,7 @@ Type *declspec(void) {
       ty = ty_long;
       break;
     default:
-      compErrorToken(kwd->str, "invalid type");
+      compErrorToken(tok->str, "invalid type");
     }
   }
 
@@ -401,7 +392,7 @@ Type *structUnionDecl(Type *ty) {
   Obj head = {0};
   Obj *cur = &head;
   while (!consume("}")) {
-    Type *mem_ty = declspec();
+    Type *mem_ty = declspec(NULL);
     bool first = true;
     while (!consume(";")) {
       if (!first) {
@@ -494,7 +485,7 @@ Obj *function(Type *ty) {
       expect(",");
     }
     first = false;
-    Type *ty = declspec();
+    Type *ty = declspec(NULL);
     Token *param_ident = NULL;
     ty = declarator(ty, &param_ident);
     newParam(ty, param_ident);
@@ -510,9 +501,7 @@ Obj *function(Type *ty) {
   return fn;
 }
 
-Node *declaration(void) {
-  Type *basety = declspec();
-
+Node *declaration(Type *basety) {
   Node head = {0};
   Node *cur = &head;
   bool first = true;
@@ -660,12 +649,12 @@ Node *unary(void) {
   return postfix();
 }
 
-Obj *findVar(Token *tok) {
+VarScope *findVarScope(Token *tok) {
   for (Scope *sc = scopes; sc; sc = sc->next) {
     for (VarScope *vs = sc->vars; vs; vs = vs->next) {
-      if (strlen(vs->var->name) == tok->len &&
-          memcmp(tok->str, vs->var->name, strlen(vs->var->name)) == 0) {
-        return vs->var;
+      if (strlen(vs->name) == tok->len &&
+          memcmp(tok->str, vs->name, strlen(vs->name)) == 0) {
+        return vs;
       }
     }
   }
@@ -930,9 +919,11 @@ void enterScope(void) {
 
 void exitScope(void) { scopes = scopes->next; }
 
-void pushScope(Obj *var) {
+void pushScope(char *name, Obj *var, Type *type_def) {
   VarScope *sc = calloc(1, sizeof(VarScope));
+  sc->name = name;
   sc->var = var;
+  sc->type_def = type_def;
   sc->next = scopes->vars;
   scopes->vars = sc;
 }
@@ -959,4 +950,37 @@ void pushTagScope(Token *tok, Type *ty) {
 
 bool equal(Token *tok, const char *str) {
   return tok->len == strlen(str) && strncmp(tok->str, str, tok->len) == 0;
+}
+
+void parseTypedef(Type *basety) {
+  bool first = true;
+
+  while (!consume(";")) {
+    if (!first) {
+      expect(",");
+    }
+    first = false;
+
+    Token *ident = NULL;
+    Type *ty = declarator(basety, &ident);
+
+    pushScope(strndup(ident->str, ident->len), NULL, ty);
+  }
+}
+
+Type *findTypedef(Token *tok) {
+  if (tok->kind == TK_IDENT) {
+    VarScope *sc = findVarScope(tok);
+    if (sc) {
+      return sc->type_def;
+    }
+  }
+  return NULL;
+}
+
+bool isTypename(Token *tok) {
+  if (tok->kind == TK_KWD) {
+    return true;
+  }
+  return findTypedef(tok) != NULL;
 }
