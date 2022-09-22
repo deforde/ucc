@@ -189,39 +189,50 @@ void genExpr(Node *node) {
   genExpr(node->lhs);
   fprintf(output, "  pop rdi\n");
 
+  char *ax = NULL;
+  char *di = NULL;
+
+  if (node->lhs->ty->kind == TY_LONG || node->lhs->ty->base) {
+    ax = "%rax";
+    di = "%rdi";
+  } else {
+    ax = "%eax";
+    di = "%edi";
+  }
+
   switch (node->kind) {
   case ND_ADD:
-    fprintf(output, "  add rax, rdi\n");
+    fprintf(output, "  add %s, %s\n", ax, di);
     return;
   case ND_SUB:
-    fprintf(output, "  sub rax, rdi\n");
+    fprintf(output, "  sub %s, %s\n", ax, di);
     return;
   case ND_MUL:
-    fprintf(output, "  imul rax, rdi\n");
+    fprintf(output, "  imul %s, %s\n", ax, di);
     return;
   case ND_DIV:
     fprintf(output, "  cqo\n");
-    fprintf(output, "  idiv rdi\n");
+    fprintf(output, "  idiv %s\n", di);
     return;
   case ND_EQ:
-    fprintf(output, "  cmp rax, rdi\n");
+    fprintf(output, "  cmp %s, %s\n", ax, di);
     fprintf(output, "  sete al\n");
-    fprintf(output, "  movzb rax, al\n");
+    fprintf(output, "  movzb %s, al\n", ax);
     return;
   case ND_NE:
-    fprintf(output, "  cmp rax, rdi\n");
+    fprintf(output, "  cmp %s, %s\n", ax, di);
     fprintf(output, "  setne al\n");
-    fprintf(output, "  movzb rax, al\n");
+    fprintf(output, "  movzb %s, al\n", ax);
     return;
   case ND_LT:
-    fprintf(output, "  cmp rax, rdi\n");
+    fprintf(output, "  cmp %s, %s\n", ax, di);
     fprintf(output, "  setl al\n");
-    fprintf(output, "  movzb rax, al\n");
+    fprintf(output, "  movzb %s, al\n", ax);
     return;
   case ND_LE:
-    fprintf(output, "  cmp rax, rdi\n");
+    fprintf(output, "  cmp %s, %s\n", ax, di);
     fprintf(output, "  setle al\n");
-    fprintf(output, "  movzb rax, al\n");
+    fprintf(output, "  movzb %s, al\n", ax);
     return;
   default:
     break;
