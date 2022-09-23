@@ -905,9 +905,15 @@ Node *newNodeMember(Node *body) {
 Node *newNodeFor(void) {
   Node *node = newNode(ND_FOR);
   expect("(");
+  enterScope();
   if (!consume(";")) {
-    node->pre = expr();
-    expect(";");
+    if (isTypename(token)) {
+      Type *basety = declspec(NULL);
+      node->pre = declaration(basety);
+    } else {
+      node->pre = expr();
+      expect(";");
+    }
   }
   if (!consume(";")) {
     node->cond = expr();
@@ -918,6 +924,7 @@ Node *newNodeFor(void) {
     expect(")");
   }
   node->body = stmt();
+  exitScope();
   return node;
 }
 
