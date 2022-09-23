@@ -3,6 +3,9 @@
 
 #include <stddef.h>
 
+#include "defs.h"
+
 void parse(void);
+bool isInteger(Type *ty);
 
 #endif // PARSE_H

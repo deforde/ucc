@@ -16,9 +16,10 @@ static Obj *cur_fn = NULL;
 static Scope *scopes = &(Scope){0};
 Obj *prog = NULL;
 Obj *globals = NULL;
+Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .align = 1};
+Type *ty_bool = &(Type){.kind = TY_BOOL, .size = 1, .align = 1};
 Type *ty_int = &(Type){.kind = TY_INT, .size = 4, .align = 4};
 Type *ty_long = &(Type){.kind = TY_LONG, .size = 8, .align = 8};
-Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .align = 1};
 Type *ty_short = &(Type){.kind = TY_SHORT, .size = 2, .align = 2};
 Type *ty_void = &(Type){.kind = TY_VOID, .size = 1, .align = 1};
 
@@ -73,7 +74,6 @@ static Type *unionDecl(Type *ty);
 static VarScope *findVarScope(Token *tok);
 static bool equal(Token *tok, const char *str);
 static bool isFunc(void);
-static bool isInteger(Type *ty);
 static bool isTypename(Token *tok);
 static size_t alignTo(size_t n, size_t align);
 static void addType(Node *node);
@@ -305,11 +305,12 @@ void newParam(Type *ty, Token *ident) {
 Type *declspec(VarAttr *attr) {
   enum {
     VOID = 1 << 0,
-    CHAR = 1 << 2,
-    SHORT = 1 << 4,
-    INT = 1 << 6,
-    LONG = 1 << 8,
-    OTHER = 1 << 10,
+    BOOL = 1 << 2,
+    CHAR = 1 << 4,
+    SHORT = 1 << 6,
+    INT = 1 << 8,
+    LONG = 1 << 10,
+    OTHER = 1 << 12,
   };
 
   size_t counter = 0;
@@ -350,6 +351,8 @@ Type *declspec(VarAttr *attr) {
 
     if (equal(tok, "void")) {
       counter += VOID;
+    } else if (equal(tok, "_Bool")) {
+      counter += BOOL;
     } else if (equal(tok, "char")) {
       counter += CHAR;
     } else if (equal(tok, "short")) {
@@ -365,6 +368,9 @@ Type *declspec(VarAttr *attr) {
     switch (counter) {
     case VOID:
       ty = ty_void;
+      break;
+    case BOOL:
+      ty = ty_bool;
       break;
     case CHAR:
       ty = ty_char;
@@ -729,6 +735,7 @@ bool isInteger(Type *ty) {
   case TY_CHAR:
   case TY_LONG:
   case TY_SHORT:
+  case TY_BOOL:
     return true;
   default:
     break;

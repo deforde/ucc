@@ -7,6 +7,7 @@
 
 #include "comp_err.h"
 #include "defs.h"
+#include "parse.h"
 
 enum { I8, I16, I32, I64 };
 
@@ -31,11 +32,12 @@ static const char *cast_table[][4] = {
     {i32i8, i32i16, NULL, NULL},
 };
 
+static int getTypeId(Type *ty);
 static void cast(Type *from, Type *to);
+static void cmpZero(Type *ty);
 static void genAddr(Node *node);
 static void genExpr(Node *node);
 static void genStmt(Node *node);
-static int getTypeId(Type *ty);
 static void load(Type *ty);
 static void store(Type *ty);
 static void storeArgReg(size_t r, size_t offset, size_t sz);
@@ -345,6 +347,12 @@ void cast(Type *from, Type *to) {
   if (to->kind == TY_VOID) {
     return;
   }
+  if (to->kind == TY_BOOL) {
+    cmpZero(to);
+    fprintf(output, "  setne al\n");
+    fprintf(output, "  movzx eax, al\n");
+    return;
+  }
   int t1 = getTypeId(from);
   int t2 = getTypeId(to);
   if (cast_table[t1][t2]) {
@@ -364,4 +372,12 @@ int getTypeId(Type *ty) {
     break;
   }
   return I64;
+}
+
+void cmpZero(Type *ty) {
+  if (isInteger(ty) && ty->size <= 4) {
+    fprintf(output, "  cmp eax, 0\n");
+  } else {
+    fprintf(output, "  cmp rax, 0\n");
+  }
 }

@@ -42,6 +42,7 @@ typedef enum {
 
 typedef enum {
   TY_ARR,
+  TY_BOOL,
   TY_CHAR,
   TY_FUNC,
   TY_INT,
