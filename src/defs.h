@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 typedef struct Type Type;
 typedef struct Node Node;
@@ -85,7 +86,7 @@ struct Type {
   Obj *members;
   Type *ret_ty;
   Type *params;
-  size_t size;
+  ssize_t size;
   size_t align;
   size_t arr_len;
 };

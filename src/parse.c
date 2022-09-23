@@ -67,6 +67,7 @@ static Obj *newLocalVar(Type *ty, Token *ident);
 static Obj *newStrLitVar(Token *tok, Type *ty);
 static Obj *newVar(Type *ty, Token *ident, Obj **vars);
 static Type *abstractDeclarator(Type *ty);
+static Type *arrayDimensions(Type *ty);
 static Type *arrayOf(Type *base, size_t len);
 static Type *declarator(Type *ty, Token **ident);
 static Type *declspec(VarAttr *attr);
@@ -74,7 +75,7 @@ static Type *enumSpec();
 static Type *findTag(Token *tok);
 static Type *findTypedef(Token *tok);
 static Type *getCommonType(Type *ty1, Type *ty2);
-static Type *newType(TypeKind kind, size_t size, size_t align);
+static Type *newType(TypeKind kind, ssize_t size, size_t align);
 static Type *pointerTo(Type *base);
 static Type *structDecl(Type *ty);
 static Type *structUnionDecl(Type *ty);
@@ -278,10 +279,7 @@ Node *newNodeIdent(Token *tok) {
 
 Type *typeSuffix(Type *ty) {
   if (consume("[")) {
-    const size_t size = expectNumber();
-    expect("]");
-    ty = typeSuffix(ty);
-    return arrayOf(ty, size);
+    return arrayDimensions(ty);
   }
   return ty;
 }
@@ -495,7 +493,7 @@ Type *structDecl(Type *ty) {
       ty->align = mem->ty->align;
     }
   }
-  ty->size = alignTo(offset, ty->align);
+  ty->size = (ssize_t)alignTo(offset, ty->align);
 
   return ty;
 }
@@ -511,7 +509,7 @@ Type *unionDecl(Type *ty) {
       ty->size = mem->ty->size;
     }
   }
-  ty->size = alignTo(ty->size, ty->align);
+  ty->size = (ssize_t)alignTo(ty->size, ty->align);
 
   return ty;
 }
@@ -617,6 +615,9 @@ Node *declaration(Type *basety) {
 
     Token *ident = NULL;
     Type *ty = declarator(basety, &ident);
+    if (ty->size < 0) {
+      compErrorToken(ident->str, "variable has incomplete type");
+    }
     if (ty->kind == TY_VOID) {
       compError(ident->str, "variable declared void");
     }
@@ -919,7 +920,7 @@ Type *pointerTo(Type *base) {
 }
 
 Type *arrayOf(Type *base, size_t len) {
-  Type *ty = newType(TY_ARR, base->size * len, base->align);
+  Type *ty = newType(TY_ARR, base->size * (ssize_t)len, base->align);
   ty->base = base;
   ty->arr_len = len;
   return ty;
@@ -1118,7 +1119,7 @@ size_t alignTo(size_t n, size_t align) {
   return (n + align - 1) / align * align;
 }
 
-Type *newType(TypeKind kind, size_t size, size_t align) {
+Type *newType(TypeKind kind, ssize_t size, size_t align) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = kind;
   ty->size = size;
@@ -1337,4 +1338,15 @@ Node *logor(void) {
     node = newNodeBinary(ND_LOGOR, node, logand());
   }
   return node;
+}
+
+Type *arrayDimensions(Type *ty) {
+  if (consume("]")) {
+    ty = typeSuffix(ty);
+    return arrayOf(ty, -1);
+  }
+  const int64_t sz = expectNumber();
+  expect("]");
+  ty = typeSuffix(ty);
+  return arrayOf(ty, sz);
 }

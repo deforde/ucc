@@ -50,7 +50,7 @@ void gen() {
     fprintf(output, ".globl %s\n", var->name);
     fprintf(output, "%s:\n", var->name);
     if (var->init_data) {
-      for (size_t i = 0; i < var->ty->size; ++i) {
+      for (ssize_t i = 0; i < var->ty->size; ++i) {
         fprintf(output, "  .byte %d\n", var->init_data[i]);
       }
     } else {
@@ -352,7 +352,7 @@ void genAddr(Node *node) {
 void store(Type *ty) {
   fprintf(output, "  pop rdi\n");
   if (ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
-    for (size_t i = 0; i < ty->size; i++) {
+    for (ssize_t i = 0; i < ty->size; i++) {
       fprintf(output, "  mov r8b, [rax+%zu]\n", i);
       fprintf(output, "  mov [rdi+%zu], r8b\n", i);
     }
