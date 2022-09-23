@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "comp_err.h"
 #include "defs.h"
@@ -15,6 +16,7 @@ const char *file_content = NULL;
 static Token *newIdent(Token *cur, const char **p, size_t line_num);
 static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len,
                        size_t line_num);
+static long readIntLiteral(const char **start);
 static bool consumeTokKind(TokenKind kind);
 static bool isIdentChar(char c);
 static bool isKeyword(const char *str, size_t len);
@@ -170,10 +172,10 @@ void tokenise(const char *file_path) {
       continue;
     }
     if (isdigit(*p)) {
-      cur = newToken(TK_NUM, cur, p, 0, line_num);
       const char *q = p;
-      cur->val = (int64_t)strtol(p, (char **)&p, 10);
-      cur->len = p - q;
+      const long val = readIntLiteral(&p);
+      cur = newToken(TK_NUM, cur, p, p - q, line_num);
+      cur->val = val;
       continue;
     }
     if (strncmp(p, "if", 2) == 0 && !isIdentChar(p[2])) {
@@ -384,4 +386,27 @@ bool isKeyword(const char *str, size_t len) {
     }
   }
   return false;
+}
+
+long readIntLiteral(const char **start) {
+  const char *p = *start;
+  int base = 10;
+  if (!strncasecmp(p, "0x", 2) && isalnum(p[2])) {
+    p += 2;
+    base = 16;
+  } else if (!strncasecmp(p, "0b", 2) && isalnum(p[2])) {
+    p += 2;
+    base = 2;
+  } else if (*p == '0') {
+    base = 8;
+  }
+
+  const long val = (long)strtoul(p, (char **)&p, base);
+  if (isalnum(*p)) {
+    compErrorToken(p, "invalid digit");
+  }
+
+  *start = p;
+
+  return val;
 }
