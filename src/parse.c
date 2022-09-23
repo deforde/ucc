@@ -505,9 +505,11 @@ Obj *function(Type *ty) {
   ty = declarator(ty, &fn_ident);
 
   Obj *fn = calloc(1, sizeof(Obj));
-  fn->ty = ty;
+  fn->ty = newType(TY_FUNC, 1, 1);
+  fn->ret_ty = ty;
   fn->name = strndup(fn_ident->str, fn_ident->len);
   cur_fn = fn;
+  newGlobalVar(fn->ty, fn_ident);
   enterScope();
 
   expect("(");
@@ -887,6 +889,15 @@ Node *newNodeReturn(void) {
 }
 
 Node *funcCall(Token *tok) {
+  VarScope *sc = findVarScope(tok);
+  if (!sc) {
+    compErrorToken(tok->str, "implicit declaration of a function");
+  }
+  if (!sc->var || sc->var->ty->kind != TY_FUNC) {
+    compErrorToken(tok->str, "not a function");
+  }
+
+  Type *ty = sc->var->ret_ty;
   Node head = {0};
   Node *cur = &head;
 
@@ -895,11 +906,13 @@ Node *funcCall(Token *tok) {
       expect(",");
     }
     cur = cur->next = assign();
+    addType(cur);
   }
 
   Node *node = newNode(ND_FUNCCALL);
   node->funcname = strndup(tok->str, tok->len);
   node->args = head.next;
+  node->ty = ty;
   return node;
 }
 

@@ -43,6 +43,7 @@ typedef enum {
 typedef enum {
   TY_ARR,
   TY_CHAR,
+  TY_FUNC,
   TY_INT,
   TY_LONG,
   TY_PTR,
@@ -96,6 +97,7 @@ struct Obj {
   // function
   Node *body;
   Obj *params;
+  Type *ret_ty;
   size_t param_cnt;
   size_t stack_size;
   Obj *locals;

@@ -44,6 +44,9 @@ void gen() {
   fprintf(output, ".file 1 \"%s\"\n", input_file_path);
   fprintf(output, ".intel_syntax noprefix\n");
   for (Obj *var = globals; var; var = var->next) {
+    if (var->ty->kind == TY_FUNC) {
+      continue;
+    }
     fprintf(output, ".data\n");
     fprintf(output, ".globl %s\n", var->name);
     fprintf(output, "%s:\n", var->name);
