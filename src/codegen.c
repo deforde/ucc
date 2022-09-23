@@ -257,6 +257,15 @@ void genExpr(Node *node) {
     fprintf(output, "  idiv %s\n", di);
     fprintf(output, "  mov rax, rdx\n");
     return;
+  case ND_BITAND:
+    fprintf(output, "  and rax, rdi\n");
+    return;
+  case ND_BITOR:
+    fprintf(output, "  or rax, rdi\n");
+    return;
+  case ND_BITXOR:
+    fprintf(output, "  xor rax, rdi\n");
+    return;
   case ND_EQ:
     fprintf(output, "  cmp %s, %s\n", ax, di);
     fprintf(output, "  sete al\n");

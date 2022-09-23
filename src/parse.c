@@ -25,6 +25,9 @@ Type *ty_void = &(Type){.kind = TY_VOID, .size = 1, .align = 1};
 
 static Node *add(void);
 static Node *assign(void);
+static Node *bitand(void);
+static Node * bitor (void);
+static Node *bitxor(void);
 static Node *cast(void);
 static Node *cmpndStmt(void);
 static Node *declaration(Type *basety);
@@ -135,7 +138,7 @@ Node *cmpndStmt(void) {
 }
 
 Node *assign(void) {
-  Node *node = equality();
+  Node *node = bitor ();
   if (consume("=")) {
     node = newNodeBinary(ND_ASS, node, assign());
   }
@@ -153,6 +156,15 @@ Node *assign(void) {
   }
   if (consume("%=")) {
     return toAssign(newNodeBinary(ND_MOD, node, assign()));
+  }
+  if (consume("&=")) {
+    return toAssign(newNodeBinary(ND_BITAND, node, assign()));
+  }
+  if (consume("|=")) {
+    return toAssign(newNodeBinary(ND_BITOR, node, assign()));
+  }
+  if (consume("^=")) {
+    return toAssign(newNodeBinary(ND_BITXOR, node, assign()));
   }
   return node;
 }
@@ -826,6 +838,9 @@ void addType(Node *node) {
   case ND_MUL:
   case ND_DIV:
   case ND_MOD:
+  case ND_BITAND:
+  case ND_BITOR:
+  case ND_BITXOR:
     usualArithConv(&node->lhs, &node->rhs);
     node->ty = node->lhs->ty;
     break;
@@ -1278,4 +1293,28 @@ Node *newNodeInc(Node *node, int i) {
   return newNodeCast(
       newNodeAdd(toAssign(newNodeAdd(node, newNodeNum(i))), newNodeNum(-i)),
       node->ty);
+}
+
+Node *bitand(void) {
+  Node *node = equality();
+  while (consume("&")) {
+    node = newNodeBinary(ND_BITAND, node, equality());
+  }
+  return node;
+}
+
+Node * bitor (void) {
+  Node *node = bitxor();
+  while (consume("|")) {
+    node = newNodeBinary(ND_BITOR, node, bitxor());
+  }
+  return node;
+}
+
+Node *bitxor(void) {
+  Node *node = bitand();
+  while (consume("^")) {
+    node = newNodeBinary(ND_BITXOR, node, bitand());
+  }
+  return node;
 }
