@@ -46,9 +46,6 @@ void gen() {
   fprintf(output, ".file 1 \"%s\"\n", input_file_path);
   fprintf(output, ".intel_syntax noprefix\n");
   for (Obj *var = globals; var; var = var->next) {
-    if (var->ty->kind == TY_FUNC) {
-      continue;
-    }
     fprintf(output, ".data\n");
     fprintf(output, ".globl %s\n", var->name);
     fprintf(output, "%s:\n", var->name);
@@ -65,7 +62,7 @@ void gen() {
       continue;
     }
 
-    fprintf(output, ".globl %s\n", fn->name);
+    fprintf(output, ".%s %s\n", fn->is_global ? "globl" : "local", fn->name);
     fprintf(output, ".text\n");
     fprintf(output, "%s:\n", fn->name);
     cur_fn = fn;

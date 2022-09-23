@@ -52,7 +52,7 @@ static Node *relational(void);
 static Node *stmt(void);
 static Node *structRef(Node *node);
 static Node *unary(void);
-static Obj *function(Type *ty);
+static Obj *function(Type *ty, VarAttr *attr);
 static Obj *newGlobalVar(Type *ty, Token *ident);
 static Obj *newLocalVar(Type *ty, Token *ident);
 static Obj *newStrLitVar(Token *tok, Type *ty);
@@ -98,7 +98,7 @@ void parse() {
       continue;
     }
     if (isFunc()) {
-      cur = cur->next = function(ty);
+      cur = cur->next = function(ty, &attr);
       continue;
     }
     globalVar(ty);
@@ -324,12 +324,19 @@ Type *declspec(VarAttr *attr) {
     Token *tok = token;
     token = token->next;
 
-    if (equal(tok, "typedef")) {
+    bool is_typedef = false;
+    bool is_static = false;
+    if ((is_typedef = equal(tok, "typedef")) ||
+        (is_static = equal(tok, "static"))) {
       if (!attr) {
         compErrorToken(
             tok->str, "storage class specifier is not allowed in this context");
       }
-      attr->is_typedef = true;
+      attr->is_typedef |= is_typedef;
+      attr->is_static |= is_static;
+      if (attr->is_static && attr->is_typedef) {
+        compErrorToken(tok->str, "typedef and static may not be used together");
+      }
       continue;
     }
 
@@ -515,7 +522,7 @@ Type *declarator(Type *ty, Token **ident) {
   return ty;
 }
 
-Obj *function(Type *ty) {
+Obj *function(Type *ty, VarAttr *attr) {
   Token *fn_ident = NULL;
   ty = declarator(ty, &fn_ident);
 
@@ -523,8 +530,15 @@ Obj *function(Type *ty) {
   fn->ty = newType(TY_FUNC, 0, 0);
   fn->ty->ret_ty = ty;
   fn->name = strndup(fn_ident->str, fn_ident->len);
+  fn->is_global = !attr->is_static;
   cur_fn = fn;
-  newGlobalVar(fn->ty, fn_ident);
+
+  Obj *var = calloc(1, sizeof(Obj));
+  var->name = strndup(fn_ident->str, fn_ident->len);
+  var->ty = fn->ty;
+  var->is_global = fn->is_global;
+  pushScope(var->name, var, NULL);
+
   enterScope();
 
   expect("(");

@@ -149,6 +149,7 @@ struct TagScope {
 };
 
 struct VarAttr {
+  bool is_static;
   bool is_typedef;
 };
 
