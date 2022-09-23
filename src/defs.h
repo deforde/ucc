@@ -31,6 +31,7 @@ typedef enum {
   ND_LE,
   ND_LT,
   ND_MEMBER,
+  ND_MOD,
   ND_MUL,
   ND_NE,
   ND_NOT,

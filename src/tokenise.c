@@ -162,12 +162,12 @@ void tokenise(const char *file_path) {
     if (startsWith(p, "==") || startsWith(p, "!=") || startsWith(p, "<=") ||
         startsWith(p, ">=") || startsWith(p, "->") || startsWith(p, "+=") ||
         startsWith(p, "-=") || startsWith(p, "*=") || startsWith(p, "/=") ||
-        startsWith(p, "++") || startsWith(p, "--")) {
+        startsWith(p, "++") || startsWith(p, "--") || startsWith(p, "%=")) {
       cur = newToken(TK_RESERVED, cur, p, 2, line_num);
       p += 2;
       continue;
     }
-    if (strchr("+-*/()<>=;{}&,[].!~", *p)) {
+    if (strchr("+-*/()<>=;{}&,[].!~%", *p)) {
       cur = newToken(TK_RESERVED, cur, p++, 1, line_num);
       continue;
     }

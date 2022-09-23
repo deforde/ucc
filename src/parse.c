@@ -151,6 +151,9 @@ Node *assign(void) {
   if (consume("/=")) {
     return toAssign(newNodeBinary(ND_DIV, node, assign()));
   }
+  if (consume("%=")) {
+    return toAssign(newNodeBinary(ND_MOD, node, assign()));
+  }
   return node;
 }
 
@@ -663,6 +666,8 @@ Node *mul(void) {
       node = newNodeBinary(ND_MUL, node, cast());
     } else if (consume("/")) {
       node = newNodeBinary(ND_DIV, node, cast());
+    } else if (consume("%")) {
+      node = newNodeBinary(ND_MOD, node, cast());
     } else {
       return node;
     }
@@ -820,6 +825,7 @@ void addType(Node *node) {
   case ND_SUB:
   case ND_MUL:
   case ND_DIV:
+  case ND_MOD:
     usualArithConv(&node->lhs, &node->rhs);
     node->ty = node->lhs->ty;
     break;

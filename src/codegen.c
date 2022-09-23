@@ -241,8 +241,21 @@ void genExpr(Node *node) {
     fprintf(output, "  imul %s, %s\n", ax, di);
     return;
   case ND_DIV:
-    fprintf(output, "  cqo\n");
+    if (node->lhs->ty->size == 8) {
+      fprintf(output, "  cqo\n");
+    } else {
+      fprintf(output, "  cdq\n");
+    }
     fprintf(output, "  idiv %s\n", di);
+    return;
+  case ND_MOD:
+    if (node->lhs->ty->size == 8) {
+      fprintf(output, "  cqo\n");
+    } else {
+      fprintf(output, "  cdq\n");
+    }
+    fprintf(output, "  idiv %s\n", di);
+    fprintf(output, "  mov rax, rdx\n");
     return;
   case ND_EQ:
     fprintf(output, "  cmp %s, %s\n", ax, di);
