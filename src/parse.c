@@ -34,6 +34,7 @@ static Node *funcCall(Token *tok);
 static Node *mul(void);
 static Node *newNode(NodeKind kind);
 static Node *newNodeAdd(Node *lhs, Node *rhs);
+static Node *newNodeAddr(Node *body);
 static Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *newNodeCast(Node *expr, Type *ty);
 static Node *newNodeDeref(Node *body);
@@ -45,12 +46,14 @@ static Node *newNodeMember(Node *body);
 static Node *newNodeNum(int64_t val);
 static Node *newNodeReturn(void);
 static Node *newNodeSub(Node *lhs, Node *rhs);
+static Node *newNodeVar(Obj *var);
 static Node *newNodeWhile(void);
 static Node *postfix(void);
 static Node *primary(void);
 static Node *relational(void);
 static Node *stmt(void);
 static Node *structRef(Node *node);
+static Node *toAssign(Node *node);
 static Node *unary(void);
 static Obj *function(Type *ty, VarAttr *attr);
 static Obj *newGlobalVar(Type *ty, Token *ident);
@@ -134,6 +137,18 @@ Node *assign(void) {
   Node *node = equality();
   if (consume("=")) {
     node = newNodeBinary(ND_ASS, node, assign());
+  }
+  if (consume("+=")) {
+    return toAssign(newNodeAdd(node, assign()));
+  }
+  if (consume("-=")) {
+    return toAssign(newNodeSub(node, assign()));
+  }
+  if (consume("*=")) {
+    return toAssign(newNodeBinary(ND_MUL, node, assign()));
+  }
+  if (consume("/=")) {
+    return toAssign(newNodeBinary(ND_DIV, node, assign()));
   }
   return node;
 }
@@ -240,9 +255,7 @@ Node *newNodeIdent(Token *tok) {
     compErrorToken(tok->str, "undefined variable");
   }
 
-  Node *node = newNode(ND_VAR);
-  node->var = sc->var;
-  return node;
+  return newNodeVar(sc->var);
 }
 
 Type *typeSuffix(Type *ty) {
@@ -595,8 +608,7 @@ Node *declaration(Type *basety) {
       continue;
     }
 
-    Node *lhs = newNode(ND_VAR);
-    lhs->var = var;
+    Node *lhs = newNodeVar(var);
     Node *rhs = assign();
     Node *node = newNodeBinary(ND_ASS, lhs, rhs);
     cur = cur->next = node;
@@ -638,9 +650,7 @@ Node *primary(void) {
   if (tok) {
     Type *ty = arrayOf(ty_char, tok->len);
     Obj *var = newStrLitVar(tok, ty);
-    Node *node = newNode(ND_VAR);
-    node->var = var;
-    return node;
+    return newNodeVar(var);
   }
   return newNodeNum(expectNumber());
 }
@@ -720,9 +730,7 @@ Node *unary(void) {
     return newNodeDeref(cast());
   }
   if (consume("&")) {
-    Node *node = newNode(ND_ADDR);
-    node->body = cast();
-    return node;
+    return newNodeAddr(cast());
   }
   return postfix();
 }
@@ -1198,4 +1206,32 @@ Type *enumSpec() {
   }
 
   return ty;
+}
+
+Node *toAssign(Node *node) {
+  addType(node->lhs);
+  addType(node->rhs);
+
+  Obj *var = calloc(1, sizeof(Obj));
+  var->name = "";
+  var->is_global = false;
+  var->ty = pointerTo(node->lhs->ty);
+
+  Node *expr1 = newNodeBinary(ND_ASS, newNodeVar(var), newNodeAddr(node->lhs));
+  Node *expr2 = newNodeBinary(
+      ND_ASS, newNodeDeref(newNodeVar(var)),
+      newNodeBinary(node->kind, newNodeDeref(newNodeVar(var)), node->rhs));
+  return newNodeBinary(ND_COMMA, expr1, expr2);
+}
+
+Node *newNodeVar(Obj *var) {
+  Node *node = newNode(ND_VAR);
+  node->var = var;
+  return node;
+}
+
+Node *newNodeAddr(Node *body) {
+  Node *node = newNode(ND_ADDR);
+  node->body = body;
+  return node;
 }
