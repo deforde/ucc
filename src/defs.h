@@ -32,6 +32,8 @@ typedef enum {
   ND_FUNCCALL,
   ND_IF,
   ND_LE,
+  ND_LOGAND,
+  ND_LOGOR,
   ND_LT,
   ND_MEMBER,
   ND_MOD,

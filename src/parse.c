@@ -23,10 +23,10 @@ Type *ty_long = &(Type){.kind = TY_LONG, .size = 8, .align = 8};
 Type *ty_short = &(Type){.kind = TY_SHORT, .size = 2, .align = 2};
 Type *ty_void = &(Type){.kind = TY_VOID, .size = 1, .align = 1};
 
+static Node * bitor (void);
 static Node *add(void);
 static Node *assign(void);
 static Node *bitand(void);
-static Node * bitor (void);
 static Node *bitxor(void);
 static Node *cast(void);
 static Node *cmpndStmt(void);
@@ -34,6 +34,8 @@ static Node *declaration(Type *basety);
 static Node *equality(void);
 static Node *expr(void);
 static Node *funcCall(Token *tok);
+static Node *logand(void);
+static Node *logor(void);
 static Node *mul(void);
 static Node *newNode(NodeKind kind);
 static Node *newNodeAdd(Node *lhs, Node *rhs);
@@ -138,7 +140,7 @@ Node *cmpndStmt(void) {
 }
 
 Node *assign(void) {
-  Node *node = bitor ();
+  Node *node = logor();
   if (consume("=")) {
     node = newNodeBinary(ND_ASS, node, assign());
   }
@@ -864,6 +866,8 @@ void addType(Node *node) {
     node->ty = ty_long;
     break;
   case ND_NOT:
+  case ND_LOGOR:
+  case ND_LOGAND:
     node->ty = ty_int;
     break;
   case ND_BITNOT:
@@ -1315,6 +1319,22 @@ Node *bitxor(void) {
   Node *node = bitand();
   while (consume("^")) {
     node = newNodeBinary(ND_BITXOR, node, bitand());
+  }
+  return node;
+}
+
+Node *logand(void) {
+  Node *node = bitor ();
+  while (consume("&&")) {
+    node = newNodeBinary(ND_LOGAND, node, bitor ());
+  }
+  return node;
+}
+
+Node *logor(void) {
+  Node *node = logand();
+  while (consume("||")) {
+    node = newNodeBinary(ND_LOGOR, node, logand());
   }
   return node;
 }

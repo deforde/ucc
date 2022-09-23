@@ -196,6 +196,36 @@ void genExpr(Node *node) {
     genExpr(node->lhs);
     fprintf(output, "  not rax\n");
     return;
+  case ND_LOGAND: {
+    const size_t c = label_num++;
+    genExpr(node->lhs);
+    fprintf(output, "  cmp rax, 0\n");
+    fprintf(output, "  je .L.false.%zu\n", c);
+    genExpr(node->rhs);
+    fprintf(output, "  cmp rax, 0\n");
+    fprintf(output, "  je .L.false.%zu\n", c);
+    fprintf(output, "  mov rax, 1\n");
+    fprintf(output, "  jmp .L.end.%zu\n", c);
+    fprintf(output, ".L.false.%zu:\n", c);
+    fprintf(output, "  mov rax, 0\n");
+    fprintf(output, ".L.end.%zu:\n", c);
+    return;
+  }
+  case ND_LOGOR: {
+    const size_t c = label_num++;
+    genExpr(node->lhs);
+    fprintf(output, "  cmp rax, 0\n");
+    fprintf(output, "  jne .L.true.%zu\n", c);
+    genExpr(node->rhs);
+    fprintf(output, "  cmp rax, 0\n");
+    fprintf(output, "  jne .L.true.%zu\n", c);
+    fprintf(output, "  mov rax, 0\n");
+    fprintf(output, "  jmp .L.end.%zu\n", c);
+    fprintf(output, ".L.true.%zu:\n", c);
+    fprintf(output, "  mov rax, 1\n");
+    fprintf(output, ".L.end.%zu:\n", c);
+    return;
+  }
   case ND_FUNCCALL: {
     size_t nargs = 0;
     for (Node *arg = node->args; arg; arg = arg->next) {
