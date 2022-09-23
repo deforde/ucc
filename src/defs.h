@@ -19,6 +19,7 @@ typedef enum {
   ND_ADDR,
   ND_ASS,
   ND_BLK,
+  ND_CAST,
   ND_COMMA,
   ND_DEREF,
   ND_DIV,

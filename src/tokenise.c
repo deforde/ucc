@@ -170,7 +170,7 @@ void tokenise(const char *file_path) {
     if (isdigit(*p)) {
       cur = newToken(TK_NUM, cur, p, 0, line_num);
       const char *q = p;
-      cur->val = (int)strtol(p, (char **)&p, 10);
+      cur->val = (int64_t)strtol(p, (char **)&p, 10);
       cur->len = p - q;
       continue;
     }

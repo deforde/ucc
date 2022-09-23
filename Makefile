@@ -39,18 +39,18 @@ $(BUILD_DIR)/%.c.o: %.c
 .PHONY: clean test compdb
 
 clean:
-	@rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR)
 
 $(TEST_DIR)/%.out: debug
-	@$(CC) -o $(TEST_DIR)/$*.pre -E -P -C $(TEST_DIR)/$*.c
-	@ASAN_OPTIONS=detect_leaks=0 ./$(UCC) -o $(TEST_DIR)/$*.s $(TEST_DIR)/$*.pre
-	@$(CC) -g3 -o $@ $(TEST_DIR)/$*.s -xc $(TEST_DIR)/common
+	$(CC) -o $(TEST_DIR)/$*.pre -E -P -C $(TEST_DIR)/$*.c
+	ASAN_OPTIONS=detect_leaks=0 ./$(UCC) -o $(TEST_DIR)/$*.s $(TEST_DIR)/$*.pre
+	$(CC) -g3 -o $@ $(TEST_DIR)/$*.s -xc $(TEST_DIR)/common
 
 test: $(TESTS)
-	@for i in $^; do echo $$i; ./$$i || exit 1; echo; done
+	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
 
 compdb: clean
-	@bear -- $(MAKE)
-	@mv compile_commands.json build
+	bear -- $(MAKE)
+	mv compile_commands.json build
 
 -include $(DEPS)

@@ -24,6 +24,7 @@ Type *ty_void = &(Type){.kind = TY_VOID, .size = 1, .align = 1};
 
 static Node *add(void);
 static Node *assign(void);
+static Node *cast(void);
 static Node *cmpndStmt(void);
 static Node *declaration(Type *basety);
 static Node *equality(void);
@@ -33,6 +34,7 @@ static Node *mul(void);
 static Node *newNode(NodeKind kind);
 static Node *newNodeAdd(Node *lhs, Node *rhs);
 static Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs);
+static Node *newNodeCast(Node *expr, Type *ty);
 static Node *newNodeDeref(Node *body);
 static Node *newNodeFor(void);
 static Node *newNodeIdent(Token *tok);
@@ -595,12 +597,12 @@ Node *primary(void) {
 }
 
 Node *mul(void) {
-  Node *node = unary();
+  Node *node = cast();
   for (;;) {
     if (consume("*")) {
-      node = newNodeBinary(ND_MUL, node, unary());
+      node = newNodeBinary(ND_MUL, node, cast());
     } else if (consume("/")) {
-      node = newNodeBinary(ND_DIV, node, unary());
+      node = newNodeBinary(ND_DIV, node, cast());
     } else {
       return node;
     }
@@ -660,17 +662,17 @@ Node *add(void) {
 
 Node *unary(void) {
   if (consume("+")) {
-    return unary();
+    return cast();
   }
   if (consume("-")) {
-    return newNodeBinary(ND_SUB, newNodeNum(0), unary());
+    return newNodeBinary(ND_SUB, newNodeNum(0), cast());
   }
   if (consume("*")) {
-    return newNodeDeref(unary());
+    return newNodeDeref(cast());
   }
   if (consume("&")) {
     Node *node = newNode(ND_ADDR);
-    node->body = unary();
+    node->body = cast();
     return node;
   }
   return postfix();
@@ -1015,4 +1017,25 @@ bool isTypename(Token *tok) {
 Type *typename(void) {
   Type *ty = declspec(NULL);
   return abstractDeclarator(ty);
+}
+
+Node *newNodeCast(Node *expr, Type *ty) {
+  addType(expr);
+  Node *node = newNode(ND_CAST);
+  node->lhs = expr;
+  node->ty = ty;
+  return node;
+}
+
+Node *cast(void) {
+  if (equal(token, "(") && isTypename(token->next)) {
+    Token *start = token;
+    consume("(");
+    Type *ty = typename();
+    consume(")");
+    Node *node = newNodeCast(cast(), ty);
+    node->tok = start;
+    return node;
+  }
+  return unary();
 }

@@ -8,20 +8,34 @@
 #include "comp_err.h"
 #include "defs.h"
 
-extern Obj *prog;
-extern Obj *globals;
+enum { I8, I16, I32, I64 };
+
 extern FILE *output;
 extern const char *input_file_path;
+extern Obj *prog;
+extern Obj *globals;
+static Obj *cur_fn = NULL;
 static size_t label_num = 1;
 static const char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 static const char *argreg16[] = {"di", "si", "dx", "cx", "r8w", "r9w"};
 static const char *argreg32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
 static const char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-static Obj *cur_fn = NULL;
+static const char i32i8[] = "movsx eax, al";
+static const char i32i16[] = "movsx eax, ax";
+static const char i32i64[] = "movsxd rax, eax";
 
+static const char *cast_table[][4] = {
+    {NULL, NULL, NULL, i32i64},
+    {i32i8, NULL, NULL, i32i64},
+    {i32i8, i32i16, NULL, i32i64},
+    {i32i8, i32i16, NULL, NULL},
+};
+
+static void cast(Type *from, Type *to);
 static void genAddr(Node *node);
 static void genExpr(Node *node);
 static void genStmt(Node *node);
+static int getTypeId(Type *ty);
 static void load(Type *ty);
 static void store(Type *ty);
 static void storeArgReg(size_t r, size_t offset, size_t sz);
@@ -165,6 +179,10 @@ void genExpr(Node *node) {
   case ND_COMMA:
     genExpr(node->lhs);
     genExpr(node->rhs);
+    return;
+  case ND_CAST:
+    genExpr(node->lhs);
+    cast(node->lhs->ty, node->ty);
     return;
   case ND_FUNCCALL: {
     size_t nargs = 0;
@@ -318,4 +336,29 @@ void load(Type *ty) {
   } else {
     fprintf(output, "  mov rax, [rax]\n");
   }
+}
+
+void cast(Type *from, Type *to) {
+  if (to->kind == TY_VOID) {
+    return;
+  }
+  int t1 = getTypeId(from);
+  int t2 = getTypeId(to);
+  if (cast_table[t1][t2]) {
+    fprintf(output, "  %s\n", cast_table[t1][t2]);
+  }
+}
+
+int getTypeId(Type *ty) {
+  switch (ty->kind) {
+  case TY_CHAR:
+    return I8;
+  case TY_SHORT:
+    return I16;
+  case TY_INT:
+    return I32;
+  default:
+    break;
+  }
+  return I64;
 }
