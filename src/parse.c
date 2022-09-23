@@ -732,6 +732,12 @@ Node *unary(void) {
   if (consume("&")) {
     return newNodeAddr(cast());
   }
+  if (consume("++")) {
+    return toAssign(newNodeAdd(unary(), newNodeNum(1)));
+  }
+  if (consume("--")) {
+    return toAssign(newNodeSub(unary(), newNodeNum(1)));
+  }
   return postfix();
 }
 
