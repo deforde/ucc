@@ -744,6 +744,11 @@ Node *unary(void) {
     node->lhs = cast();
     return node;
   }
+  if (consume("~")) {
+    Node *node = newNode(ND_BITNOT);
+    node->lhs = cast();
+    return node;
+  }
   return postfix();
 }
 
@@ -839,16 +844,19 @@ void addType(Node *node) {
     break;
   case ND_NOT:
     node->ty = ty_int;
-    return;
+    break;
+  case ND_BITNOT:
+    node->ty = node->lhs->ty;
+    break;
   case ND_VAR:
     node->ty = node->var->ty;
     break;
   case ND_COMMA:
     node->ty = node->rhs->ty;
-    return;
+    break;
   case ND_MEMBER:
     node->ty = node->var->ty;
-    return;
+    break;
   case ND_ADDR:
     if (node->body->ty->kind == TY_ARR) {
       node->ty = pointerTo(node->body->ty->base);
@@ -873,7 +881,7 @@ void addType(Node *node) {
       }
       node->ty = stmt->ty;
     }
-    return;
+    break;
   default:
     break;
   }

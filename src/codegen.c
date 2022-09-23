@@ -192,6 +192,10 @@ void genExpr(Node *node) {
     fprintf(output, "  sete al\n");
     fprintf(output, "  movzx rax, al\n");
     return;
+  case ND_BITNOT:
+    genExpr(node->lhs);
+    fprintf(output, "  not rax\n");
+    return;
   case ND_FUNCCALL: {
     size_t nargs = 0;
     for (Node *arg = node->args; arg; arg = arg->next) {
