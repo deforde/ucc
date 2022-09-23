@@ -237,6 +237,26 @@ void tokenise(const char *file_path) {
       p++;
       continue;
     }
+    if (*p == '\'') {
+      const char *start = p++;
+      if (*p == '\0') {
+        compErrorToken(start, "unclosed char literal");
+      }
+      char c = 0;
+      if (*p == '\\') {
+        p++;
+        c = (char)readEscapedChar(&p);
+      } else {
+        c = *p++;
+      }
+      if (*p != '\'') {
+        compErrorToken(start, "unclosed char literal");
+      }
+      p++;
+      cur = newToken(TK_NUM, cur, start, p - start, line_num);
+      cur->val = (int64_t)c;
+      continue;
+    }
     compErrorToken(p, "invalid token");
   }
   newToken(TK_EOF, cur, p, 0, line_num);
