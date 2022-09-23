@@ -167,7 +167,7 @@ void tokenise(const char *file_path) {
       p += 2;
       continue;
     }
-    if (strchr("+-*/()<>=;{}&,[].", *p)) {
+    if (strchr("+-*/()<>=;{}&,[].!", *p)) {
       cur = newToken(TK_RESERVED, cur, p++, 1, line_num);
       continue;
     }

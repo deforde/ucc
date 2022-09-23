@@ -186,6 +186,12 @@ void genExpr(Node *node) {
     genExpr(node->lhs);
     cast(node->lhs->ty, node->ty);
     return;
+  case ND_NOT:
+    genExpr(node->lhs);
+    fprintf(output, "  cmp rax, 0\n");
+    fprintf(output, "  sete al\n");
+    fprintf(output, "  movzx rax, al\n");
+    return;
   case ND_FUNCCALL: {
     size_t nargs = 0;
     for (Node *arg = node->args; arg; arg = arg->next) {

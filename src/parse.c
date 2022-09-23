@@ -739,6 +739,11 @@ Node *unary(void) {
   if (consume("--")) {
     return toAssign(newNodeSub(unary(), newNodeNum(1)));
   }
+  if (consume("!")) {
+    Node *node = newNode(ND_NOT);
+    node->lhs = cast();
+    return node;
+  }
   return postfix();
 }
 
@@ -832,6 +837,9 @@ void addType(Node *node) {
   case ND_FUNCCALL:
     node->ty = ty_long;
     break;
+  case ND_NOT:
+    node->ty = ty_int;
+    return;
   case ND_VAR:
     node->ty = node->var->ty;
     break;

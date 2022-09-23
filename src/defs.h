@@ -32,6 +32,7 @@ typedef enum {
   ND_MEMBER,
   ND_MUL,
   ND_NE,
+  ND_NOT,
   ND_NUM,
   ND_RET,
   ND_STMT_EXPR,
