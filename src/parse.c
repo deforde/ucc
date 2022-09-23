@@ -41,6 +41,7 @@ static Node *newNodeIdent(Token *tok);
 static Node *newNodeIf(void);
 static Node *newNodeMember(Node *body);
 static Node *newNodeNum(int64_t val);
+static Node *newNodeLong(int64_t val);
 static Node *newNodeReturn(void);
 static Node *newNodeSub(Node *lhs, Node *rhs);
 static Node *newNodeWhile(void);
@@ -81,6 +82,8 @@ static void parseTypedef(Type *basety);
 static Type *findTypedef(Token *tok);
 static bool isTypename(Token *tok);
 static Type *typename(void);
+static Type *getCommonType(Type *ty1, Type *ty2);
+static void usualArithConv(Node **lhs, Node **rhs);
 
 void parse() {
   Obj head = {0};
@@ -174,6 +177,12 @@ Node *newNodeNum(int64_t val) {
   return node;
 }
 
+Node *newNodeLong(int64_t val) {
+  Node *node = newNodeNum(val);
+  node->ty = ty_long;
+  return node;
+}
+
 Node *newNodeAdd(Node *lhs, Node *rhs) {
   addType(lhs);
   addType(rhs);
@@ -188,7 +197,7 @@ Node *newNodeAdd(Node *lhs, Node *rhs) {
     lhs = rhs;
     rhs = tmp;
   }
-  rhs = newNodeBinary(ND_MUL, rhs, newNodeNum((int64_t)lhs->ty->base->size));
+  rhs = newNodeBinary(ND_MUL, rhs, newNodeLong((int64_t)lhs->ty->base->size));
   return newNodeBinary(ND_ADD, lhs, rhs);
 }
 
@@ -199,7 +208,7 @@ Node *newNodeSub(Node *lhs, Node *rhs) {
     return newNodeBinary(ND_SUB, lhs, rhs);
   }
   if (lhs->ty->base && isInteger(rhs->ty)) {
-    rhs = newNodeBinary(ND_MUL, rhs, newNodeNum((int64_t)lhs->ty->base->size));
+    rhs = newNodeBinary(ND_MUL, rhs, newNodeLong((int64_t)lhs->ty->base->size));
     addType(rhs);
     Node *node = newNodeBinary(ND_SUB, lhs, rhs);
     node->ty = lhs->ty;
@@ -737,15 +746,22 @@ void addType(Node *node) {
   }
 
   switch (node->kind) {
+  case ND_NUM:
+    node->ty = (node->val == (int)node->val) ? ty_int : ty_long;
+    break;
   case ND_ADD:
   case ND_SUB:
   case ND_MUL:
   case ND_DIV:
+    usualArithConv(&node->lhs, &node->rhs);
     node->ty = node->lhs->ty;
     break;
   case ND_ASS:
     if (node->lhs->ty->kind == TY_ARR) {
       compErrorToken(node->tok->str, "not an lvalue");
+    }
+    if (node->lhs->ty->kind != TY_STRUCT) {
+      node->rhs = newNodeCast(node->rhs, node->lhs->ty);
     }
     node->ty = node->lhs->ty;
     break;
@@ -753,7 +769,9 @@ void addType(Node *node) {
   case ND_NE:
   case ND_LT:
   case ND_LE:
-  case ND_NUM:
+    usualArithConv(&node->lhs, &node->rhs);
+    node->ty = ty_int;
+    break;
   case ND_FUNCCALL:
     node->ty = ty_long;
     break;
@@ -1038,4 +1056,20 @@ Node *cast(void) {
     return node;
   }
   return unary();
+}
+
+Type *getCommonType(Type *ty1, Type *ty2) {
+  if (ty1->base) {
+    return pointerTo(ty1->base);
+  }
+  if (ty1->size == 8 || ty2->size == 8) {
+    return ty_long;
+  }
+  return ty_int;
+}
+
+void usualArithConv(Node **lhs, Node **rhs) {
+  Type *ty = getCommonType((*lhs)->ty, (*rhs)->ty);
+  *lhs = newNodeCast(*lhs, ty);
+  *rhs = newNodeCast(*rhs, ty);
 }

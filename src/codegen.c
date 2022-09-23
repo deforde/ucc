@@ -328,9 +328,9 @@ void load(Type *ty) {
     return;
   }
   if (ty->size == 1) {
-    fprintf(output, "  movsbq rax, [rax]\n");
+    fprintf(output, "  movsbl eax, [rax]\n");
   } else if (ty->size == 2) {
-    fprintf(output, "  movswq rax, [rax]\n");
+    fprintf(output, "  movswl eax, [rax]\n");
   } else if (ty->size == 4) {
     fprintf(output, "  movsxd rax, [rax]\n");
   } else {
