@@ -69,10 +69,12 @@ typedef enum {
 } TokenKind;
 
 struct Type {
+  Type *next;
   TypeKind kind;
   Type *base;
   Obj *members;
   Type *ret_ty;
+  Type *params;
   size_t size;
   size_t align;
   size_t arr_len;
@@ -106,6 +108,7 @@ struct Obj {
 struct Node {
   NodeKind kind;
   Type *ty;
+  Type *func_ty;
   Node *next;
   Node *lhs;
   Node *rhs;

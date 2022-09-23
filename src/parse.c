@@ -526,6 +526,15 @@ Obj *function(Type *ty) {
     newParam(ty, param_ident);
   }
 
+  Type params_head = {0};
+  Type *param_ty = &params_head;
+  for (Obj *param = fn->params; param; param = param->next) {
+    Type *new_param_ty = calloc(1, sizeof(Type));
+    *new_param_ty = *param->ty;
+    param_ty = param_ty->next = new_param_ty;
+  }
+  fn->ty->params = param_ty;
+
   if (!consume(";")) {
     expect("{");
     fn->locals = fn->params;
@@ -900,7 +909,8 @@ Node *funcCall(Token *tok) {
     compErrorToken(tok->str, "not a function");
   }
 
-  Type *ty = sc->var->ty->ret_ty;
+  Type *ty = sc->var->ty;
+  Type *param_ty = ty->params;
   Node head = {0};
   Node *cur = &head;
 
@@ -908,14 +918,26 @@ Node *funcCall(Token *tok) {
     if (cur != &head) {
       expect(",");
     }
-    cur = cur->next = assign();
-    addType(cur);
+    Node *arg = assign();
+    addType(arg);
+
+    if (param_ty) {
+      if (param_ty->kind == TY_STRUCT || param_ty->kind == TY_UNION) {
+        compErrorToken(arg->tok->str,
+                       "struct or union function arguments are not supported");
+      }
+      arg = newNodeCast(arg, param_ty);
+      param_ty = param_ty->next;
+    }
+
+    cur = cur->next = arg;
   }
 
   Node *node = newNode(ND_FUNCCALL);
   node->funcname = strndup(tok->str, tok->len);
   node->args = head.next;
-  node->ty = ty;
+  node->func_ty = ty;
+  node->ty = ty->ret_ty;
   return node;
 }
 
