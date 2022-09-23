@@ -41,6 +41,7 @@ static Node *newNodeDeref(Node *body);
 static Node *newNodeFor(void);
 static Node *newNodeIdent(Token *tok);
 static Node *newNodeIf(void);
+static Node *newNodeInc(Node *node, int i);
 static Node *newNodeLong(int64_t val);
 static Node *newNodeMember(Node *body);
 static Node *newNodeNum(int64_t val);
@@ -1029,6 +1030,14 @@ Node *postfix(void) {
       node = structRef(node);
       continue;
     }
+    if (consume("++")) {
+      node = newNodeInc(node, 1);
+      continue;
+    }
+    if (consume("--")) {
+      node = newNodeInc(node, -1);
+      continue;
+    }
     break;
   }
   return node;
@@ -1240,4 +1249,11 @@ Node *newNodeAddr(Node *body) {
   Node *node = newNode(ND_ADDR);
   node->body = body;
   return node;
+}
+
+Node *newNodeInc(Node *node, int i) {
+  addType(node);
+  return newNodeCast(
+      newNodeAdd(toAssign(newNodeAdd(node, newNodeNum(i))), newNodeNum(-i)),
+      node->ty);
 }
