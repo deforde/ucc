@@ -61,6 +61,7 @@ static Type *abstractDeclarator(Type *ty);
 static Type *arrayOf(Type *base, size_t len);
 static Type *declarator(Type *ty, Token **ident);
 static Type *declspec(VarAttr *attr);
+static Type *enumSpec();
 static Type *findTag(Token *tok);
 static Type *findTypedef(Token *tok);
 static Type *getCommonType(Type *ty1, Type *ty2);
@@ -232,6 +233,9 @@ Node *newNodeIdent(Token *tok) {
   }
 
   VarScope *sc = findVarScope(tok);
+  if (sc && sc->enum_ty) {
+    return newNodeNum(sc->enum_val);
+  }
   if (!sc || !sc->var) {
     compErrorToken(tok->str, "undefined variable");
   }
@@ -332,8 +336,10 @@ Type *declspec(VarAttr *attr) {
     Type *typedef_ty = NULL;
     bool isStructKwd = false;
     bool isUnionKwd = false;
+    bool isEnumKwd = false;
     if ((isStructKwd = equal(tok, "struct")) ||
-        (isUnionKwd = equal(tok, "union")) || (typedef_ty = findTypedef(tok))) {
+        (isUnionKwd = equal(tok, "union")) ||
+        (isEnumKwd = equal(tok, "enum")) || (typedef_ty = findTypedef(tok))) {
       if (counter) {
         token = tok;
         break;
@@ -342,6 +348,8 @@ Type *declspec(VarAttr *attr) {
         ty = structDecl(newType(TY_STRUCT, 0, 1));
       } else if (isUnionKwd) {
         ty = unionDecl(newType(TY_UNION, 0, 1));
+      } else if (isEnumKwd) {
+        ty = enumSpec();
       } else {
         ty = typedef_ty;
       }
@@ -731,11 +739,12 @@ Type *findTag(Token *tok) {
 
 bool isInteger(Type *ty) {
   switch (ty->kind) {
-  case TY_INT:
+  case TY_BOOL:
   case TY_CHAR:
+  case TY_ENUM:
+  case TY_INT:
   case TY_LONG:
   case TY_SHORT:
-  case TY_BOOL:
     return true;
   default:
     break;
@@ -1130,4 +1139,42 @@ bool isFunc() {
   bool is_func = consume("(");
   token = start;
   return is_func;
+}
+
+Type *enumSpec() {
+  Token *tag = consumeIdent();
+  if (tag && !equal(token, "{")) {
+    Type *ty = findTag(tag);
+    if (!ty) {
+      compErrorToken(tag->str, "unknown enum type");
+    }
+    if (ty->kind != TY_ENUM) {
+      compErrorToken(tag->str, "not an enum tag");
+    }
+    return ty;
+  }
+
+  Type *ty = newType(TY_ENUM, 4, 4);
+  expect("{");
+  int val = 0;
+  for (;;) {
+    Token *econst = expectIdent();
+    if (consume("=")) {
+      val = (int)expectNumber();
+    }
+    pushScope(strndup(econst->str, econst->len), NULL, NULL);
+    VarScope *sc = scopes->vars;
+    sc->enum_ty = ty;
+    sc->enum_val = val++;
+    if (consume("}")) {
+      break;
+    }
+    expect(",");
+  }
+
+  if (tag) {
+    pushTagScope(tag, ty);
+  }
+
+  return ty;
 }

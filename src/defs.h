@@ -44,6 +44,7 @@ typedef enum {
   TY_ARR,
   TY_BOOL,
   TY_CHAR,
+  TY_ENUM,
   TY_FUNC,
   TY_INT,
   TY_LONG,
@@ -131,6 +132,8 @@ struct VarScope {
   char *name;
   Obj *var;
   Type *type_def;
+  Type *enum_ty;
+  int enum_val;
 };
 
 struct Scope {
