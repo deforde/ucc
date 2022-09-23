@@ -22,6 +22,5 @@ Token *expectIdent(void);
 Token *expectKeyword(void);
 void tokenise(const char *file_path);
 bool isEOF(void);
-bool isFunc(void);
 
 #endif // TOKENISE_H

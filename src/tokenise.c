@@ -255,15 +255,6 @@ Token *newIdent(Token *cur, const char **p, size_t line_num) {
 
 bool isIdentChar(char c) { return isalnum(c) || c == '_'; }
 
-bool isFunc(void) {
-  if (token->kind == TK_IDENT) {
-    if (token->next->len == 1 && token->next->str[0] == '(') {
-      return true;
-    }
-  }
-  return false;
-}
-
 int fromHex(char c) {
   if ('0' <= c && c <= '9') {
     return c - '0';

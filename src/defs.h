@@ -72,6 +72,7 @@ struct Type {
   TypeKind kind;
   Type *base;
   Obj *members;
+  Type *ret_ty;
   size_t size;
   size_t align;
   size_t arr_len;
@@ -97,7 +98,6 @@ struct Obj {
   // function
   Node *body;
   Obj *params;
-  Type *ret_ty;
   size_t param_cnt;
   size_t stack_size;
   Obj *locals;

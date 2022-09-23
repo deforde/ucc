@@ -39,9 +39,9 @@ static Node *newNodeDeref(Node *body);
 static Node *newNodeFor(void);
 static Node *newNodeIdent(Token *tok);
 static Node *newNodeIf(void);
+static Node *newNodeLong(int64_t val);
 static Node *newNodeMember(Node *body);
 static Node *newNodeNum(int64_t val);
-static Node *newNodeLong(int64_t val);
 static Node *newNodeReturn(void);
 static Node *newNodeSub(Node *lhs, Node *rhs);
 static Node *newNodeWhile(void);
@@ -51,38 +51,39 @@ static Node *relational(void);
 static Node *stmt(void);
 static Node *structRef(Node *node);
 static Node *unary(void);
-static VarScope *findVarScope(Token *tok);
 static Obj *function(Type *ty);
 static Obj *newGlobalVar(Type *ty, Token *ident);
 static Obj *newLocalVar(Type *ty, Token *ident);
 static Obj *newStrLitVar(Token *tok, Type *ty);
 static Obj *newVar(Type *ty, Token *ident, Obj **vars);
+static Type *abstractDeclarator(Type *ty);
 static Type *arrayOf(Type *base, size_t len);
 static Type *declarator(Type *ty, Token **ident);
-static Type *abstractDeclarator(Type *ty);
 static Type *declspec(VarAttr *attr);
 static Type *findTag(Token *tok);
+static Type *findTypedef(Token *tok);
+static Type *getCommonType(Type *ty1, Type *ty2);
 static Type *newType(TypeKind kind, size_t size, size_t align);
 static Type *pointerTo(Type *base);
 static Type *structDecl(Type *ty);
 static Type *structUnionDecl(Type *ty);
 static Type *typeSuffix(Type *ty);
+static Type *typename(void);
 static Type *unionDecl(Type *ty);
+static VarScope *findVarScope(Token *tok);
 static bool equal(Token *tok, const char *str);
+static bool isFunc(void);
 static bool isInteger(Type *ty);
+static bool isTypename(Token *tok);
 static size_t alignTo(size_t n, size_t align);
 static void addType(Node *node);
 static void enterScope(void);
 static void exitScope(void);
 static void globalVar(Type *ty);
 static void newParam(Type *ty, Token *ident);
+static void parseTypedef(Type *basety);
 static void pushScope(char *name, Obj *var, Type *type_def);
 static void pushTagScope(Token *tok, Type *ty);
-static void parseTypedef(Type *basety);
-static Type *findTypedef(Token *tok);
-static bool isTypename(Token *tok);
-static Type *typename(void);
-static Type *getCommonType(Type *ty1, Type *ty2);
 static void usualArithConv(Node **lhs, Node **rhs);
 
 void parse() {
@@ -505,8 +506,8 @@ Obj *function(Type *ty) {
   ty = declarator(ty, &fn_ident);
 
   Obj *fn = calloc(1, sizeof(Obj));
-  fn->ty = newType(TY_FUNC, 1, 1);
-  fn->ret_ty = ty;
+  fn->ty = newType(TY_FUNC, 0, 0);
+  fn->ty->ret_ty = ty;
   fn->name = strndup(fn_ident->str, fn_ident->len);
   cur_fn = fn;
   newGlobalVar(fn->ty, fn_ident);
@@ -883,8 +884,10 @@ Node *newNodeFor(void) {
 
 Node *newNodeReturn(void) {
   Node *node = newNode(ND_RET);
-  node->lhs = expr();
+  Node *exp = expr();
   expect(";");
+  addType(exp);
+  node->lhs = newNodeCast(exp, cur_fn->ty->ret_ty);
   return node;
 }
 
@@ -897,7 +900,7 @@ Node *funcCall(Token *tok) {
     compErrorToken(tok->str, "not a function");
   }
 
-  Type *ty = sc->var->ret_ty;
+  Type *ty = sc->var->ty->ret_ty;
   Node head = {0};
   Node *cur = &head;
 
@@ -1085,4 +1088,17 @@ void usualArithConv(Node **lhs, Node **rhs) {
   Type *ty = getCommonType((*lhs)->ty, (*rhs)->ty);
   *lhs = newNodeCast(*lhs, ty);
   *rhs = newNodeCast(*rhs, ty);
+}
+
+bool isFunc() {
+  if (token->str[0] == ';') {
+    return false;
+  }
+  Token *ident = NULL;
+  Type dummy = {0};
+  Token *start = token;
+  declarator(&dummy, &ident);
+  bool is_func = consume("(");
+  token = start;
+  return is_func;
 }
