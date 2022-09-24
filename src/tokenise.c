@@ -58,6 +58,25 @@ bool consumeFor(void) { return consumeTokKind(TK_FOR); }
 
 bool consumeSizeof(void) { return consumeTokKind(TK_SIZEOF); }
 
+Token *consumeLabel(void) {
+  if (token->kind != TK_IDENT || token->next->kind != TK_RESERVED ||
+      token->next->len != 1 || token->next->str[0] != ':') {
+    return NULL;
+  }
+  Token *label = token;
+  token = token->next->next;
+  return label;
+}
+
+bool consumeGoto(void) {
+  if (token->kind != TK_KWD || strlen("goto") != token->len ||
+      memcmp(token->str, "goto", token->len) != 0) {
+    return false;
+  }
+  token = token->next;
+  return true;
+}
+
 Token *consumeStrLit(void) {
   if (token->kind != TK_STR) {
     return NULL;
@@ -169,7 +188,7 @@ void tokenise(const char *file_path) {
       p += 2;
       continue;
     }
-    if (strchr("+-*/()<>=;{}&,[].!~%|^", *p)) {
+    if (strchr("+-*/()<>=;{}&,[].!~%|^:", *p)) {
       cur = newToken(TK_RESERVED, cur, p++, 1, line_num);
       continue;
     }
@@ -379,9 +398,9 @@ char *readFile(const char *file_path) {
 }
 
 bool isKeyword(const char *str, size_t len) {
-  static const char *kwds[] = {"int",   "char",   "short", "void",
-                               "long",  "struct", "union", "typedef",
-                               "_Bool", "enum",   "static"};
+  static const char *kwds[] = {"int",   "char",   "short",  "void",
+                               "long",  "struct", "union",  "typedef",
+                               "_Bool", "enum",   "static", "goto"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == len && strncmp(str, kwds[i], len) == 0) {
       return true;

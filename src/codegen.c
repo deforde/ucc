@@ -139,6 +139,13 @@ void genStmt(Node *node) {
     fprintf(output, ".L.end%zu:\n", label_num);
     label_num++;
     return;
+  case ND_GOTO:
+    fprintf(output, "  jmp %s\n", node->unique_label);
+    return;
+  case ND_LABEL:
+    fprintf(output, "%s:\n", node->unique_label);
+    genStmt(node->lhs);
+    return;
   case ND_RET:
     genExpr(node->lhs);
     fprintf(output, "  jmp .L.return.%s\n", cur_fn->name);

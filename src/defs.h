@@ -31,7 +31,9 @@ typedef enum {
   ND_EQ,
   ND_FOR,
   ND_FUNCCALL,
+  ND_GOTO,
   ND_IF,
+  ND_LABEL,
   ND_LE,
   ND_LOGAND,
   ND_LOGOR,
@@ -134,6 +136,9 @@ struct Node {
   const char *funcname;
   Node *args;
   Token *tok;
+  char *label;
+  char *unique_label;
+  Node *goto_next;
 };
 
 struct VarScope {

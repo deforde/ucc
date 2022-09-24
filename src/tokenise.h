@@ -6,21 +6,23 @@
 
 typedef struct Token Token;
 
-bool consume(char *op);
 Token *consumeIdent(void);
 Token *consumeKeyword(void);
-bool consumeReturn(void);
-bool consumeIf(void);
-bool consumeElse(void);
-bool consumeWhile(void);
-bool consumeFor(void);
-bool consumeSizeof(void);
+Token *consumeLabel(void);
 Token *consumeStrLit(void);
-void expect(char *op);
-int64_t expectNumber(void);
 Token *expectIdent(void);
 Token *expectKeyword(void);
-void tokenise(const char *file_path);
+bool consume(char *op);
+bool consumeElse(void);
+bool consumeFor(void);
+bool consumeGoto(void);
+bool consumeIf(void);
+bool consumeReturn(void);
+bool consumeSizeof(void);
+bool consumeWhile(void);
 bool isEOF(void);
+int64_t expectNumber(void);
+void expect(char *op);
+void tokenise(const char *file_path);
 
 #endif // TOKENISE_H

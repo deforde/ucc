@@ -14,6 +14,8 @@ extern Type *ty_int;
 extern Token *token;
 static Obj *cur_fn = NULL;
 static Scope *scopes = &(Scope){0};
+static Node *gotos = NULL;
+static Node *labels = NULL;
 Obj *prog = NULL;
 Obj *globals = NULL;
 Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .align = 1};
@@ -44,9 +46,11 @@ static Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *newNodeCast(Node *expr, Type *ty);
 static Node *newNodeDeref(Node *body);
 static Node *newNodeFor(void);
+static Node *newNodeGoto(Token *label);
 static Node *newNodeIdent(Token *tok);
 static Node *newNodeIf(void);
 static Node *newNodeInc(Node *node, int i);
+static Node *newNodeLabel(Token *label);
 static Node *newNodeLong(int64_t val);
 static Node *newNodeMember(Node *body);
 static Node *newNodeNum(int64_t val);
@@ -86,6 +90,7 @@ static VarScope *findVarScope(Token *tok);
 static bool equal(Token *tok, const char *str);
 static bool isFunc(void);
 static bool isTypename(Token *tok);
+static char *newUniqueLabel(void);
 static size_t alignTo(size_t n, size_t align);
 static void addType(Node *node);
 static void enterScope(void);
@@ -95,6 +100,7 @@ static void newParam(Type *ty, Token *ident);
 static void parseTypedef(Type *basety);
 static void pushScope(char *name, Obj *var, Type *type_def);
 static void pushTagScope(Token *tok, Type *ty);
+static void resolveGotoLabels(void);
 static void usualArithConv(Node **lhs, Node **rhs);
 
 void parse() {
@@ -174,8 +180,13 @@ Node *assign(void) {
 
 Node *stmt(void) {
   Node *node = NULL;
+  Token *label = NULL;
   if (consume(";")) {
     node = newNode(ND_BLK);
+  } else if (consumeGoto()) {
+    node = newNodeGoto(expectIdent());
+  } else if ((label = consumeLabel())) {
+    node = newNodeLabel(label);
   } else if (consume("{")) {
     node = cmpndStmt();
   } else if (consumeIf()) {
@@ -197,6 +208,24 @@ Node *newNode(NodeKind kind) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
   node->tok = token;
+  return node;
+}
+
+Node *newNodeGoto(Token *label) {
+  Node *node = newNode(ND_GOTO);
+  node->label = strndup(label->str, label->len);
+  node->goto_next = gotos;
+  gotos = node;
+  return node;
+}
+
+Node *newNodeLabel(Token *label) {
+  Node *node = newNode(ND_LABEL);
+  node->label = strndup(label->str, label->len);
+  node->unique_label = newUniqueLabel();
+  node->lhs = stmt();
+  node->goto_next = labels;
+  labels = node;
   return node;
 }
 
@@ -312,12 +341,17 @@ Obj *newGlobalVar(Type *ty, Token *ident) {
   return var;
 }
 
+char *newUniqueLabel(void) {
+  static size_t id = 0;
+  char *label = calloc(1, 20); // TODO: 20?
+  sprintf(label, ".L..%zu", id++);
+  return label;
+}
+
 Obj *newStrLitVar(Token *tok, Type *ty) {
   Obj *var = calloc(1, sizeof(Obj));
   var->next = globals;
-  static size_t id = 0;
-  var->name = calloc(1, 20); // TODO: 20?
-  sprintf(var->name, ".L..%zu", id++);
+  var->name = newUniqueLabel();
   var->init_data = tok->str;
   var->ty = ty;
   var->is_global = true;
@@ -618,6 +652,7 @@ Obj *function(Type *ty, VarAttr *attr) {
   }
 
   exitScope();
+  resolveGotoLabels();
   return fn;
 }
 
@@ -1185,8 +1220,14 @@ Type *findTypedef(Token *tok) {
 }
 
 bool isTypename(Token *tok) {
-  if (tok->kind == TK_KWD) {
-    return true;
+  static const char *kwds[] = {"_Bool",   "char",  "enum",   "int",
+                               "long",    "short", "static", "struct",
+                               "typedef", "union", "void"};
+  for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
+    if (strlen(kwds[i]) == tok->len &&
+        strncmp(tok->str, kwds[i], tok->len) == 0) {
+      return true;
+    }
   }
   return findTypedef(tok) != NULL;
 }
@@ -1368,4 +1409,18 @@ Type *arrayDimensions(Type *ty) {
   expect("]");
   ty = typeSuffix(ty);
   return arrayOf(ty, sz);
+}
+
+void resolveGotoLabels(void) {
+  for (Node *x = gotos; x; x = x->goto_next) {
+    for (Node *y = labels; y; y = y->goto_next) {
+      if (strcmp(x->label, y->label) == 0) {
+        x->unique_label = y->unique_label;
+      }
+    }
+    if (!x->unique_label) {
+      compErrorToken(x->tok->str, "use of undeclared label");
+    }
+  }
+  gotos = labels = NULL;
 }
