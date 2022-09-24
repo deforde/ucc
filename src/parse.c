@@ -577,10 +577,14 @@ Obj *function(Type *ty, VarAttr *attr) {
       expect(",");
     }
     first = false;
-    Type *ty = declspec(NULL);
+    Type *ty2 = declspec(NULL);
     Token *param_ident = NULL;
-    ty = declarator(ty, &param_ident);
-    newParam(ty, param_ident);
+    ty2 = declarator(ty2, &param_ident);
+    if (ty2->kind == TY_ARR) {
+      assert(ty2->base);
+      ty2 = pointerTo(ty2->base);
+    }
+    newParam(ty2, param_ident);
   }
 
   Type params_head = {0};
