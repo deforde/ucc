@@ -444,10 +444,12 @@ Type *structUnionDecl(Type *ty) {
   Token *tag = consumeIdent();
   if (tag) {
     if (!consume("{")) {
-      ty = findTag(tag);
-      if (!ty) {
-        compErrorToken(tag->str, "unkown struct/union tag");
+      Type *ty2 = findTag(tag);
+      if (ty2) {
+        return ty2;
       }
+      ty->size = -1;
+      pushTagScope(tag, ty);
       return ty;
     }
   } else {
@@ -475,6 +477,13 @@ Type *structUnionDecl(Type *ty) {
   ty->align = 1;
 
   if (tag) {
+    for (TagScope *ts = scopes->tags; ts; ts = ts->next) {
+      if (strlen(ts->name) == tag->len &&
+          memcmp(tag->str, ts->name, tag->len) == 0) {
+        *ts->ty = *ty;
+        return ts->ty;
+      }
+    }
     pushTagScope(tag, ty);
   }
 
@@ -483,6 +492,9 @@ Type *structUnionDecl(Type *ty) {
 
 Type *structDecl(Type *ty) {
   ty = structUnionDecl(ty);
+  if (ty->size < 0) {
+    return ty;
+  }
 
   size_t offset = 0;
   for (Obj *mem = ty->members; mem; mem = mem->next) {
@@ -500,6 +512,9 @@ Type *structDecl(Type *ty) {
 
 Type *unionDecl(Type *ty) {
   ty = structUnionDecl(ty);
+  if (ty->size < 0) {
+    return ty;
+  }
 
   for (Obj *mem = ty->members; mem; mem = mem->next) {
     if (mem->ty->align > ty->align) {
