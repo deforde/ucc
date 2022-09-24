@@ -127,7 +127,7 @@ Node *cmpndStmt(void) {
   Node *cur = &head;
   enterScope();
   while (!consume("}")) {
-    if (isTypename(token)) {
+    if (isTypename(token) && !equal(token->next, ":")) {
       VarAttr attr = {0};
       Type *basety = declspec(&attr);
       if (attr.is_typedef) {
