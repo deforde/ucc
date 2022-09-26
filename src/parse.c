@@ -16,6 +16,7 @@ static Obj *cur_fn = NULL;
 static Scope *scopes = &(Scope){0};
 static Node *gotos = NULL;
 static Node *labels = NULL;
+static char *cur_brk_label = NULL;
 Obj *prog = NULL;
 Obj *globals = NULL;
 Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .align = 1};
@@ -43,6 +44,7 @@ static Node *newNode(NodeKind kind);
 static Node *newNodeAdd(Node *lhs, Node *rhs);
 static Node *newNodeAddr(Node *body);
 static Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs);
+static Node *newNodeBreak();
 static Node *newNodeCast(Node *expr, Type *ty);
 static Node *newNodeDeref(Node *body);
 static Node *newNodeFor(void);
@@ -181,6 +183,7 @@ Node *assign(void) {
 Node *stmt(void) {
   Node *node = NULL;
   Token *label = NULL;
+  Token *cur_tok = token;
   if (consume(";")) {
     node = newNode(ND_BLK);
   } else if (consumeGoto()) {
@@ -197,6 +200,11 @@ Node *stmt(void) {
     node = newNodeWhile();
   } else if (consumeReturn()) {
     node = newNodeReturn();
+  } else if (consumeBreak()) {
+    if (!cur_brk_label) {
+      compErrorToken(cur_tok->str, "stray break");
+    }
+    node = newNodeBreak();
   } else {
     node = expr();
     expect(";");
@@ -997,7 +1005,10 @@ Node *newNodeWhile(void) {
   expect("(");
   node->cond = expr();
   expect(")");
+  char *brk = cur_brk_label;
+  cur_brk_label = node->brk_label = newUniqueLabel();
   node->body = stmt();
+  cur_brk_label = brk;
   return node;
 }
 
@@ -1017,6 +1028,8 @@ Node *newNodeFor(void) {
   Node *node = newNode(ND_FOR);
   expect("(");
   enterScope();
+  char *brk = cur_brk_label;
+  cur_brk_label = node->brk_label = newUniqueLabel();
   if (!consume(";")) {
     if (isTypename(token)) {
       Type *basety = declspec(NULL);
@@ -1036,6 +1049,7 @@ Node *newNodeFor(void) {
   }
   node->body = stmt();
   exitScope();
+  cur_brk_label = brk;
   return node;
 }
 
@@ -1423,4 +1437,12 @@ void resolveGotoLabels(void) {
     }
   }
   gotos = labels = NULL;
+}
+
+Node *newNodeBreak() {
+  Node *node = newNode(ND_GOTO);
+  assert(cur_brk_label);
+  node->unique_label = cur_brk_label;
+  expect(";");
+  return node;
 }

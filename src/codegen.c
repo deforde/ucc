@@ -93,52 +93,55 @@ void genStmt(Node *node) {
       genStmt(n);
     }
     return;
-  case ND_IF:
+  case ND_IF: {
+    const size_t c = label_num++;
     genExpr(node->cond);
     fprintf(output, "  cmp rax, 0\n");
-    fprintf(output, "  je .L.else%zu\n", label_num);
+    fprintf(output, "  je .L.else%zu\n", c);
     genStmt(node->then);
-    fprintf(output, "  jmp .L.end%zu\n", label_num);
-    fprintf(output, ".L.else%zu:\n", label_num);
+    fprintf(output, "  jmp .L.end%zu\n", c);
+    fprintf(output, ".L.else%zu:\n", c);
     if (node->els) {
       genStmt(node->els);
     }
-    fprintf(output, ".L.end%zu:\n", label_num);
-    label_num++;
+    fprintf(output, ".L.end%zu:\n", c);
     return;
-  case ND_FOR:
+  }
+  case ND_FOR: {
+    const size_t c = label_num++;
     if (node->pre) {
       genStmt(node->pre);
     }
-    fprintf(output, ".L.begin%zu:\n", label_num);
+    fprintf(output, ".L.begin%zu:\n", c);
     if (node->cond) {
       genExpr(node->cond);
       fprintf(output, "  cmp rax, 0\n");
-      fprintf(output, "  je .L.end%zu\n", label_num);
+      fprintf(output, "  je %s\n", node->brk_label);
     }
     genStmt(node->body);
     if (node->post) {
       genExpr(node->post);
     }
-    fprintf(output, "  jmp .L.begin%zu\n", label_num);
-    fprintf(output, ".L.end%zu:\n", label_num);
-    label_num++;
+    fprintf(output, "  jmp .L.begin%zu\n", c);
+    fprintf(output, "%s:\n", node->brk_label);
     return;
-  case ND_WHILE:
-    fprintf(output, ".L.begin%zu:\n", label_num);
+  }
+  case ND_WHILE: {
+    const size_t c = label_num++;
+    fprintf(output, ".L.begin%zu:\n", c);
     if (node->cond) {
       genExpr(node->cond);
       fprintf(output, "  cmp rax, 0\n");
-      fprintf(output, "  je .L.end%zu\n", label_num);
+      fprintf(output, "  je %s\n", node->brk_label);
     }
     genStmt(node->body);
     if (node->post) {
       genExpr(node->post);
     }
-    fprintf(output, "  jmp .L.begin%zu\n", label_num);
-    fprintf(output, ".L.end%zu:\n", label_num);
-    label_num++;
+    fprintf(output, "  jmp .L.begin%zu\n", c);
+    fprintf(output, "%s:\n", node->brk_label);
     return;
+  }
   case ND_GOTO:
     fprintf(output, "  jmp %s\n", node->unique_label);
     return;

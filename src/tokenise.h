@@ -16,6 +16,7 @@ bool consume(char *op);
 bool consumeElse(void);
 bool consumeFor(void);
 bool consumeGoto(void);
+bool consumeBreak(void);
 bool consumeIf(void);
 bool consumeReturn(void);
 bool consumeSizeof(void);
