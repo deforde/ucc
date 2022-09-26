@@ -152,6 +152,24 @@ void genStmt(Node *node) {
     genExpr(node->lhs);
     fprintf(output, "  jmp .L.return.%s\n", cur_fn->name);
     return;
+  case ND_SWITCH:
+    genExpr(node->cond);
+    for (Node *n = node->case_next; n; n = n->case_next) {
+      const char *reg = (node->cond->ty->size == 8) ? "rax" : "eax";
+      fprintf(output, "  cmp %s, %ld\n", reg, n->val);
+      fprintf(output, "  je %s\n", n->label);
+    }
+    if (node->default_case) {
+      fprintf(output, "  jmp %s\n", node->default_case->label);
+    }
+    fprintf(output, "  jmp %s\n", node->brk_label);
+    genStmt(node->then);
+    fprintf(output, "%s:\n", node->brk_label);
+    return;
+  case ND_CASE:
+    fprintf(output, "%s:\n", node->label);
+    genStmt(node->lhs);
+    return;
   default:
     break;
   }

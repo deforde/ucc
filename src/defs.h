@@ -24,6 +24,7 @@ typedef enum {
   ND_BITOR,
   ND_BITXOR,
   ND_BLK,
+  ND_CASE,
   ND_CAST,
   ND_COMMA,
   ND_DEREF,
@@ -47,6 +48,7 @@ typedef enum {
   ND_RET,
   ND_STMT_EXPR,
   ND_SUB,
+  ND_SWITCH,
   ND_VAR,
   ND_WHILE,
 } NodeKind;
@@ -141,6 +143,8 @@ struct Node {
   Node *goto_next;
   char *brk_label;
   char *cont_label;
+  Node *case_next;
+  Node *default_case;
 };
 
 struct VarScope {

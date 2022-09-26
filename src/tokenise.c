@@ -16,7 +16,7 @@ const char *file_content = NULL;
 static Token *newIdent(Token *cur, const char **p, size_t line_num);
 static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len,
                        size_t line_num);
-static long readIntLiteral(const char **start);
+static bool consumeKwdMatch(const char *kwd);
 static bool consumeTokKind(TokenKind kind);
 static bool isIdentChar(char c);
 static bool isKeyword(const char *str, size_t len);
@@ -24,6 +24,7 @@ static bool startsWith(const char *p, const char *q);
 static char *readFile(const char *file_path);
 static int fromHex(char c);
 static int readEscapedChar(const char **p);
+static long readIntLiteral(const char **start);
 
 bool startsWith(const char *p, const char *q) {
   return memcmp(p, q, strlen(q)) == 0;
@@ -66,15 +67,6 @@ Token *consumeLabel(void) {
   Token *label = token;
   token = token->next->next;
   return label;
-}
-
-bool consumeGoto(void) {
-  if (token->kind != TK_KWD || strlen("goto") != token->len ||
-      memcmp(token->str, "goto", token->len) != 0) {
-    return false;
-  }
-  token = token->next;
-  return true;
 }
 
 Token *consumeStrLit(void) {
@@ -398,9 +390,10 @@ char *readFile(const char *file_path) {
 }
 
 bool isKeyword(const char *str, size_t len) {
-  static const char *kwds[] = {"int",    "char",  "short",   "void",    "long",
-                               "struct", "union", "typedef", "_Bool",   "enum",
-                               "static", "goto",  "break",   "continue"};
+  static const char *kwds[] = {
+      "int",   "char",     "short",  "void", "long",   "struct",
+      "union", "typedef",  "_Bool",  "enum", "static", "goto",
+      "break", "continue", "switch", "case", "default"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == len && strncmp(str, kwds[i], len) == 0) {
       return true;
@@ -432,20 +425,23 @@ long readIntLiteral(const char **start) {
   return val;
 }
 
-bool consumeBreak(void) {
-  if (token->kind != TK_KWD || strlen("break") != token->len ||
-      memcmp(token->str, "break", token->len) != 0) {
+bool consumeKwdMatch(const char *kwd) {
+  if (token->kind != TK_KWD || strlen(kwd) != token->len ||
+      memcmp(token->str, kwd, token->len) != 0) {
     return false;
   }
   token = token->next;
   return true;
 }
 
-bool consumeCont(void) {
-  if (token->kind != TK_KWD || strlen("continue") != token->len ||
-      memcmp(token->str, "continue", token->len) != 0) {
-    return false;
-  }
-  token = token->next;
-  return true;
-}
+bool consumeGoto(void) { return consumeKwdMatch("goto"); }
+
+bool consumeBreak(void) { return consumeKwdMatch("break"); }
+
+bool consumeCont(void) { return consumeKwdMatch("continue"); }
+
+bool consumeSwitch(void) { return consumeKwdMatch("switch"); }
+
+bool consumeCase(void) { return consumeKwdMatch("case"); }
+
+bool consumeDefault(void) { return consumeKwdMatch("default"); }

@@ -18,6 +18,7 @@ static Node *gotos = NULL;
 static Node *labels = NULL;
 static char *cur_brk_label = NULL;
 static char *cur_cont_label = NULL;
+static Node *cur_switch = NULL;
 Obj *prog = NULL;
 Obj *globals = NULL;
 Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .align = 1};
@@ -46,8 +47,10 @@ static Node *newNodeAdd(Node *lhs, Node *rhs);
 static Node *newNodeAddr(Node *body);
 static Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *newNodeBreak();
+static Node *newNodeCase();
 static Node *newNodeCast(Node *expr, Type *ty);
 static Node *newNodeCont();
+static Node *newNodeDefault();
 static Node *newNodeDeref(Node *body);
 static Node *newNodeFor(void);
 static Node *newNodeGoto(Token *label);
@@ -60,6 +63,7 @@ static Node *newNodeMember(Node *body);
 static Node *newNodeNum(int64_t val);
 static Node *newNodeReturn(void);
 static Node *newNodeSub(Node *lhs, Node *rhs);
+static Node *newNodeSwitch();
 static Node *newNodeVar(Obj *var);
 static Node *newNodeWhile(void);
 static Node *postfix(void);
@@ -212,6 +216,18 @@ Node *stmt(void) {
       compErrorToken(cur_tok->str, "stray continue");
     }
     node = newNodeCont();
+  } else if (consumeSwitch()) {
+    node = newNodeSwitch();
+  } else if (consumeCase()) {
+    if (!cur_switch) {
+      compErrorToken(cur_tok->str, "stray case");
+    }
+    node = newNodeCase();
+  } else if (consumeDefault()) {
+    if (!cur_switch) {
+      compErrorToken(cur_tok->str, "stray default");
+    }
+    node = newNodeDefault();
   } else {
     node = expr();
     expect(";");
@@ -1455,8 +1471,8 @@ void resolveGotoLabels(void) {
 }
 
 Node *newNodeBreak() {
-  Node *node = newNode(ND_GOTO);
   assert(cur_brk_label);
+  Node *node = newNode(ND_GOTO);
   node->unique_label = cur_brk_label;
   expect(";");
   return node;
@@ -1467,5 +1483,43 @@ Node *newNodeCont() {
   assert(cur_cont_label);
   node->unique_label = cur_cont_label;
   expect(";");
+  return node;
+}
+
+Node *newNodeSwitch() {
+  Node *node = newNode(ND_SWITCH);
+  expect("(");
+  node->cond = expr();
+  expect(")");
+  Node *sw = cur_switch;
+  cur_switch = node;
+  char *brk = cur_brk_label;
+  cur_brk_label = node->brk_label = newUniqueLabel();
+  node->then = stmt();
+  cur_switch = sw;
+  cur_brk_label = brk;
+  return node;
+}
+
+Node *newNodeCase() {
+  assert(cur_switch);
+  const int64_t val = expectNumber();
+  Node *node = newNode(ND_CASE);
+  expect(":");
+  node->label = newUniqueLabel();
+  node->lhs = stmt();
+  node->val = val;
+  node->case_next = cur_switch->case_next;
+  cur_switch->case_next = node;
+  return node;
+}
+
+Node *newNodeDefault() {
+  assert(cur_switch);
+  Node *node = newNode(ND_CASE);
+  expect(":");
+  node->label = newUniqueLabel();
+  node->lhs = stmt();
+  cur_switch->default_case = node;
   return node;
 }
