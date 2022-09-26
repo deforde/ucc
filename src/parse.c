@@ -32,6 +32,7 @@ static Node * bitor (void);
 static Node *add(void);
 static Node *assign(void);
 static Node *bitand(void);
+static Node *bitshift(void);
 static Node *bitxor(void);
 static Node *cast(void);
 static Node *cmpndStmt(void);
@@ -182,6 +183,12 @@ Node *assign(void) {
   }
   if (consume("^=")) {
     return toAssign(newNodeBinary(ND_BITXOR, node, assign()));
+  }
+  if (consume("<<=")) {
+    return toAssign(newNodeBinary(ND_SHL, node, assign()));
+  }
+  if (consume(">>=")) {
+    return toAssign(newNodeBinary(ND_SHR, node, assign()));
   }
   return node;
 }
@@ -796,16 +803,16 @@ Node *equality(void) {
 }
 
 Node *relational(void) {
-  Node *node = add();
+  Node *node = bitshift();
   for (;;) {
     if (consume("<")) {
-      node = newNodeBinary(ND_LT, node, add());
+      node = newNodeBinary(ND_LT, node, bitshift());
     } else if (consume("<=")) {
-      node = newNodeBinary(ND_LE, node, add());
+      node = newNodeBinary(ND_LE, node, bitshift());
     } else if (consume(">")) {
-      node = newNodeBinary(ND_LT, add(), node);
+      node = newNodeBinary(ND_LT, bitshift(), node);
     } else if (consume(">=")) {
-      node = newNodeBinary(ND_LE, add(), node);
+      node = newNodeBinary(ND_LE, bitshift(), node);
     } else {
       return node;
     }
@@ -957,6 +964,8 @@ void addType(Node *node) {
     node->ty = ty_int;
     break;
   case ND_BITNOT:
+  case ND_SHL:
+  case ND_SHR:
     node->ty = node->lhs->ty;
     break;
   case ND_VAR:
@@ -1521,5 +1530,21 @@ Node *newNodeDefault() {
   node->label = newUniqueLabel();
   node->lhs = stmt();
   cur_switch->default_case = node;
+  return node;
+}
+
+Node *bitshift(void) {
+  Node *node = add();
+  for (;;) {
+    if (consume("<<")) {
+      node = newNodeBinary(ND_SHL, node, add());
+      continue;
+    }
+    if (consume(">>")) {
+      node = newNodeBinary(ND_SHR, node, add());
+      continue;
+    }
+    break;
+  }
   return node;
 }

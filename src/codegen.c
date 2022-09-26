@@ -343,6 +343,14 @@ void genExpr(Node *node) {
     fprintf(output, "  setle al\n");
     fprintf(output, "  movzb %s, al\n", ax);
     return;
+  case ND_SHL:
+    fprintf(output, "  mov rcx, rdi\n");
+    fprintf(output, "  shl %s, cl\n", ax);
+    return;
+  case ND_SHR:
+    fprintf(output, "  mov rcx, rdi\n");
+    fprintf(output, "  sar %s, cl\n", ax);
+    return;
   default:
     break;
   }

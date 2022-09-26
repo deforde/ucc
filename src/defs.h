@@ -46,6 +46,8 @@ typedef enum {
   ND_NOT,
   ND_NUM,
   ND_RET,
+  ND_SHL,
+  ND_SHR,
   ND_STMT_EXPR,
   ND_SUB,
   ND_SWITCH,
