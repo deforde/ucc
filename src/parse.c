@@ -101,6 +101,8 @@ static bool equal(Token *tok, const char *str);
 static bool isFunc(void);
 static bool isTypename(Token *tok);
 static char *newUniqueLabel(void);
+static int64_t constExpr(void);
+static int64_t eval(Node *node);
 static size_t alignTo(size_t n, size_t align);
 static void addType(Node *node);
 static void enterScope(void);
@@ -1369,7 +1371,7 @@ Type *enumSpec() {
   for (;;) {
     Token *econst = expectIdent();
     if (consume("=")) {
-      val = (int)expectNumber();
+      val = (int)constExpr();
     }
     pushScope(strndup(econst->str, econst->len), NULL, NULL);
     VarScope *sc = scopes->vars;
@@ -1468,7 +1470,7 @@ Type *arrayDimensions(Type *ty) {
     ty = typeSuffix(ty);
     return arrayOf(ty, -1);
   }
-  const int64_t sz = expectNumber();
+  const int sz = constExpr(); // TODO: should this not be size_t?
   expect("]");
   ty = typeSuffix(ty);
   return arrayOf(ty, sz);
@@ -1521,7 +1523,7 @@ Node *newNodeSwitch() {
 
 Node *newNodeCase() {
   assert(cur_switch);
-  const int64_t val = expectNumber();
+  const int64_t val = constExpr();
   Node *node = newNode(ND_CASE);
   expect(":");
   node->label = newUniqueLabel();
@@ -1569,4 +1571,73 @@ Node *ternary(void) {
   expect(":");
   node->els = ternary();
   return node;
+}
+
+int64_t constExpr(void) {
+  Node *node = ternary();
+  return eval(node);
+}
+
+int64_t eval(Node *node) {
+  addType(node);
+  switch (node->kind) {
+  case ND_ADD:
+    return eval(node->lhs) + eval(node->rhs);
+  case ND_BITAND:
+    return eval(node->lhs) & eval(node->rhs);
+  case ND_BITNOT:
+    return ~eval(node->lhs);
+  case ND_BITOR:
+    return eval(node->lhs) | eval(node->rhs);
+  case ND_BITXOR:
+    return eval(node->lhs) ^ eval(node->rhs);
+  case ND_CAST:
+    if (isInteger(node->ty)) {
+      switch (node->ty->size) {
+      case 1:
+        return (uint8_t)eval(node->lhs);
+      case 2:
+        return (uint16_t)eval(node->lhs);
+      case 4:
+        return (uint32_t)eval(node->lhs);
+      }
+    }
+    return eval(node->lhs);
+  case ND_COMMA:
+    return eval(node->rhs);
+  case ND_TERN:
+    return eval(node->cond) ? eval(node->then) : eval(node->els);
+  case ND_DIV:
+    return eval(node->lhs) / eval(node->rhs);
+  case ND_EQ:
+    return eval(node->lhs) == eval(node->rhs);
+  case ND_LE:
+    return eval(node->lhs) <= eval(node->rhs);
+  case ND_LOGAND:
+    return eval(node->lhs) && eval(node->rhs);
+  case ND_LOGOR:
+    return eval(node->lhs) || eval(node->rhs);
+  case ND_LT:
+    return eval(node->lhs) < eval(node->rhs);
+  case ND_MOD:
+    return eval(node->lhs) % eval(node->rhs);
+  case ND_MUL:
+    return eval(node->lhs) * eval(node->rhs);
+  case ND_NE:
+    return eval(node->lhs) != eval(node->rhs);
+  case ND_NOT:
+    return !eval(node->lhs);
+  case ND_NUM:
+    return node->val;
+  case ND_SHL:
+    return eval(node->lhs) << eval(node->rhs);
+  case ND_SHR:
+    return eval(node->lhs) >> eval(node->rhs);
+  case ND_SUB:
+    return eval(node->lhs) - eval(node->rhs);
+  default:
+    break;
+  }
+  compErrorToken(node->tok->str, "not a compile time constant");
+  return 0;
 }
