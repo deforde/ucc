@@ -292,11 +292,11 @@ void genExpr(Node *node) {
   char *di = NULL;
 
   if (node->lhs->ty->kind == TY_LONG || node->lhs->ty->base) {
-    ax = "%rax";
-    di = "%rdi";
+    ax = "rax";
+    di = "rdi";
   } else {
-    ax = "%eax";
-    di = "%edi";
+    ax = "eax";
+    di = "edi";
   }
 
   switch (node->kind) {
@@ -439,9 +439,9 @@ void load(Type *ty) {
     return;
   }
   if (ty->size == 1) {
-    fprintf(output, "  movsbl eax, [rax]\n");
+    fprintf(output, "  movsx eax, byte ptr [rax]\n");
   } else if (ty->size == 2) {
-    fprintf(output, "  movswl eax, [rax]\n");
+    fprintf(output, "  movsx eax, word ptr [rax]\n");
   } else if (ty->size == 4) {
     fprintf(output, "  movsxd rax, [rax]\n");
   } else {
