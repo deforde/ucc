@@ -385,7 +385,7 @@ Obj *newGlobalVar(Type *ty, Token *ident) {
 char *newUniqueLabel(void) {
   static size_t id = 0;
   char *label = calloc(1, 20); // TODO: 20?
-  sprintf(label, ".L..%zu", id++);
+  sprintf(label, ".lbl..%zu", id++);
   return label;
 }
 

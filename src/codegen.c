@@ -338,22 +338,22 @@ void genExpr(Node *node) {
   case ND_EQ:
     fprintf(output, "  cmp %s, %s\n", ax, di);
     fprintf(output, "  sete al\n");
-    fprintf(output, "  movzb %s, al\n", ax);
+    fprintf(output, "  movzx %s, al\n", ax);
     return;
   case ND_NE:
     fprintf(output, "  cmp %s, %s\n", ax, di);
     fprintf(output, "  setne al\n");
-    fprintf(output, "  movzb %s, al\n", ax);
+    fprintf(output, "  movzx %s, al\n", ax);
     return;
   case ND_LT:
     fprintf(output, "  cmp %s, %s\n", ax, di);
     fprintf(output, "  setl al\n");
-    fprintf(output, "  movzb %s, al\n", ax);
+    fprintf(output, "  movzx %s, al\n", ax);
     return;
   case ND_LE:
     fprintf(output, "  cmp %s, %s\n", ax, di);
     fprintf(output, "  setle al\n");
-    fprintf(output, "  movzb %s, al\n", ax);
+    fprintf(output, "  movzx %s, al\n", ax);
     return;
   case ND_SHL:
     fprintf(output, "  mov rcx, rdi\n");
