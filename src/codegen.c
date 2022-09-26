@@ -119,6 +119,7 @@ void genStmt(Node *node) {
       fprintf(output, "  je %s\n", node->brk_label);
     }
     genStmt(node->body);
+    fprintf(output, "%s:\n", node->cont_label);
     if (node->post) {
       genExpr(node->post);
     }
@@ -129,15 +130,13 @@ void genStmt(Node *node) {
   case ND_WHILE: {
     const size_t c = label_num++;
     fprintf(output, ".L.begin%zu:\n", c);
+    fprintf(output, "%s:\n", node->cont_label);
     if (node->cond) {
       genExpr(node->cond);
       fprintf(output, "  cmp rax, 0\n");
       fprintf(output, "  je %s\n", node->brk_label);
     }
     genStmt(node->body);
-    if (node->post) {
-      genExpr(node->post);
-    }
     fprintf(output, "  jmp .L.begin%zu\n", c);
     fprintf(output, "%s:\n", node->brk_label);
     return;

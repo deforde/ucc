@@ -17,6 +17,7 @@ static Scope *scopes = &(Scope){0};
 static Node *gotos = NULL;
 static Node *labels = NULL;
 static char *cur_brk_label = NULL;
+static char *cur_cont_label = NULL;
 Obj *prog = NULL;
 Obj *globals = NULL;
 Type *ty_char = &(Type){.kind = TY_CHAR, .size = 1, .align = 1};
@@ -46,6 +47,7 @@ static Node *newNodeAddr(Node *body);
 static Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *newNodeBreak();
 static Node *newNodeCast(Node *expr, Type *ty);
+static Node *newNodeCont();
 static Node *newNodeDeref(Node *body);
 static Node *newNodeFor(void);
 static Node *newNodeGoto(Token *label);
@@ -205,6 +207,11 @@ Node *stmt(void) {
       compErrorToken(cur_tok->str, "stray break");
     }
     node = newNodeBreak();
+  } else if (consumeCont()) {
+    if (!cur_cont_label) {
+      compErrorToken(cur_tok->str, "stray continue");
+    }
+    node = newNodeCont();
   } else {
     node = expr();
     expect(";");
@@ -1005,10 +1012,15 @@ Node *newNodeWhile(void) {
   expect("(");
   node->cond = expr();
   expect(")");
+  enterScope();
   char *brk = cur_brk_label;
+  char *cont = cur_cont_label;
   cur_brk_label = node->brk_label = newUniqueLabel();
+  cur_cont_label = node->cont_label = newUniqueLabel();
   node->body = stmt();
+  exitScope();
   cur_brk_label = brk;
+  cur_cont_label = cont;
   return node;
 }
 
@@ -1030,6 +1042,8 @@ Node *newNodeFor(void) {
   enterScope();
   char *brk = cur_brk_label;
   cur_brk_label = node->brk_label = newUniqueLabel();
+  char *cont = cur_cont_label;
+  cur_cont_label = node->cont_label = newUniqueLabel();
   if (!consume(";")) {
     if (isTypename(token)) {
       Type *basety = declspec(NULL);
@@ -1050,6 +1064,7 @@ Node *newNodeFor(void) {
   node->body = stmt();
   exitScope();
   cur_brk_label = brk;
+  cur_cont_label = cont;
   return node;
 }
 
@@ -1443,6 +1458,14 @@ Node *newNodeBreak() {
   Node *node = newNode(ND_GOTO);
   assert(cur_brk_label);
   node->unique_label = cur_brk_label;
+  expect(";");
+  return node;
+}
+
+Node *newNodeCont() {
+  Node *node = newNode(ND_GOTO);
+  assert(cur_cont_label);
+  node->unique_label = cur_cont_label;
   expect(";");
   return node;
 }

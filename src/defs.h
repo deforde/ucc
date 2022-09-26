@@ -140,6 +140,7 @@ struct Node {
   char *unique_label;
   Node *goto_next;
   char *brk_label;
+  char *cont_label;
 };
 
 struct VarScope {

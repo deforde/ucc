@@ -398,9 +398,9 @@ char *readFile(const char *file_path) {
 }
 
 bool isKeyword(const char *str, size_t len) {
-  static const char *kwds[] = {"int",    "char",  "short",   "void",  "long",
-                               "struct", "union", "typedef", "_Bool", "enum",
-                               "static", "goto",  "break"};
+  static const char *kwds[] = {"int",    "char",  "short",   "void",    "long",
+                               "struct", "union", "typedef", "_Bool",   "enum",
+                               "static", "goto",  "break",   "continue"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == len && strncmp(str, kwds[i], len) == 0) {
       return true;
@@ -435,6 +435,15 @@ long readIntLiteral(const char **start) {
 bool consumeBreak(void) {
   if (token->kind != TK_KWD || strlen("break") != token->len ||
       memcmp(token->str, "break", token->len) != 0) {
+    return false;
+  }
+  token = token->next;
+  return true;
+}
+
+bool consumeCont(void) {
+  if (token->kind != TK_KWD || strlen("continue") != token->len ||
+      memcmp(token->str, "continue", token->len) != 0) {
     return false;
   }
   token = token->next;
