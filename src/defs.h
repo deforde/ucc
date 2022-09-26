@@ -51,6 +51,7 @@ typedef enum {
   ND_STMT_EXPR,
   ND_SUB,
   ND_SWITCH,
+  ND_TERN,
   ND_VAR,
   ND_WHILE,
 } NodeKind;

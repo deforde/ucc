@@ -213,6 +213,18 @@ void genExpr(Node *node) {
     genExpr(node->lhs);
     cast(node->lhs->ty, node->ty);
     return;
+  case ND_TERN: {
+    const size_t c = label_num++;
+    genExpr(node->cond);
+    fprintf(output, "  cmp rax, 0\n");
+    fprintf(output, "  je .L.else.%zu\n", c);
+    genExpr(node->then);
+    fprintf(output, "  jmp .L.end.%zu\n", c);
+    fprintf(output, ".L.else.%zu:\n", c);
+    genExpr(node->els);
+    fprintf(output, ".L.end.%zu:\n", c);
+    return;
+  }
   case ND_NOT:
     genExpr(node->lhs);
     fprintf(output, "  cmp rax, 0\n");

@@ -72,6 +72,7 @@ static Node *primary(void);
 static Node *relational(void);
 static Node *stmt(void);
 static Node *structRef(Node *node);
+static Node *ternary(void);
 static Node *toAssign(Node *node);
 static Node *unary(void);
 static Obj *function(Type *ty, VarAttr *attr);
@@ -156,7 +157,7 @@ Node *cmpndStmt(void) {
 }
 
 Node *assign(void) {
-  Node *node = logor();
+  Node *node = ternary();
   if (consume("=")) {
     node = newNodeBinary(ND_ASS, node, assign());
   }
@@ -971,6 +972,14 @@ void addType(Node *node) {
   case ND_VAR:
     node->ty = node->var->ty;
     break;
+  case ND_TERN:
+    if (node->then->ty->kind == TY_VOID || node->els->ty->kind == TY_VOID) {
+      node->ty = ty_void;
+    } else {
+      usualArithConv(&node->then, &node->els);
+      node->ty = node->then->ty;
+    }
+    break;
   case ND_COMMA:
     node->ty = node->rhs->ty;
     break;
@@ -1546,5 +1555,18 @@ Node *bitshift(void) {
     }
     break;
   }
+  return node;
+}
+
+Node *ternary(void) {
+  Node *cond = logor();
+  if (!consume("?")) {
+    return cond;
+  }
+  Node *node = newNode(ND_TERN);
+  node->cond = cond;
+  node->then = expr();
+  expect(":");
+  node->els = ternary();
   return node;
 }
