@@ -1470,7 +1470,7 @@ Type *arrayDimensions(Type *ty) {
     ty = typeSuffix(ty);
     return arrayOf(ty, -1);
   }
-  const int sz = constExpr(); // TODO: should this not be size_t?
+  const int sz = (int)constExpr(); // TODO: should this not be size_t?
   expect("]");
   ty = typeSuffix(ty);
   return arrayOf(ty, sz);
