@@ -6,14 +6,16 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct Type Type;
+typedef struct InitDesg InitDesg;
+typedef struct Initialiser Initialiser;
 typedef struct Node Node;
-typedef struct Token Token;
 typedef struct Obj Obj;
-typedef struct VarScope VarScope;
 typedef struct Scope Scope;
 typedef struct TagScope TagScope;
+typedef struct Token Token;
+typedef struct Type Type;
 typedef struct VarAttr VarAttr;
+typedef struct VarScope VarScope;
 
 typedef enum {
   ND_ADD,
@@ -30,6 +32,7 @@ typedef enum {
   ND_DEREF,
   ND_DIV,
   ND_EQ,
+  ND_EXPR,
   ND_FOR,
   ND_FUNCCALL,
   ND_GOTO,
@@ -44,6 +47,7 @@ typedef enum {
   ND_MUL,
   ND_NE,
   ND_NOT,
+  ND_NULL_EXPR,
   ND_NUM,
   ND_RET,
   ND_SHL,
@@ -174,6 +178,19 @@ struct TagScope {
 struct VarAttr {
   bool is_static;
   bool is_typedef;
+};
+
+struct Initialiser {
+  Initialiser *next;
+  Type *ty;
+  Node *expr;
+  Initialiser **children;
+};
+
+struct InitDesg {
+  InitDesg *next;
+  size_t idx;
+  Obj *var;
 };
 
 #endif // DEFS_H

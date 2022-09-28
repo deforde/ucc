@@ -28,6 +28,8 @@ Type *ty_long = &(Type){.kind = TY_LONG, .size = 8, .align = 8};
 Type *ty_short = &(Type){.kind = TY_SHORT, .size = 2, .align = 2};
 Type *ty_void = &(Type){.kind = TY_VOID, .size = 1, .align = 1};
 
+static Initialiser *initialiser(Type *ty);
+static Initialiser *newInitialiser(Type *ty);
 static Node * bitor (void);
 static Node *add(void);
 static Node *assign(void);
@@ -36,12 +38,15 @@ static Node *bitshift(void);
 static Node *bitxor(void);
 static Node *cast(void);
 static Node *cmpndStmt(void);
+static Node *createLvalInit(Initialiser *init, Type *ty, InitDesg *desg);
 static Node *declaration(Type *basety);
 static Node *equality(void);
 static Node *expr(void);
 static Node *funcCall(Token *tok);
+static Node *initDesgExpr(InitDesg *desg);
 static Node *logand(void);
 static Node *logor(void);
+static Node *lvalInitialiser(Obj *var);
 static Node *mul(void);
 static Node *newNode(NodeKind kind);
 static Node *newNodeAdd(Node *lhs, Node *rhs);
@@ -108,6 +113,7 @@ static void addType(Node *node);
 static void enterScope(void);
 static void exitScope(void);
 static void globalVar(Type *ty);
+static void initialiser2(Initialiser *init);
 static void newParam(Type *ty, Token *ident);
 static void parseTypedef(Type *basety);
 static void pushScope(char *name, Obj *var, Type *type_def);
@@ -718,14 +724,9 @@ Node *declaration(Type *basety) {
     }
     Obj *var = newLocalVar(ty, ident);
 
-    if (!consume("=")) {
-      continue;
+    if (consume("=")) {
+      cur = cur->next = lvalInitialiser(var);
     }
-
-    Node *lhs = newNodeVar(var);
-    Node *rhs = assign();
-    Node *node = newNodeBinary(ND_ASS, lhs, rhs);
-    cur = cur->next = node;
   }
 
   Node *node = newNode(ND_BLK);
@@ -1640,4 +1641,67 @@ int64_t eval(Node *node) {
   }
   compErrorToken(node->tok->str, "not a compile time constant");
   return 0;
+}
+
+Initialiser *newInitialiser(Type *ty) {
+  Initialiser *init = calloc(1, sizeof(Initialiser));
+  init->ty = ty;
+  if (ty->kind == TY_ARR) {
+    init->children = calloc(ty->arr_len, sizeof(*init->children));
+    for (size_t i = 0; i < ty->arr_len; i++) {
+      init->children[i] = newInitialiser(ty->base);
+    }
+  }
+  return init;
+}
+
+Initialiser *initialiser(Type *ty) {
+  Initialiser *init = newInitialiser(ty);
+  initialiser2(init);
+  return init;
+}
+
+void initialiser2(Initialiser *init) {
+  if (init->ty->kind == TY_ARR) {
+    expect("{");
+    for (size_t i = 0; i < init->ty->arr_len; i++) {
+      if (i > 0) {
+        expect(",");
+      }
+      initialiser2(init->children[i]);
+    }
+    expect("}");
+    return;
+  }
+  init->expr = assign();
+}
+
+Node *lvalInitialiser(Obj *var) {
+  Initialiser *init = initialiser(var->ty);
+  InitDesg desg = {NULL, 0, var};
+  return createLvalInit(init, var->ty, &desg);
+}
+
+Node *createLvalInit(Initialiser *init, Type *ty, InitDesg *desg) {
+  if (ty->kind == TY_ARR) {
+    Node *node = newNode(ND_NULL_EXPR);
+    for (size_t i = 0; i < ty->arr_len; i++) {
+      InitDesg desg2 = {.next = desg, .idx = i, .var = NULL};
+      Node *rhs = createLvalInit(init->children[i], ty->base, &desg2);
+      node = newNodeBinary(ND_COMMA, node, rhs);
+    }
+    return node;
+  }
+  Node *lhs = initDesgExpr(desg);
+  Node *rhs = init->expr;
+  return newNodeBinary(ND_ASS, lhs, rhs);
+}
+
+Node *initDesgExpr(InitDesg *desg) {
+  if (desg->var) {
+    return newNodeVar(desg->var);
+  }
+  Node *lhs = initDesgExpr(desg->next);
+  Node *rhs = newNodeNum((int64_t)desg->idx);
+  return newNodeDeref(newNodeAdd(lhs, rhs));
 }
