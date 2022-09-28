@@ -1664,7 +1664,7 @@ Initialiser *initialiser(Type *ty) {
 void initialiser2(Initialiser *init) {
   if (init->ty->kind == TY_ARR) {
     expect("{");
-    for (size_t i = 0; i < init->ty->arr_len; i++) {
+    for (size_t i = 0; i < init->ty->arr_len && !equal(token, "}"); i++) {
       if (i > 0) {
         expect(",");
       }
@@ -1679,7 +1679,10 @@ void initialiser2(Initialiser *init) {
 Node *lvalInitialiser(Obj *var) {
   Initialiser *init = initialiser(var->ty);
   InitDesg desg = {NULL, 0, var};
-  return createLvalInit(init, var->ty, &desg);
+  Node *lhs = newNode(ND_MEMZERO);
+  lhs->var = var;
+  Node *rhs = createLvalInit(init, var->ty, &desg);
+  return newNodeBinary(ND_COMMA, lhs, rhs);
 }
 
 Node *createLvalInit(Initialiser *init, Type *ty, InitDesg *desg) {
@@ -1691,6 +1694,9 @@ Node *createLvalInit(Initialiser *init, Type *ty, InitDesg *desg) {
       node = newNodeBinary(ND_COMMA, node, rhs);
     }
     return node;
+  }
+  if (!init->expr) {
+    return newNode(ND_NULL_EXPR);
   }
   Node *lhs = initDesgExpr(desg);
   Node *rhs = init->expr;

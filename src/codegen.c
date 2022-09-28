@@ -281,6 +281,12 @@ void genExpr(Node *node) {
     fprintf(output, "  call %s\n", node->funcname);
     return;
   }
+  case ND_MEMZERO:
+    fprintf(output, "  mov rcx, %zu\n", node->var->ty->size);
+    fprintf(output, "  lea rdi, [rbp-%zu]\n", node->var->offset);
+    fprintf(output, "  mov al, 0\n");
+    fprintf(output, "  rep stosb\n");
+    return;
   default:
     break;
   }

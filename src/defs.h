@@ -43,6 +43,7 @@ typedef enum {
   ND_LOGOR,
   ND_LT,
   ND_MEMBER,
+  ND_MEMZERO,
   ND_MOD,
   ND_MUL,
   ND_NE,
