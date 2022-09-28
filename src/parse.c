@@ -1700,6 +1700,14 @@ void initialiser2(Initialiser *init) {
     return;
   }
   if (init->ty->kind == TY_STRUCT) {
+    if (!equal(token, "{")) {
+      Node *expr = assign();
+      addType(expr);
+      if (expr->ty->kind == TY_STRUCT) {
+        init->expr = expr;
+        return;
+      }
+    }
     structInitialiser(init);
     return;
   }
@@ -1727,7 +1735,7 @@ Node *createLvalInit(Initialiser *init, Type *ty, InitDesg *desg) {
     }
     return node;
   }
-  if (ty->kind == TY_STRUCT) {
+  if (ty->kind == TY_STRUCT && !init->expr) {
     Node *node = newNode(ND_NULL_EXPR);
     size_t idx = 0;
     for (Obj *mem = ty->members; mem; mem = mem->next) {
