@@ -117,6 +117,7 @@ static void arrayInitialiser(Initialiser *init);
 static void enterScope(void);
 static void exitScope(void);
 static void globalVar(Type *ty);
+static void globalVarInitialiser(Obj *var);
 static void initialiser2(Initialiser *init);
 static void newParam(Type *ty, Token *ident);
 static void parseTypedef(Type *basety);
@@ -128,6 +129,9 @@ static void stringInitialiser(Initialiser *init, Token *tok);
 static void structInitialiser(Initialiser *init);
 static void unionInitialiser(Initialiser *init);
 static void usualArithConv(Node **lhs, Node **rhs);
+static void writeBuf(char *buf, uint64_t val, size_t sz);
+static void writeGlobalVarData(Initialiser *init, Type *ty, char *buf,
+                               size_t offset);
 
 void parse() {
   Obj head = {0};
@@ -1226,7 +1230,10 @@ void globalVar(Type *base_ty) {
     first = false;
     Token *ident = NULL;
     Type *ty = declarator(base_ty, &ident);
-    newGlobalVar(ty, ident);
+    Obj *var = newGlobalVar(ty, ident);
+    if (consume("=")) {
+      globalVarInitialiser(var);
+    }
   }
 }
 
@@ -1848,4 +1855,45 @@ void unionInitialiser(Initialiser *init) {
   expect("{");
   initialiser2(init->children[0]);
   expect("}");
+}
+
+void globalVarInitialiser(Obj *var) {
+  Initialiser *init = initialiser(var->ty);
+  var->ty = init->ty;
+  char *buf = calloc(1, var->ty->size);
+  writeGlobalVarData(init, var->ty, buf, 0);
+  var->init_data = buf;
+}
+
+void writeGlobalVarData(Initialiser *init, Type *ty, char *buf, size_t offset) {
+  if (ty->kind == TY_ARR) {
+    size_t sz = ty->base->size;
+    for (size_t i = 0; i < ty->arr_len; i++) {
+      writeGlobalVarData(init->children[i], ty->base, buf, offset + sz * i);
+    }
+    return;
+  }
+  if (init->expr) {
+    writeBuf(buf + offset, eval(init->expr), ty->size);
+  }
+}
+
+void writeBuf(char *buf, uint64_t val, size_t sz) {
+  switch (sz) {
+  case 1:
+    *buf = (char)val;
+    break;
+  case 2:
+    *(uint16_t *)buf = val;
+    break;
+  case 4:
+    *(uint32_t *)buf = val;
+    break;
+  case 8:
+    *(uint64_t *)buf = val;
+    break;
+  default:
+    assert(false);
+    break;
+  }
 }
