@@ -31,7 +31,7 @@ Type *ty_short = &(Type){.kind = TY_SHORT, .size = 2, .align = 2};
 Type *ty_void = &(Type){.kind = TY_VOID, .size = 1, .align = 1};
 
 static Initialiser *initialiser(Type *ty);
-static Initialiser *newInitialiser(Type *ty);
+static Initialiser *newInitialiser(Type *ty, bool is_flexible);
 static Node * bitor (void);
 static Node *add(void);
 static Node *assign(void);
@@ -111,6 +111,7 @@ static char *newUniqueLabel(void);
 static int64_t constExpr(void);
 static int64_t eval(Node *node);
 static size_t alignTo(size_t n, size_t align);
+static size_t countInitialserElems(Type *ty);
 static void addType(Node *node);
 static void arrayInitialiser(Initialiser *init);
 static void enterScope(void);
@@ -721,9 +722,6 @@ Node *declaration(Type *basety) {
 
     Token *ident = NULL;
     Type *ty = declarator(basety, &ident);
-    if (ty->size < 0) {
-      compErrorToken(ident->str, "variable has incomplete type");
-    }
     if (ty->kind == TY_VOID) {
       compError(ident->str, "variable declared void");
     }
@@ -731,6 +729,13 @@ Node *declaration(Type *basety) {
 
     if (consume("=")) {
       cur = cur->next = lvalInitialiser(var);
+    }
+
+    if (var->ty->size < 0) {
+      compErrorToken(ident->str, "variable has incomplete type");
+    }
+    if (var->ty->kind == TY_VOID) {
+      compError(ident->str, "variable declared void");
     }
   }
 
@@ -1648,20 +1653,24 @@ int64_t eval(Node *node) {
   return 0;
 }
 
-Initialiser *newInitialiser(Type *ty) {
+Initialiser *newInitialiser(Type *ty, bool is_flexible) {
   Initialiser *init = calloc(1, sizeof(Initialiser));
   init->ty = ty;
   if (ty->kind == TY_ARR) {
+    if (is_flexible && ty->size < 0) {
+      init->is_flexible = true;
+      return init;
+    }
     init->children = calloc(ty->arr_len, sizeof(*init->children));
     for (size_t i = 0; i < ty->arr_len; i++) {
-      init->children[i] = newInitialiser(ty->base);
+      init->children[i] = newInitialiser(ty->base, false);
     }
   }
   return init;
 }
 
 Initialiser *initialiser(Type *ty) {
-  Initialiser *init = newInitialiser(ty);
+  Initialiser *init = newInitialiser(ty, true);
   initialiser2(init);
   return init;
 }
@@ -1681,6 +1690,7 @@ void initialiser2(Initialiser *init) {
 
 Node *lvalInitialiser(Obj *var) {
   Initialiser *init = initialiser(var->ty);
+  var->ty = init->ty;
   InitDesg desg = {NULL, 0, var};
   Node *lhs = newNode(ND_MEMZERO);
   lhs->var = var;
@@ -1724,6 +1734,9 @@ void skipExcessInitialiserElems(void) {
 }
 
 void stringInitialiser(Initialiser *init, Token *tok) {
+  if (init->is_flexible) {
+    *init = *newInitialiser(arrayOf(init->ty->base, tok->len), false);
+  }
   size_t len = MIN(init->ty->arr_len, tok->len);
   for (size_t i = 0; i < len; i++) {
     init->children[i]->expr = newNodeNum(tok->str[i]);
@@ -1732,6 +1745,10 @@ void stringInitialiser(Initialiser *init, Token *tok) {
 
 void arrayInitialiser(Initialiser *init) {
   expect("{");
+  if (init->is_flexible) {
+    size_t len = countInitialserElems(init->ty);
+    *init = *newInitialiser(arrayOf(init->ty->base, len), false);
+  }
   for (size_t i = 0; !consume("}"); i++) {
     if (i > 0) {
       expect(",");
@@ -1742,4 +1759,18 @@ void arrayInitialiser(Initialiser *init) {
       skipExcessInitialiserElems();
     }
   }
+}
+
+size_t countInitialserElems(Type *ty) {
+  Initialiser *dummy = newInitialiser(ty->base, false);
+  Token *start = token;
+  size_t i = 0;
+  for (; !consume("}"); i++) {
+    if (i > 0) {
+      expect(",");
+    }
+    initialiser2(dummy);
+  }
+  token = start;
+  return i;
 }

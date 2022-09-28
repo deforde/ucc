@@ -186,6 +186,7 @@ struct Initialiser {
   Type *ty;
   Node *expr;
   Initialiser **children;
+  bool is_flexible;
 };
 
 struct InitDesg {
