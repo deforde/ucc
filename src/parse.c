@@ -119,6 +119,7 @@ static void parseTypedef(Type *basety);
 static void pushScope(char *name, Obj *var, Type *type_def);
 static void pushTagScope(Token *tok, Type *ty);
 static void resolveGotoLabels(void);
+static void skipExcessInitialiserElems(void);
 static void usualArithConv(Node **lhs, Node **rhs);
 
 void parse() {
@@ -1664,13 +1665,16 @@ Initialiser *initialiser(Type *ty) {
 void initialiser2(Initialiser *init) {
   if (init->ty->kind == TY_ARR) {
     expect("{");
-    for (size_t i = 0; i < init->ty->arr_len && !equal(token, "}"); i++) {
+    for (size_t i = 0; !consume("}"); i++) {
       if (i > 0) {
         expect(",");
       }
-      initialiser2(init->children[i]);
+      if (i < init->ty->arr_len) {
+        initialiser2(init->children[i]);
+      } else {
+        skipExcessInitialiserElems();
+      }
     }
-    expect("}");
     return;
   }
   init->expr = assign();
@@ -1710,4 +1714,12 @@ Node *initDesgExpr(InitDesg *desg) {
   Node *lhs = initDesgExpr(desg->next);
   Node *rhs = newNodeNum((int64_t)desg->idx);
   return newNodeDeref(newNodeAdd(lhs, rhs));
+}
+
+void skipExcessInitialiserElems(void) {
+  if (consume("{")) {
+    skipExcessInitialiserElems();
+    expect("}");
+  }
+  assign();
 }
