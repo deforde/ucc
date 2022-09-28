@@ -10,6 +10,8 @@
 #include "defs.h"
 #include "tokenise.h"
 
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
+
 extern Type *ty_int;
 extern Token *token;
 static Obj *cur_fn = NULL;
@@ -110,6 +112,7 @@ static int64_t constExpr(void);
 static int64_t eval(Node *node);
 static size_t alignTo(size_t n, size_t align);
 static void addType(Node *node);
+static void arrayInitialiser(Initialiser *init);
 static void enterScope(void);
 static void exitScope(void);
 static void globalVar(Type *ty);
@@ -120,6 +123,7 @@ static void pushScope(char *name, Obj *var, Type *type_def);
 static void pushTagScope(Token *tok, Type *ty);
 static void resolveGotoLabels(void);
 static void skipExcessInitialiserElems(void);
+static void stringInitialiser(Initialiser *init, Token *tok);
 static void usualArithConv(Node **lhs, Node **rhs);
 
 void parse() {
@@ -1664,17 +1668,12 @@ Initialiser *initialiser(Type *ty) {
 
 void initialiser2(Initialiser *init) {
   if (init->ty->kind == TY_ARR) {
-    expect("{");
-    for (size_t i = 0; !consume("}"); i++) {
-      if (i > 0) {
-        expect(",");
-      }
-      if (i < init->ty->arr_len) {
-        initialiser2(init->children[i]);
-      } else {
-        skipExcessInitialiserElems();
-      }
+    Token *tok = consumeStrLit();
+    if (tok) {
+      stringInitialiser(init, tok);
+      return;
     }
+    arrayInitialiser(init);
     return;
   }
   init->expr = assign();
@@ -1722,4 +1721,25 @@ void skipExcessInitialiserElems(void) {
     expect("}");
   }
   assign();
+}
+
+void stringInitialiser(Initialiser *init, Token *tok) {
+  size_t len = MIN(init->ty->arr_len, tok->len);
+  for (size_t i = 0; i < len; i++) {
+    init->children[i]->expr = newNodeNum(tok->str[i]);
+  }
+}
+
+void arrayInitialiser(Initialiser *init) {
+  expect("{");
+  for (size_t i = 0; !consume("}"); i++) {
+    if (i > 0) {
+      expect(",");
+    }
+    if (i < init->ty->arr_len) {
+      initialiser2(init->children[i]);
+    } else {
+      skipExcessInitialiserElems();
+    }
+  }
 }
