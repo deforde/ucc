@@ -125,6 +125,7 @@ static void pushTagScope(Token *tok, Type *ty);
 static void resolveGotoLabels(void);
 static void skipExcessInitialiserElems(void);
 static void stringInitialiser(Initialiser *init, Token *tok);
+static void structInitialiser(Initialiser *init);
 static void usualArithConv(Node **lhs, Node **rhs);
 
 void parse() {
@@ -1665,6 +1666,19 @@ Initialiser *newInitialiser(Type *ty, bool is_flexible) {
     for (size_t i = 0; i < ty->arr_len; i++) {
       init->children[i] = newInitialiser(ty->base, false);
     }
+    return init;
+  }
+  if (ty->kind == TY_STRUCT) {
+    size_t len = 0;
+    for (Obj *mem = ty->members; mem; mem = mem->next) {
+      len++;
+    }
+    init->children = calloc(len, sizeof(*init->children));
+    size_t idx = 0;
+    for (Obj *mem = ty->members; mem; mem = mem->next) {
+      init->children[idx++] = newInitialiser(mem->ty, false);
+    }
+    return init;
   }
   return init;
 }
@@ -1685,13 +1699,17 @@ void initialiser2(Initialiser *init) {
     arrayInitialiser(init);
     return;
   }
+  if (init->ty->kind == TY_STRUCT) {
+    structInitialiser(init);
+    return;
+  }
   init->expr = assign();
 }
 
 Node *lvalInitialiser(Obj *var) {
   Initialiser *init = initialiser(var->ty);
   var->ty = init->ty;
-  InitDesg desg = {NULL, 0, var};
+  InitDesg desg = {.next = NULL, .idx = 0, .var = var, .is_member = false};
   Node *lhs = newNode(ND_MEMZERO);
   lhs->var = var;
   Node *rhs = createLvalInit(init, var->ty, &desg);
@@ -1702,8 +1720,19 @@ Node *createLvalInit(Initialiser *init, Type *ty, InitDesg *desg) {
   if (ty->kind == TY_ARR) {
     Node *node = newNode(ND_NULL_EXPR);
     for (size_t i = 0; i < ty->arr_len; i++) {
-      InitDesg desg2 = {.next = desg, .idx = i, .var = NULL};
+      InitDesg desg2 = {
+          .next = desg, .idx = i, .var = NULL, .is_member = false};
       Node *rhs = createLvalInit(init->children[i], ty->base, &desg2);
+      node = newNodeBinary(ND_COMMA, node, rhs);
+    }
+    return node;
+  }
+  if (ty->kind == TY_STRUCT) {
+    Node *node = newNode(ND_NULL_EXPR);
+    size_t idx = 0;
+    for (Obj *mem = ty->members; mem; mem = mem->next) {
+      InitDesg desg2 = {.next = desg, .idx = 0, .var = mem, .is_member = true};
+      Node *rhs = createLvalInit(init->children[idx++], mem->ty, &desg2);
       node = newNodeBinary(ND_COMMA, node, rhs);
     }
     return node;
@@ -1717,6 +1746,11 @@ Node *createLvalInit(Initialiser *init, Type *ty, InitDesg *desg) {
 }
 
 Node *initDesgExpr(InitDesg *desg) {
+  if (desg->is_member) {
+    Node *node = newNodeMember(initDesgExpr(desg->next));
+    node->var = desg->var;
+    return node;
+  }
   if (desg->var) {
     return newNodeVar(desg->var);
   }
@@ -1773,4 +1807,21 @@ size_t countInitialserElems(Type *ty) {
   }
   token = start;
   return i;
+}
+
+void structInitialiser(Initialiser *init) {
+  expect("{");
+  Obj *mem = init->ty->members;
+  size_t idx = 0;
+  while (!consume("}")) {
+    if (mem != init->ty->members) {
+      expect(",");
+    }
+    if (mem) {
+      initialiser2(init->children[idx++]);
+      mem = mem->next;
+    } else {
+      skipExcessInitialiserElems();
+    }
+  }
 }

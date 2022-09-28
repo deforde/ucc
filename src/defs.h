@@ -193,6 +193,7 @@ struct InitDesg {
   InitDesg *next;
   size_t idx;
   Obj *var;
+  bool is_member;
 };
 
 #endif // DEFS_H
