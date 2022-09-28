@@ -126,6 +126,7 @@ static void resolveGotoLabels(void);
 static void skipExcessInitialiserElems(void);
 static void stringInitialiser(Initialiser *init, Token *tok);
 static void structInitialiser(Initialiser *init);
+static void unionInitialiser(Initialiser *init);
 static void usualArithConv(Node **lhs, Node **rhs);
 
 void parse() {
@@ -1668,7 +1669,7 @@ Initialiser *newInitialiser(Type *ty, bool is_flexible) {
     }
     return init;
   }
-  if (ty->kind == TY_STRUCT) {
+  if (ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
     size_t len = 0;
     for (Obj *mem = ty->members; mem; mem = mem->next) {
       len++;
@@ -1711,6 +1712,10 @@ void initialiser2(Initialiser *init) {
     structInitialiser(init);
     return;
   }
+  if (init->ty->kind == TY_UNION) {
+    unionInitialiser(init);
+    return;
+  }
   init->expr = assign();
 }
 
@@ -1744,6 +1749,11 @@ Node *createLvalInit(Initialiser *init, Type *ty, InitDesg *desg) {
       node = newNodeBinary(ND_COMMA, node, rhs);
     }
     return node;
+  }
+  if (ty->kind == TY_UNION) {
+    InitDesg desg2 = {
+        .next = desg, .idx = 0, .var = ty->members, .is_member = true};
+    return createLvalInit(init->children[0], ty->members->ty, &desg2);
   }
   if (!init->expr) {
     return newNode(ND_NULL_EXPR);
@@ -1832,4 +1842,10 @@ void structInitialiser(Initialiser *init) {
       skipExcessInitialiserElems();
     }
   }
+}
+
+void unionInitialiser(Initialiser *init) {
+  expect("{");
+  initialiser2(init->children[0]);
+  expect("}");
 }
