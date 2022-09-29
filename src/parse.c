@@ -1873,6 +1873,13 @@ void writeGlobalVarData(Initialiser *init, Type *ty, char *buf, size_t offset) {
     }
     return;
   }
+  if (ty->kind == TY_STRUCT) {
+    size_t idx = 0;
+    for (Obj *mem = ty->members; mem; mem = mem->next) {
+      writeGlobalVarData(init->children[idx++], mem->ty, buf,
+                         offset + mem->offset);
+    }
+  }
   if (init->expr) {
     writeBuf(buf + offset, eval(init->expr), ty->size);
   }
