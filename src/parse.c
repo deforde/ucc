@@ -1879,6 +1879,7 @@ void writeGlobalVarData(Initialiser *init, Type *ty, char *buf, size_t offset) {
       writeGlobalVarData(init->children[idx++], mem->ty, buf,
                          offset + mem->offset);
     }
+    return;
   }
   if (init->expr) {
     writeBuf(buf + offset, eval(init->expr), ty->size);
