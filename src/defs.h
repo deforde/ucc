@@ -10,6 +10,7 @@ typedef struct InitDesg InitDesg;
 typedef struct Initialiser Initialiser;
 typedef struct Node Node;
 typedef struct Obj Obj;
+typedef struct Relocation Relocation;
 typedef struct Scope Scope;
 typedef struct TagScope TagScope;
 typedef struct Token Token;
@@ -120,6 +121,7 @@ struct Obj {
   size_t offset;
   bool is_global;
   const char *init_data;
+  Relocation *rel;
   // function
   Node *body;
   Obj *params;
@@ -194,6 +196,13 @@ struct InitDesg {
   size_t idx;
   Obj *var;
   bool is_member;
+};
+
+struct Relocation {
+  Relocation *next;
+  size_t offset;
+  char *label;
+  size_t addend;
 };
 
 #endif // DEFS_H

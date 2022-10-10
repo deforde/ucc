@@ -50,6 +50,17 @@ void gen() {
     fprintf(output, ".globl %s\n", var->name);
     fprintf(output, "%s:\n", var->name);
     if (var->init_data) {
+      Relocation *rel = var->rel;
+      ssize_t pos = 0;
+      while (pos < var->ty->size) {
+        if (rel && (ssize_t)rel->offset == pos) {
+          fprintf(output, "  .quad %s%+ld\n", rel->label, rel->addend);
+          rel = rel->next;
+          pos += 8;
+        } else {
+          fprintf(output, "  .byte %d\n", var->init_data[pos++]);
+        }
+      }
       for (ssize_t i = 0; i < var->ty->size; ++i) {
         fprintf(output, "  .byte %d\n", var->init_data[i]);
       }

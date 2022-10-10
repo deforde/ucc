@@ -110,6 +110,8 @@ static bool isTypename(Token *tok);
 static char *newUniqueLabel(void);
 static int64_t constExpr(void);
 static int64_t eval(Node *node);
+static int64_t eval2(Node *node, char **label);
+static int64_t evalRval(Node *node, char **label);
 static size_t alignTo(size_t n, size_t align);
 static size_t countInitialserElems(Type *ty);
 static void addType(Node *node);
@@ -130,8 +132,8 @@ static void structInitialiser(Initialiser *init);
 static void unionInitialiser(Initialiser *init);
 static void usualArithConv(Node **lhs, Node **rhs);
 static void writeBuf(char *buf, uint64_t val, size_t sz);
-static void writeGlobalVarData(Initialiser *init, Type *ty, char *buf,
-                               size_t offset);
+static Relocation *writeGlobalVarData(Relocation *cur, Initialiser *init,
+                                      Type *ty, char *buf, size_t offset);
 
 void parse() {
   Obj head = {0};
@@ -1598,11 +1600,13 @@ int64_t constExpr(void) {
   return eval(node);
 }
 
-int64_t eval(Node *node) {
+int64_t eval(Node *node) { return eval2(node, NULL); }
+
+int64_t eval2(Node *node, char **label) {
   addType(node);
   switch (node->kind) {
   case ND_ADD:
-    return eval(node->lhs) + eval(node->rhs);
+    return eval2(node->lhs, label) + eval(node->rhs);
   case ND_BITAND:
     return eval(node->lhs) & eval(node->rhs);
   case ND_BITNOT:
@@ -1611,22 +1615,25 @@ int64_t eval(Node *node) {
     return eval(node->lhs) | eval(node->rhs);
   case ND_BITXOR:
     return eval(node->lhs) ^ eval(node->rhs);
-  case ND_CAST:
+  case ND_CAST: {
+    const int64_t val = eval2(node->lhs, label);
     if (isInteger(node->ty)) {
       switch (node->ty->size) {
       case 1:
-        return (uint8_t)eval(node->lhs);
+        return (uint8_t)val;
       case 2:
-        return (uint16_t)eval(node->lhs);
+        return (uint16_t)val;
       case 4:
-        return (uint32_t)eval(node->lhs);
+        return (uint32_t)val;
       }
     }
-    return eval(node->lhs);
+    return val;
+  }
   case ND_COMMA:
-    return eval(node->rhs);
+    return eval2(node->rhs, label);
   case ND_TERN:
-    return eval(node->cond) ? eval(node->then) : eval(node->els);
+    return eval(node->cond) ? eval2(node->then, label)
+                            : eval2(node->els, label);
   case ND_DIV:
     return eval(node->lhs) / eval(node->rhs);
   case ND_EQ:
@@ -1654,7 +1661,26 @@ int64_t eval(Node *node) {
   case ND_SHR:
     return eval(node->lhs) >> eval(node->rhs);
   case ND_SUB:
-    return eval(node->lhs) - eval(node->rhs);
+    return eval2(node->lhs, label) - eval(node->rhs);
+  case ND_ADDR:
+    return evalRval(node->body, label);
+  case ND_MEMBER:
+    if (!label) {
+      compErrorToken(node->tok->str, "not a compile-time constant");
+    }
+    if (node->ty->kind != TY_ARR) {
+      compErrorToken(node->tok->str, "invalid initialiser");
+    }
+    return evalRval(node->lhs, label) + node->var->offset;
+  case ND_VAR:
+    if (!label) {
+      compErrorToken(node->tok->str, "not a compile-time constant");
+    }
+    if (node->var->ty->kind != TY_ARR && node->var->ty->kind != TY_FUNC) {
+      compErrorToken(node->tok->str, "invalid initialiser");
+    }
+    *label = node->var->name;
+    return 0;
   default:
     break;
   }
@@ -1859,31 +1885,51 @@ void unionInitialiser(Initialiser *init) {
 
 void globalVarInitialiser(Obj *var) {
   Initialiser *init = initialiser(var->ty);
+  Relocation head = {0};
   var->ty = init->ty;
   char *buf = calloc(1, var->ty->size);
-  writeGlobalVarData(init, var->ty, buf, 0);
+  writeGlobalVarData(&head, init, var->ty, buf, 0);
   var->init_data = buf;
+  var->rel = head.next;
 }
 
-void writeGlobalVarData(Initialiser *init, Type *ty, char *buf, size_t offset) {
+Relocation *writeGlobalVarData(Relocation *cur, Initialiser *init, Type *ty,
+                               char *buf, size_t offset) {
   if (ty->kind == TY_ARR) {
     size_t sz = ty->base->size;
     for (size_t i = 0; i < ty->arr_len; i++) {
-      writeGlobalVarData(init->children[i], ty->base, buf, offset + sz * i);
+      cur = writeGlobalVarData(cur, init->children[i], ty->base, buf,
+                               offset + sz * i);
     }
-    return;
+    return cur;
   }
   if (ty->kind == TY_STRUCT) {
     size_t idx = 0;
     for (Obj *mem = ty->members; mem; mem = mem->next) {
-      writeGlobalVarData(init->children[idx++], mem->ty, buf,
-                         offset + mem->offset);
+      cur = writeGlobalVarData(cur, init->children[idx++], mem->ty, buf,
+                               offset + mem->offset);
     }
-    return;
+    return cur;
   }
-  if (init->expr) {
-    writeBuf(buf + offset, eval(init->expr), ty->size);
+  if (ty->kind == TY_UNION) {
+    return writeGlobalVarData(cur, init->children[0], ty->members->ty, buf,
+                              offset);
   }
+  if (!init->expr) {
+    return cur;
+  }
+  char *label = NULL;
+  uint64_t val = eval2(init->expr, &label);
+  if (!label) {
+    writeBuf(buf + offset, val, ty->size);
+    return cur;
+  }
+  Relocation *rel = calloc(1, sizeof(Relocation));
+  rel->offset = offset;
+  rel->label = label;
+  rel->addend = val;
+  cur->next = rel;
+  return cur->next;
 }
 
 void writeBuf(char *buf, uint64_t val, size_t sz) {
@@ -1904,4 +1950,23 @@ void writeBuf(char *buf, uint64_t val, size_t sz) {
     assert(false);
     break;
   }
+}
+
+int64_t evalRval(Node *node, char **label) {
+  switch (node->kind) {
+  case ND_VAR:
+    if (!node->var->is_global) {
+      compErrorToken(node->tok->str, "not a compile-time constant");
+    }
+    *label = node->var->name;
+    return 0;
+  case ND_DEREF:
+    return eval2(node->body, label);
+  case ND_MEMBER:
+    return evalRval(node->lhs, label) + node->var->offset;
+  default:
+    break;
+  }
+  compErrorToken(node->tok->str, "invalid initialiser");
+  assert(false);
 }
