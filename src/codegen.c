@@ -46,10 +46,10 @@ void gen() {
   fprintf(output, ".file 1 \"%s\"\n", input_file_path);
   fprintf(output, ".intel_syntax noprefix\n");
   for (Obj *var = globals; var; var = var->next) {
-    fprintf(output, ".data\n");
     fprintf(output, ".globl %s\n", var->name);
-    fprintf(output, "%s:\n", var->name);
     if (var->init_data) {
+      fprintf(output, "  .data\n");
+      fprintf(output, "%s:\n", var->name);
       Relocation *rel = var->rel;
       ssize_t pos = 0;
       while (pos < var->ty->size) {
@@ -64,9 +64,11 @@ void gen() {
       for (ssize_t i = 0; i < var->ty->size; ++i) {
         fprintf(output, "  .byte %d\n", var->init_data[i]);
       }
-    } else {
-      fprintf(output, "  .zero %zu\n", var->ty->size);
+      continue;
     }
+    fprintf(output, "  .bss\n");
+    fprintf(output, "%s:\n", var->name);
+    fprintf(output, "  .zero %zu\n", var->ty->size);
   }
   for (Obj *fn = prog; fn; fn = fn->next) {
     if (!fn->body) {
