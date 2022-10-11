@@ -193,7 +193,7 @@ void tokenise(const char *file_path) {
     if (isdigit(*p)) {
       const char *q = p;
       const long val = readIntLiteral(&p);
-      cur = newToken(TK_NUM, cur, p, p - q, line_num);
+      cur = newToken(TK_NUM, cur, q, p - q, line_num);
       cur->val = val;
       continue;
     }
