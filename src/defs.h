@@ -101,7 +101,7 @@ struct Type {
   Type *params;
   ssize_t size;
   size_t align;
-  size_t arr_len;
+  ssize_t arr_len;
 };
 
 struct Token {

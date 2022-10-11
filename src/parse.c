@@ -572,6 +572,9 @@ Type *structUnionDecl(Type *ty) {
       cur = cur->next = mem;
     }
   }
+  if (cur != &head && cur->ty->kind == TY_ARR && cur->ty->arr_len < 0) {
+    cur->ty = arrayOf(cur->ty->base, 0);
+  }
   ty->members = head.next;
   ty->align = 1;
 
@@ -1701,7 +1704,7 @@ Initialiser *newInitialiser(Type *ty, bool is_flexible) {
       return init;
     }
     init->children = calloc(ty->arr_len, sizeof(*init->children));
-    for (size_t i = 0; i < ty->arr_len; i++) {
+    for (ssize_t i = 0; i < ty->arr_len; i++) {
       init->children[i] = newInitialiser(ty->base, false);
     }
     return init;
@@ -1782,7 +1785,7 @@ Node *lvalInitialiser(Obj *var) {
 Node *createLvalInit(Initialiser *init, Type *ty, InitDesg *desg) {
   if (ty->kind == TY_ARR) {
     Node *node = newNode(ND_NULL_EXPR);
-    for (size_t i = 0; i < ty->arr_len; i++) {
+    for (ssize_t i = 0; i < ty->arr_len; i++) {
       InitDesg desg2 = {
           .next = desg, .idx = i, .var = NULL, .is_member = false};
       Node *rhs = createLvalInit(init->children[i], ty->base, &desg2);
@@ -1839,7 +1842,7 @@ void stringInitialiser(Initialiser *init, Token *tok) {
   if (init->is_flexible) {
     *init = *newInitialiser(arrayOf(init->ty->base, tok->len), false);
   }
-  size_t len = MIN(init->ty->arr_len, tok->len);
+  size_t len = MIN(init->ty->arr_len, (ssize_t)tok->len);
   for (size_t i = 0; i < len; i++) {
     init->children[i]->expr = newNodeNum(tok->str[i]);
   }
@@ -1851,7 +1854,7 @@ void arrayInitialiser1(Initialiser *init) {
     size_t len = countInitialserElems(init->ty);
     *init = *newInitialiser(arrayOf(init->ty->base, len), false);
   }
-  for (size_t i = 0; !consumeInitialiserListEnd(); i++) {
+  for (ssize_t i = 0; !consumeInitialiserListEnd(); i++) {
     if (i > 0) {
       expect(",");
     }
@@ -1868,7 +1871,7 @@ void arrayInitialiser2(Initialiser *init) {
     size_t len = countInitialserElems(init->ty);
     *init = *newInitialiser(arrayOf(init->ty->base, len), false);
   }
-  for (size_t i = 0; i < init->ty->arr_len && !atInitialiserListEnd(); i++) {
+  for (ssize_t i = 0; i < init->ty->arr_len && !atInitialiserListEnd(); i++) {
     if (i > 0) {
       expect(",");
     }
@@ -1944,7 +1947,7 @@ Relocation *writeGlobalVarData(Relocation *cur, Initialiser *init, Type *ty,
                                char *buf, size_t offset) {
   if (ty->kind == TY_ARR) {
     size_t sz = ty->base->size;
-    for (size_t i = 0; i < ty->arr_len; i++) {
+    for (ssize_t i = 0; i < ty->arr_len; i++) {
       cur = writeGlobalVarData(cur, init->children[i], ty->base, buf,
                                offset + sz * i);
     }
