@@ -30,7 +30,7 @@ Type *ty_long = &(Type){.kind = TY_LONG, .size = 8, .align = 8};
 Type *ty_short = &(Type){.kind = TY_SHORT, .size = 2, .align = 2};
 Type *ty_void = &(Type){.kind = TY_VOID, .size = 1, .align = 1};
 
-static Initialiser *initialiser(Type *ty);
+static Initialiser *initialiser(Type **ty);
 static Initialiser *newInitialiser(Type *ty, bool is_flexible);
 static Node * bitor (void);
 static Node *add(void);
@@ -92,6 +92,7 @@ static Relocation *writeGlobalVarData(Relocation *cur, Initialiser *init,
 static Type *abstractDeclarator(Type *ty);
 static Type *arrayDimensions(Type *ty);
 static Type *arrayOf(Type *base, size_t len);
+static Type *copyStructType(Type *src);
 static Type *declarator(Type *ty, Token **ident);
 static Type *declspec(VarAttr *attr);
 static Type *enumSpec();
@@ -574,6 +575,7 @@ Type *structUnionDecl(Type *ty) {
   }
   if (cur != &head && cur->ty->kind == TY_ARR && cur->ty->arr_len < 0) {
     cur->ty = arrayOf(cur->ty->base, 0);
+    ty->is_flexible = true;
   }
   ty->members = head.next;
   ty->align = 1;
@@ -1717,16 +1719,41 @@ Initialiser *newInitialiser(Type *ty, bool is_flexible) {
     init->children = calloc(len, sizeof(*init->children));
     size_t idx = 0;
     for (Obj *mem = ty->members; mem; mem = mem->next) {
-      init->children[idx++] = newInitialiser(mem->ty, false);
+      if (is_flexible && ty->is_flexible && !mem->next) {
+        Initialiser *child = calloc(1, sizeof(Initialiser));
+        child->ty = mem->ty;
+        child->is_flexible = true;
+        init->children[idx++] = child;
+      } else {
+        init->children[idx++] = newInitialiser(mem->ty, false);
+      }
     }
     return init;
   }
   return init;
 }
 
-Initialiser *initialiser(Type *ty) {
+Initialiser *initialiser(Type **base_ty) {
+  Type *ty = *base_ty;
   Initialiser *init = newInitialiser(ty, true);
   initialiser2(init);
+
+  if ((ty->kind == TY_STRUCT || ty->kind == TY_UNION) && ty->is_flexible) {
+    ty = copyStructType(ty);
+
+    Obj *mem = ty->members;
+    size_t idx = 0;
+    while (mem->next) {
+      mem = mem->next;
+      idx++;
+    }
+    mem->ty = init->children[idx]->ty;
+    ty->size += mem->ty->size;
+    *base_ty = ty;
+    return init;
+  }
+
+  *base_ty = init->ty;
   return init;
 }
 
@@ -1773,8 +1800,7 @@ void initialiser2(Initialiser *init) {
 }
 
 Node *lvalInitialiser(Obj *var) {
-  Initialiser *init = initialiser(var->ty);
-  var->ty = init->ty;
+  Initialiser *init = initialiser(&var->ty);
   InitDesg desg = {.next = NULL, .idx = 0, .var = var, .is_member = false};
   Node *lhs = newNode(ND_MEMZERO);
   lhs->var = var;
@@ -1934,9 +1960,8 @@ void unionInitialiser(Initialiser *init) {
 }
 
 void globalVarInitialiser(Obj *var) {
-  Initialiser *init = initialiser(var->ty);
+  Initialiser *init = initialiser(&var->ty);
   Relocation head = {0};
-  var->ty = init->ty;
   char *buf = calloc(1, var->ty->size);
   writeGlobalVarData(&head, init, var->ty, buf, 0);
   var->init_data = buf;
@@ -2034,4 +2059,20 @@ bool consumeInitialiserListEnd(void) {
     return true;
   }
   return false;
+}
+
+Type *copyStructType(Type *src) {
+  Type *ty = calloc(1, sizeof(Type));
+  *ty = *src;
+
+  Obj head = {0};
+  Obj *cur = &head;
+  for (Obj *mem = ty->members; mem; mem = mem->next) {
+    Obj *m = calloc(1, sizeof(Obj));
+    *m = *mem;
+    cur = cur->next = m;
+  }
+
+  ty->members = head.next;
+  return ty;
 }

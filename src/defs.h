@@ -97,6 +97,7 @@ struct Type {
   TypeKind kind;
   Type *base;
   Obj *members;
+  bool is_flexible;
   Type *ret_ty;
   Type *params;
   ssize_t size;
