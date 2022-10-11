@@ -1675,7 +1675,7 @@ int64_t eval2(Node *node, char **label) {
     if (node->ty->kind != TY_ARR) {
       compErrorToken(node->tok->str, "invalid initialiser");
     }
-    return evalRval(node->lhs, label) + node->var->offset;
+    return evalRval(node->lhs, label) + (int64_t)node->var->offset;
   case ND_VAR:
     if (!label) {
       compErrorToken(node->tok->str, "not a compile-time constant");
@@ -2010,7 +2010,7 @@ int64_t evalRval(Node *node, char **label) {
   case ND_DEREF:
     return eval2(node->body, label);
   case ND_MEMBER:
-    return evalRval(node->lhs, label) + node->var->offset;
+    return evalRval(node->lhs, label) + (int64_t)node->var->offset;
   default:
     break;
   }
