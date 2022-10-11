@@ -1759,6 +1759,11 @@ void initialiser2(Initialiser *init) {
     unionInitialiser(init);
     return;
   }
+  if (consume("{")) {
+    initialiser2(init);
+    expect("}");
+    return;
+  }
   init->expr = assign();
 }
 
