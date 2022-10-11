@@ -115,7 +115,8 @@ static int64_t evalRval(Node *node, char **label);
 static size_t alignTo(size_t n, size_t align);
 static size_t countInitialserElems(Type *ty);
 static void addType(Node *node);
-static void arrayInitialiser(Initialiser *init);
+static void arrayInitialiser1(Initialiser *init);
+static void arrayInitialiser2(Initialiser *init);
 static void enterScope(void);
 static void exitScope(void);
 static void globalVar(Type *ty);
@@ -128,7 +129,8 @@ static void pushTagScope(Token *tok, Type *ty);
 static void resolveGotoLabels(void);
 static void skipExcessInitialiserElems(void);
 static void stringInitialiser(Initialiser *init, Token *tok);
-static void structInitialiser(Initialiser *init);
+static void structInitialiser1(Initialiser *init);
+static void structInitialiser2(Initialiser *init);
 static void unionInitialiser(Initialiser *init);
 static void usualArithConv(Node **lhs, Node **rhs);
 static void writeBuf(char *buf, uint64_t val, size_t sz);
@@ -1730,19 +1732,27 @@ void initialiser2(Initialiser *init) {
       stringInitialiser(init, tok);
       return;
     }
-    arrayInitialiser(init);
+    if (equal(token, "{")) {
+      arrayInitialiser1(init);
+    } else {
+      arrayInitialiser2(init);
+    }
     return;
   }
   if (init->ty->kind == TY_STRUCT) {
-    if (!equal(token, "{")) {
-      Node *expr = assign();
-      addType(expr);
-      if (expr->ty->kind == TY_STRUCT) {
-        init->expr = expr;
-        return;
-      }
+    if (equal(token, "{")) {
+      structInitialiser1(init);
+      return;
     }
-    structInitialiser(init);
+    Token *start = token;
+    Node *expr = assign();
+    addType(expr);
+    if (expr->ty->kind == TY_STRUCT) {
+      init->expr = expr;
+      return;
+    }
+    token = start;
+    structInitialiser2(init);
     return;
   }
   if (init->ty->kind == TY_UNION) {
@@ -1828,7 +1838,7 @@ void stringInitialiser(Initialiser *init, Token *tok) {
   }
 }
 
-void arrayInitialiser(Initialiser *init) {
+void arrayInitialiser1(Initialiser *init) {
   expect("{");
   if (init->is_flexible) {
     size_t len = countInitialserElems(init->ty);
@@ -1846,6 +1856,19 @@ void arrayInitialiser(Initialiser *init) {
   }
 }
 
+void arrayInitialiser2(Initialiser *init) {
+  if (init->is_flexible) {
+    size_t len = countInitialserElems(init->ty);
+    *init = *newInitialiser(arrayOf(init->ty->base, len), false);
+  }
+  for (size_t i = 0; i < init->ty->arr_len && !equal(token, "}"); i++) {
+    if (i > 0) {
+      expect(",");
+    }
+    initialiser2(init->children[i]);
+  }
+}
+
 size_t countInitialserElems(Type *ty) {
   Initialiser *dummy = newInitialiser(ty->base, false);
   Token *start = token;
@@ -1860,7 +1883,7 @@ size_t countInitialserElems(Type *ty) {
   return i;
 }
 
-void structInitialiser(Initialiser *init) {
+void structInitialiser1(Initialiser *init) {
   expect("{");
   Obj *mem = init->ty->members;
   size_t idx = 0;
@@ -1877,10 +1900,26 @@ void structInitialiser(Initialiser *init) {
   }
 }
 
+void structInitialiser2(Initialiser *init) {
+  bool first = true;
+  size_t idx = 0;
+  for (Obj *mem = init->ty->members; mem && !equal(token, "}");
+       mem = mem->next) {
+    if (!first) {
+      expect(",");
+    }
+    first = false;
+    initialiser2(init->children[idx++]);
+  }
+}
+
 void unionInitialiser(Initialiser *init) {
-  expect("{");
-  initialiser2(init->children[0]);
-  expect("}");
+  if (consume("{")) {
+    initialiser2(init->children[0]);
+    expect("}");
+  } else {
+    initialiser2(init->children[0]);
+  }
 }
 
 void globalVarInitialiser(Obj *var) {
