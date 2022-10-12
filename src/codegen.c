@@ -163,7 +163,9 @@ void genStmt(Node *node) {
     genStmt(node->lhs);
     return;
   case ND_RET:
-    genExpr(node->lhs);
+    if (node->lhs) {
+      genExpr(node->lhs);
+    }
     fprintf(output, "  jmp .L.return.%s\n", cur_fn->name);
     return;
   case ND_SWITCH:

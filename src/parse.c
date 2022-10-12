@@ -1200,6 +1200,9 @@ Node *newNodeFor(void) {
 
 Node *newNodeReturn(void) {
   Node *node = newNode(ND_RET);
+  if (consume(";")) {
+    return node;
+  }
   Node *exp = expr();
   expect(";");
   addType(exp);
