@@ -309,10 +309,16 @@ void genExpr(Node *node) {
       ++nargs;
     }
     for (ssize_t i = (ssize_t)nargs - 1; i >= 0; --i) {
-      fprintf(output, "  pop %s\n", argreg64[i]);
+      pop(argreg64[i]);
     }
     fprintf(output, "  mov rax, 0\n");
-    fprintf(output, "  call %s\n", node->funcname);
+    if (stack_depth % 2 == 0) {
+      fprintf(output, "  call %s\n", node->funcname);
+    } else {
+      fprintf(output, "  sub rsp, 8\n");
+      fprintf(output, "  call %s\n", node->funcname);
+      fprintf(output, "  add rsp, 8\n");
+    }
     return;
   }
   case ND_MEMZERO:
