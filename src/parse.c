@@ -83,6 +83,7 @@ static Node *ternary(void);
 static Node *toAssign(Node *node);
 static Node *unary(void);
 static Obj *function(Type *ty, VarAttr *attr);
+static Obj *newAnonGlobalVar(Type *ty);
 static Obj *newGlobalVar(Type *ty, Token *ident);
 static Obj *newLocalVar(Type *ty, Token *ident);
 static Obj *newStrLitVar(Token *tok, Type *ty);
@@ -426,15 +427,8 @@ char *newUniqueLabel(void) {
 }
 
 Obj *newStrLitVar(Token *tok, Type *ty) {
-  Obj *var = calloc(1, sizeof(Obj));
-  var->next = globals;
-  var->name = newUniqueLabel();
+  Obj *var = newAnonGlobalVar(ty);
   var->init_data = tok->str;
-  var->ty = ty;
-  var->align = ty->align;
-  var->is_global = true;
-  var->is_definition = true;
-  globals = var;
   pushScope(var->name, var, NULL);
   return var;
 }
@@ -785,23 +779,16 @@ Node *declaration(Type *basety, VarAttr *attr) {
     }
 
     if (attr && attr->is_static) {
-      Obj *var = calloc(1, sizeof(Obj));
-      var->next = globals;
-      var->name = newUniqueLabel();
-      var->ty = ty;
-      var->align = ty->align;
-      var->is_global = true;
-      var->is_definition = true;
-      globals = var;
-      pushScope(strndup(ident->str, ident->len), var, NULL);
+      Obj *gvar = newAnonGlobalVar(ty);
+      pushScope(strndup(ident->str, ident->len), gvar, NULL);
 
       Token *ident = calloc(1, sizeof(Token));
-      ident->str = var->name;
-      ident->len = strlen(var->name);
+      ident->str = gvar->name;
+      ident->len = strlen(gvar->name);
       newLocalVar(ty, ident);
 
       if (consume("=")) {
-        globalVarInitialiser(var);
+        globalVarInitialiser(gvar);
       }
 
       continue;
@@ -1281,6 +1268,25 @@ Node *structRef(Node *node) {
 }
 
 Node *postfix(void) {
+  if (equal(token, "(") && isTypename(token->next)) {
+    token = token->next;
+    Type *ty = typename();
+    expect(")");
+    if (scopes->next == NULL) {
+      Obj *var = newAnonGlobalVar(ty);
+      globalVarInitialiser(var);
+      return newNodeVar(var);
+    }
+
+    Token *ident = calloc(1, sizeof(Token));
+    ident->str = "";
+    ident->len = 0;
+    Obj *var = newLocalVar(ty, ident);
+    Node *lhs = lvalInitialiser(var);
+    Node *rhs = newNodeVar(var);
+    return newNodeBinary(ND_COMMA, lhs, rhs);
+  }
+
   Node *node = primary();
   for (;;) {
     if (consume("[")) {
@@ -1430,6 +1436,10 @@ Node *cast(void) {
     consume("(");
     Type *ty = typename();
     consume(")");
+    if (equal(token, "{")) {
+      token = start;
+      return unary();
+    }
     Node *node = newNodeCast(cast(), ty);
     node->tok = start;
     return node;
@@ -2158,4 +2168,16 @@ Type *copyStructType(Type *src) {
 
   ty->members = head.next;
   return ty;
+}
+
+Obj *newAnonGlobalVar(Type *ty) {
+  Obj *var = calloc(1, sizeof(Obj));
+  var->next = globals;
+  var->name = newUniqueLabel();
+  var->ty = ty;
+  var->align = ty->align;
+  var->is_global = true;
+  var->is_definition = true;
+  globals = var;
+  return var;
 }
