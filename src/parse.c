@@ -690,20 +690,24 @@ Obj *function(Type *ty, VarAttr *attr) {
   enterScope();
 
   expect("(");
-  bool first = true;
-  while (!consume(")")) {
-    if (!first) {
-      expect(",");
+  if (equal(token, "void") && equal(token->next, ")")) {
+    token = token->next->next;
+  } else {
+    bool first = true;
+    while (!consume(")")) {
+      if (!first) {
+        expect(",");
+      }
+      first = false;
+      Type *ty2 = declspec(NULL);
+      Token *param_ident = NULL;
+      ty2 = declarator(ty2, &param_ident);
+      if (ty2->kind == TY_ARR) {
+        assert(ty2->base);
+        ty2 = pointerTo(ty2->base);
+      }
+      newParam(ty2, param_ident);
     }
-    first = false;
-    Type *ty2 = declspec(NULL);
-    Token *param_ident = NULL;
-    ty2 = declarator(ty2, &param_ident);
-    if (ty2->kind == TY_ARR) {
-      assert(ty2->base);
-      ty2 = pointerTo(ty2->base);
-    }
-    newParam(ty2, param_ident);
   }
 
   Type params_head = {0};
