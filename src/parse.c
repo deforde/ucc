@@ -833,10 +833,15 @@ Node *primary(void) {
     return newNodeNum((int64_t)node->ty->size);
   }
   if (consumeAlignof()) {
-    expect("(");
-    Type *ty = typename();
-    expect(")");
-    return newNodeNum((int64_t)ty->align);
+    if (equal(token, "(") && isTypename(token->next)) {
+      token = token->next;
+      Type *ty = typename();
+      expect(")");
+      return newNodeNum((int64_t)ty->align);
+    }
+    Node *node = unary();
+    addType(node);
+    return newNodeNum((int64_t)node->ty->align);
   }
   tok = consumeStrLit();
   if (tok) {
