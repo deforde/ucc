@@ -123,6 +123,7 @@ struct Obj {
   size_t align;
   bool is_global;
   bool is_definition;
+  bool is_static;
   const char *init_data;
   Relocation *rel;
   // function

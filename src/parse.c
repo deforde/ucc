@@ -1331,6 +1331,7 @@ void globalVar(Type *base_ty, VarAttr *attr) {
     Type *ty = declarator(base_ty, &ident);
     Obj *var = newGlobalVar(ty, ident);
     var->is_definition = !attr->is_extern;
+    var->is_static = attr->is_static;
     if (attr->align) {
       var->align = attr->align;
     }

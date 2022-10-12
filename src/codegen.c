@@ -49,7 +49,11 @@ void gen() {
     if (!var->is_definition) {
       continue;
     }
-    fprintf(output, ".globl %s\n", var->name);
+    if (var->is_static) {
+      fprintf(output, ".local %s\n", var->name);
+    } else {
+      fprintf(output, ".globl %s\n", var->name);
+    }
     fprintf(output, ".align %zu\n", var->align);
     if (var->init_data) {
       fprintf(output, "  .data\n");
