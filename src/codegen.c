@@ -65,9 +65,6 @@ void gen() {
           fprintf(output, "  .byte %d\n", var->init_data[pos++]);
         }
       }
-      for (ssize_t i = 0; i < var->ty->size; ++i) {
-        fprintf(output, "  .byte %d\n", var->init_data[i]);
-      }
       continue;
     }
     fprintf(output, "  .bss\n");

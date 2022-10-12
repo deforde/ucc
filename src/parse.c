@@ -783,6 +783,30 @@ Node *declaration(Type *basety, VarAttr *attr) {
     if (ty->kind == TY_VOID) {
       compError(ident->str, "variable declared void");
     }
+
+    if (attr && attr->is_static) {
+      Obj *var = calloc(1, sizeof(Obj));
+      var->next = globals;
+      var->name = newUniqueLabel();
+      var->ty = ty;
+      var->align = ty->align;
+      var->is_global = true;
+      var->is_definition = true;
+      globals = var;
+      pushScope(strndup(ident->str, ident->len), var, NULL);
+
+      Token *ident = calloc(1, sizeof(Token));
+      ident->str = var->name;
+      ident->len = strlen(var->name);
+      newLocalVar(ty, ident);
+
+      if (consume("=")) {
+        globalVarInitialiser(var);
+      }
+
+      continue;
+    }
+
     Obj *var = newLocalVar(ty, ident);
     if (attr && attr->align) {
       var->align = attr->align;
@@ -1484,11 +1508,10 @@ Node *toAssign(Node *node) {
   addType(node->lhs);
   addType(node->rhs);
 
-  Obj *var = calloc(1, sizeof(Obj));
-  var->name = "";
-  var->is_global = false;
-  var->ty = pointerTo(node->lhs->ty);
-  var->align = var->ty->align;
+  Token *ident = calloc(1, sizeof(Token));
+  ident->str = "";
+  ident->len = 0;
+  Obj *var = newLocalVar(pointerTo(node->lhs->ty), ident);
 
   Node *expr1 = newNodeBinary(ND_ASS, newNodeVar(var), newNodeAddr(node->lhs));
   Node *expr2 = newNodeBinary(
