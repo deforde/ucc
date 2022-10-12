@@ -15,6 +15,7 @@ extern FILE *output;
 extern const char *input_file_path;
 extern Obj *prog;
 extern Obj *globals;
+static size_t stack_depth = 0;
 static Obj *cur_fn = NULL;
 static size_t label_num = 1;
 static const char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
@@ -39,6 +40,8 @@ static void genAddr(Node *node);
 static void genExpr(Node *node);
 static void genStmt(Node *node);
 static void load(Type *ty);
+static void pop(const char *arg);
+static void push(void);
 static void store(Type *ty);
 static void storeArgReg(size_t r, size_t offset, size_t sz);
 
@@ -98,7 +101,7 @@ void gen() {
 
     fprintf(output, ".L.return.%s:\n", fn->name);
     fprintf(output, "  mov rsp, rbp\n");
-    fprintf(output, "  pop rbp\n");
+    pop("rbp");
     fprintf(output, "  ret\n");
   }
 }
@@ -222,7 +225,7 @@ void genExpr(Node *node) {
     return;
   case ND_ASS:
     genAddr(node->lhs);
-    fprintf(output, "  push rax\n");
+    push();
     genExpr(node->rhs);
     store(node->ty);
     return;
@@ -302,7 +305,7 @@ void genExpr(Node *node) {
     size_t nargs = 0;
     for (Node *arg = node->args; arg; arg = arg->next) {
       genExpr(arg);
-      fprintf(output, "  push rax\n");
+      push();
       ++nargs;
     }
     for (ssize_t i = (ssize_t)nargs - 1; i >= 0; --i) {
@@ -323,9 +326,9 @@ void genExpr(Node *node) {
   }
 
   genExpr(node->rhs);
-  fprintf(output, "  push rax\n");
+  push();
   genExpr(node->lhs);
-  fprintf(output, "  pop rdi\n");
+  pop("rdi");
 
   char *ax = NULL;
   char *di = NULL;
@@ -436,7 +439,7 @@ void genAddr(Node *node) {
 }
 
 void store(Type *ty) {
-  fprintf(output, "  pop rdi\n");
+  pop("rdi");
   if (ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
     for (ssize_t i = 0; i < ty->size; i++) {
       fprintf(output, "  mov r8b, [rax+%zu]\n", i);
@@ -525,4 +528,14 @@ void cmpZero(Type *ty) {
   } else {
     fprintf(output, "  cmp rax, 0\n");
   }
+}
+
+void pop(const char *arg) {
+  fprintf(output, "  pop %s\n", arg);
+  stack_depth--;
+}
+
+void push(void) {
+  fprintf(output, "  push rax\n");
+  stack_depth++;
 }
