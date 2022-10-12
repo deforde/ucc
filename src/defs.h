@@ -120,6 +120,7 @@ struct Obj {
   Type *ty;
   // variable
   size_t offset;
+  size_t align;
   bool is_global;
   bool is_definition;
   const char *init_data;
@@ -184,6 +185,7 @@ struct VarAttr {
   bool is_extern;
   bool is_static;
   bool is_typedef;
+  size_t align;
 };
 
 struct Initialiser {

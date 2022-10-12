@@ -50,7 +50,7 @@ void gen() {
       continue;
     }
     fprintf(output, ".globl %s\n", var->name);
-    fprintf(output, ".align %zu\n", var->ty->align);
+    fprintf(output, ".align %zu\n", var->align);
     if (var->init_data) {
       fprintf(output, "  .data\n");
       fprintf(output, "%s:\n", var->name);

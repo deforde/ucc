@@ -13,6 +13,7 @@ Token *consumeStrLit(void);
 Token *expectIdent(void);
 Token *expectKeyword(void);
 bool consume(char *op);
+bool consumeAlignof(void);
 bool consumeBreak(void);
 bool consumeCase(void);
 bool consumeCont(void);

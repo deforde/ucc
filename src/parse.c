@@ -41,7 +41,7 @@ static Node *bitxor(void);
 static Node *cast(void);
 static Node *cmpndStmt(void);
 static Node *createLvalInit(Initialiser *init, Type *ty, InitDesg *desg);
-static Node *declaration(Type *basety);
+static Node *declaration(Type *basety, VarAttr *attr);
 static Node *equality(void);
 static Node *expr(void);
 static Node *funcCall(Token *tok);
@@ -179,7 +179,7 @@ Node *cmpndStmt(void) {
         globalVar(basety, &attr);
         continue;
       }
-      cur = cur->next = declaration(basety);
+      cur = cur->next = declaration(basety, &attr);
     } else {
       cur = cur->next = stmt();
     }
@@ -392,11 +392,12 @@ Obj *newVar(Type *ty, Token *ident, Obj **vars) {
   var->next = *vars;
   var->name = strndup(ident->str, ident->len);
   var->ty = ty;
+  var->align = ty->align;
   *vars = var;
   size_t offset = 0;
   for (Obj *ext_var = *vars; ext_var; ext_var = ext_var->next) {
     offset += ext_var->ty->size;
-    offset = alignTo(offset, ext_var->ty->align);
+    offset = alignTo(offset, ext_var->align);
     ext_var->offset = offset;
   }
   cur_fn->stack_size = alignTo(offset, 16);
@@ -409,6 +410,7 @@ Obj *newGlobalVar(Type *ty, Token *ident) {
   var->next = globals;
   var->name = strndup(ident->str, ident->len);
   var->ty = ty;
+  var->align = ty->align;
   var->is_global = true;
   var->is_definition = true;
   globals = var;
@@ -429,6 +431,7 @@ Obj *newStrLitVar(Token *tok, Type *ty) {
   var->name = newUniqueLabel();
   var->init_data = tok->str;
   var->ty = ty;
+  var->align = ty->align;
   var->is_global = true;
   var->is_definition = true;
   globals = var;
@@ -482,6 +485,20 @@ Type *declspec(VarAttr *attr) {
         compErrorToken(tok->str,
                        "invalid combination of storage class specifiers");
       }
+      continue;
+    }
+
+    if (equal(tok, "_Alignas")) {
+      if (!attr) {
+        compErrorToken(tok->str, "_Alignas is not allowed in this context");
+      }
+      expect("(");
+      if (isTypename(token)) {
+        attr->align = typename()->align;
+      } else {
+        attr->align = constExpr();
+      }
+      expect(")");
       continue;
     }
 
@@ -575,7 +592,8 @@ Type *structUnionDecl(Type *ty) {
   Obj head = {0};
   Obj *cur = &head;
   while (!consume("}")) {
-    Type *mem_ty = declspec(NULL);
+    VarAttr attr = {0};
+    Type *mem_ty = declspec(&attr);
     bool first = true;
     while (!consume(";")) {
       if (!first) {
@@ -585,6 +603,7 @@ Type *structUnionDecl(Type *ty) {
       Obj *mem = calloc(1, sizeof(Obj));
       Token *ident = NULL;
       mem->ty = declarator(mem_ty, &ident);
+      mem->align = attr.align ? attr.align : mem->ty->align;
       mem->name = strndup(ident->str, ident->len);
       cur = cur->next = mem;
     }
@@ -618,11 +637,11 @@ Type *structDecl(Type *ty) {
 
   size_t offset = 0;
   for (Obj *mem = ty->members; mem; mem = mem->next) {
-    offset = alignTo(offset, mem->ty->align);
+    offset = alignTo(offset, mem->align);
     mem->offset = offset;
     offset += mem->ty->size;
-    if (mem->ty->align > ty->align) {
-      ty->align = mem->ty->align;
+    if (mem->align > ty->align) {
+      ty->align = mem->align;
     }
   }
   ty->size = (ssize_t)alignTo(offset, ty->align);
@@ -637,8 +656,8 @@ Type *unionDecl(Type *ty) {
   }
 
   for (Obj *mem = ty->members; mem; mem = mem->next) {
-    if (mem->ty->align > ty->align) {
-      ty->align = mem->ty->align;
+    if (mem->align > ty->align) {
+      ty->align = mem->align;
     }
     if (mem->ty->size > ty->size) {
       ty->size = mem->ty->size;
@@ -692,6 +711,7 @@ Obj *function(Type *ty, VarAttr *attr) {
 
   Obj *fn = calloc(1, sizeof(Obj));
   fn->ty = newType(TY_FUNC, 0, 0);
+  fn->align = fn->ty->align;
   fn->ty->ret_ty = ty;
   fn->name = strndup(fn_ident->str, fn_ident->len);
   fn->is_global = !attr->is_static;
@@ -700,6 +720,7 @@ Obj *function(Type *ty, VarAttr *attr) {
   Obj *var = calloc(1, sizeof(Obj));
   var->name = strndup(fn_ident->str, fn_ident->len);
   var->ty = fn->ty;
+  var->align = var->ty->align;
   var->is_global = fn->is_global;
   pushScope(var->name, var, NULL);
 
@@ -746,7 +767,7 @@ Obj *function(Type *ty, VarAttr *attr) {
   return fn;
 }
 
-Node *declaration(Type *basety) {
+Node *declaration(Type *basety, VarAttr *attr) {
   Node head = {0};
   Node *cur = &head;
   bool first = true;
@@ -763,6 +784,9 @@ Node *declaration(Type *basety) {
       compError(ident->str, "variable declared void");
     }
     Obj *var = newLocalVar(ty, ident);
+    if (attr && attr->align) {
+      var->align = attr->align;
+    }
 
     if (consume("=")) {
       cur = cur->next = lvalInitialiser(var);
@@ -807,6 +831,12 @@ Node *primary(void) {
     Node *node = unary();
     addType(node);
     return newNodeNum((int64_t)node->ty->size);
+  }
+  if (consumeAlignof()) {
+    expect("(");
+    Type *ty = typename();
+    expect(")");
+    return newNodeNum((int64_t)ty->align);
   }
   tok = consumeStrLit();
   if (tok) {
@@ -1131,7 +1161,7 @@ Node *newNodeFor(void) {
   if (!consume(";")) {
     if (isTypename(token)) {
       Type *basety = declspec(NULL);
-      node->pre = declaration(basety);
+      node->pre = declaration(basety, NULL);
     } else {
       node->pre = expr();
       expect(";");
@@ -1263,6 +1293,9 @@ void globalVar(Type *base_ty, VarAttr *attr) {
     Type *ty = declarator(base_ty, &ident);
     Obj *var = newGlobalVar(ty, ident);
     var->is_definition = !attr->is_extern;
+    if (attr->align) {
+      var->align = attr->align;
+    }
     if (consume("=")) {
       globalVarInitialiser(var);
     }
@@ -1337,9 +1370,9 @@ Type *findTypedef(Token *tok) {
 }
 
 bool isTypename(Token *tok) {
-  static const char *kwds[] = {"_Bool",   "char",  "enum",   "int",
-                               "long",    "short", "static", "struct",
-                               "typedef", "union", "void",   "extern"};
+  static const char *kwds[] = {"_Bool", "char",   "enum",    "int",     "long",
+                               "short", "static", "struct",  "typedef", "union",
+                               "void",  "extern", "_Alignas"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == tok->len &&
         strncmp(tok->str, kwds[i], tok->len) == 0) {
@@ -1450,6 +1483,7 @@ Node *toAssign(Node *node) {
   var->name = "";
   var->is_global = false;
   var->ty = pointerTo(node->lhs->ty);
+  var->align = var->ty->align;
 
   Node *expr1 = newNodeBinary(ND_ASS, newNodeVar(var), newNodeAddr(node->lhs));
   Node *expr2 = newNodeBinary(
