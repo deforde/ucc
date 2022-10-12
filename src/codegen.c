@@ -190,6 +190,17 @@ void genStmt(Node *node) {
     fprintf(output, "%s:\n", node->label);
     genStmt(node->lhs);
     return;
+  case ND_DO: {
+    const size_t c = label_num++;
+    fprintf(output, ".L.begin%zu:\n", c);
+    genStmt(node->then);
+    fprintf(output, "%s:\n", node->cont_label);
+    genExpr(node->cond);
+    fprintf(output, "  cmp rax, 0\n");
+    fprintf(output, "  jne .L.begin%zu\n", c);
+    fprintf(output, "%s:\n", node->brk_label);
+    return;
+  }
   default:
     break;
   }

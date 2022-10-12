@@ -112,6 +112,12 @@ Token *expectKeyword(void) {
   return tok;
 }
 
+void expectWhile(void) {
+  if (!consumeWhile()) {
+    compError("expected while");
+  }
+}
+
 void expect(char *op) {
   if (token->kind != TK_RESERVED || strlen(op) != token->len ||
       memcmp(token->str, op, token->len) != 0) {
@@ -396,11 +402,11 @@ char *readFile(const char *file_path) {
 }
 
 bool isKeyword(const char *str, size_t len) {
-  static const char *kwds[] = {"int",     "char",     "short",    "void",
-                               "long",    "struct",   "union",    "typedef",
-                               "_Bool",   "enum",     "static",   "goto",
-                               "break",   "continue", "switch",   "case",
-                               "default", "extern",   "_Alignas", "_Alignof"};
+  static const char *kwds[] = {
+      "int",      "char",     "short",  "void", "long",    "struct",
+      "union",    "typedef",  "_Bool",  "enum", "static",  "goto",
+      "break",    "continue", "switch", "case", "default", "extern",
+      "_Alignas", "_Alignof", "do"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == len && strncmp(str, kwds[i], len) == 0) {
       return true;
@@ -442,6 +448,8 @@ bool consumeKwdMatch(const char *kwd) {
 }
 
 bool consumeGoto(void) { return consumeKwdMatch("goto"); }
+
+bool consumeDo(void) { return consumeKwdMatch("do"); }
 
 bool consumeBreak(void) { return consumeKwdMatch("break"); }
 

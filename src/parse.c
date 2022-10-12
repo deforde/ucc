@@ -60,6 +60,7 @@ static Node *newNodeCast(Node *expr, Type *ty);
 static Node *newNodeCont();
 static Node *newNodeDefault();
 static Node *newNodeDeref(Node *body);
+static Node *newNodeDo(void);
 static Node *newNodeFor(void);
 static Node *newNodeGoto(Token *label);
 static Node *newNodeIdent(Token *tok);
@@ -236,6 +237,8 @@ Node *stmt(void) {
   Token *cur_tok = token;
   if (consume(";")) {
     node = newNode(ND_BLK);
+  } else if (consumeDo()) {
+    node = newNodeDo();
   } else if (consumeGoto()) {
     node = newNodeGoto(expectIdent());
   } else if ((label = consumeLabel())) {
@@ -2184,4 +2187,25 @@ Obj *newAnonGlobalVar(Type *ty) {
   var->is_definition = true;
   globals = var;
   return var;
+}
+
+Node *newNodeDo(void) {
+  Node *node = newNode(ND_DO);
+
+  char *brk = cur_brk_label;
+  char *cont = cur_cont_label;
+  cur_brk_label = node->brk_label = newUniqueLabel();
+  cur_cont_label = node->cont_label = newUniqueLabel();
+
+  node->then = stmt();
+
+  cur_brk_label = brk;
+  cur_cont_label = cont;
+
+  expectWhile();
+  expect("(");
+  node->cond = expr();
+  expect(")");
+  expect(";");
+  return node;
 }
