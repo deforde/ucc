@@ -124,7 +124,7 @@ static void arrayInitialiser1(Initialiser *init);
 static void arrayInitialiser2(Initialiser *init);
 static void enterScope(void);
 static void exitScope(void);
-static void globalVar(Type *ty);
+static void globalVar(Type *ty, VarAttr *attr);
 static void globalVarInitialiser(Obj *var);
 static void initialiser2(Initialiser *init);
 static void newParam(Type *ty, Token *ident);
@@ -154,7 +154,7 @@ void parse() {
       cur = cur->next = function(ty, &attr);
       continue;
     }
-    globalVar(ty);
+    globalVar(ty, &attr);
   }
   prog = head.next;
 }
@@ -402,6 +402,7 @@ Obj *newGlobalVar(Type *ty, Token *ident) {
   var->name = strndup(ident->str, ident->len);
   var->ty = ty;
   var->is_global = true;
+  var->is_definition = true;
   globals = var;
   pushScope(var->name, var, NULL);
   return var;
@@ -421,6 +422,7 @@ Obj *newStrLitVar(Token *tok, Type *ty) {
   var->init_data = tok->str;
   var->ty = ty;
   var->is_global = true;
+  var->is_definition = true;
   globals = var;
   pushScope(var->name, var, NULL);
   return var;
@@ -455,16 +457,22 @@ Type *declspec(VarAttr *attr) {
 
     bool is_typedef = false;
     bool is_static = false;
+    bool is_extern = false;
     if ((is_typedef = equal(tok, "typedef")) ||
-        (is_static = equal(tok, "static"))) {
+        (is_static = equal(tok, "static")) ||
+        (is_extern = equal(tok, "extern"))) {
       if (!attr) {
         compErrorToken(
             tok->str, "storage class specifier is not allowed in this context");
       }
       attr->is_typedef |= is_typedef;
       attr->is_static |= is_static;
-      if (attr->is_static && attr->is_typedef) {
-        compErrorToken(tok->str, "typedef and static may not be used together");
+      attr->is_extern |= is_extern;
+      if ((attr->is_static && attr->is_typedef) ||
+          (attr->is_extern && attr->is_typedef) ||
+          (attr->is_extern && attr->is_static)) {
+        compErrorToken(tok->str,
+                       "invalid combination of storage class specifiers");
       }
       continue;
     }
@@ -1236,7 +1244,7 @@ Node *postfix(void) {
   return node;
 }
 
-void globalVar(Type *base_ty) {
+void globalVar(Type *base_ty, VarAttr *attr) {
   bool first = true;
   while (!consume(";")) {
     if (!first) {
@@ -1246,6 +1254,7 @@ void globalVar(Type *base_ty) {
     Token *ident = NULL;
     Type *ty = declarator(base_ty, &ident);
     Obj *var = newGlobalVar(ty, ident);
+    var->is_definition = !attr->is_extern;
     if (consume("=")) {
       globalVarInitialiser(var);
     }
@@ -1322,7 +1331,7 @@ Type *findTypedef(Token *tok) {
 bool isTypename(Token *tok) {
   static const char *kwds[] = {"_Bool",   "char",  "enum",   "int",
                                "long",    "short", "static", "struct",
-                               "typedef", "union", "void"};
+                               "typedef", "union", "void",   "extern"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == tok->len &&
         strncmp(tok->str, kwds[i], tok->len) == 0) {

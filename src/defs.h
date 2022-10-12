@@ -121,6 +121,7 @@ struct Obj {
   // variable
   size_t offset;
   bool is_global;
+  bool is_definition;
   const char *init_data;
   Relocation *rel;
   // function
@@ -180,6 +181,7 @@ struct TagScope {
 };
 
 struct VarAttr {
+  bool is_extern;
   bool is_static;
   bool is_typedef;
 };
