@@ -21,6 +21,8 @@ TEST_DIR := test
 TEST_SRCS := $(shell find $(TEST_DIR) -name '*.c')
 TESTS := $(TEST_SRCS:.c=.out)
 
+CC := clang
+
 debug: ucc
 debug: CFLAGS += -fsanitize=address,undefined
 debug: LDFLAGS += -fsanitize=address,undefined

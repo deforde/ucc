@@ -47,6 +47,7 @@ void gen() {
   fprintf(output, ".intel_syntax noprefix\n");
   for (Obj *var = globals; var; var = var->next) {
     fprintf(output, ".globl %s\n", var->name);
+    fprintf(output, ".align %zu\n", var->ty->align);
     if (var->init_data) {
       fprintf(output, "  .data\n");
       fprintf(output, "%s:\n", var->name);
