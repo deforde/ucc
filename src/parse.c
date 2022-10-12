@@ -171,6 +171,14 @@ Node *cmpndStmt(void) {
         parseTypedef(basety);
         continue;
       }
+      if (isFunc()) {
+        function(basety, &attr);
+        continue;
+      }
+      if (attr.is_extern) {
+        globalVar(basety, &attr);
+        continue;
+      }
       cur = cur->next = declaration(basety);
     } else {
       cur = cur->next = stmt();
