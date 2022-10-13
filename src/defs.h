@@ -112,6 +112,7 @@ struct Token {
   TokenKind kind;
   Token *next;
   int64_t val;
+  Type *ty;
   const char *str;
   size_t len;
   size_t line_num;

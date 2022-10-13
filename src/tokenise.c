@@ -10,6 +10,17 @@
 #include "comp_err.h"
 #include "defs.h"
 
+extern Type *ty_char;
+extern Type *ty_bool;
+extern Type *ty_int;
+extern Type *ty_long;
+extern Type *ty_short;
+extern Type *ty_void;
+extern Type *ty_uchar;
+extern Type *ty_uint;
+extern Type *ty_ulong;
+extern Type *ty_ushort;
+
 Token *token = NULL;
 const char *file_content = NULL;
 
@@ -24,7 +35,7 @@ static bool startsWith(const char *p, const char *q);
 static char *readFile(const char *file_path);
 static int fromHex(char c);
 static int readEscapedChar(const char **p);
-static long readIntLiteral(const char **start);
+static long readIntLiteral(const char **start, Type **ret_ty);
 
 bool startsWith(const char *p, const char *q) {
   return memcmp(p, q, strlen(q)) == 0;
@@ -126,13 +137,13 @@ void expect(char *op) {
   token = token->next;
 }
 
-int64_t expectNumber(void) {
+Token *expectNumber(void) {
   if (token->kind != TK_NUM) {
     compError("expected number");
   }
-  const int64_t val = token->val;
+  Token *tok = token;
   token = token->next;
-  return val;
+  return tok;
 }
 
 bool isEOF(void) { return token->kind == TK_EOF; }
@@ -198,8 +209,10 @@ void tokenise(const char *file_path) {
     }
     if (isdigit(*p)) {
       const char *q = p;
-      const long val = readIntLiteral(&p);
+      Type *ty = NULL;
+      const long val = readIntLiteral(&p, &ty);
       cur = newToken(TK_NUM, cur, q, p - q, line_num);
+      cur->ty = ty;
       cur->val = val;
       continue;
     }
@@ -284,6 +297,7 @@ void tokenise(const char *file_path) {
       p++;
       cur = newToken(TK_NUM, cur, start, p - start, line_num);
       cur->val = (int64_t)c;
+      cur->ty = ty_int;
       continue;
     }
     compErrorToken(p, "invalid token");
@@ -415,13 +429,13 @@ bool isKeyword(const char *str, size_t len) {
   return false;
 }
 
-long readIntLiteral(const char **start) {
+long readIntLiteral(const char **start, Type **ret_ty) {
   const char *p = *start;
   int base = 10;
-  if (!strncasecmp(p, "0x", 2) && isalnum(p[2])) {
+  if (!strncasecmp(p, "0x", 2) && isxdigit(p[2])) {
     p += 2;
     base = 16;
-  } else if (!strncasecmp(p, "0b", 2) && isalnum(p[2])) {
+  } else if (!strncasecmp(p, "0b", 2) && (p[2] == '0' || p[2] == '1')) {
     p += 2;
     base = 2;
   } else if (*p == '0') {
@@ -429,9 +443,62 @@ long readIntLiteral(const char **start) {
   }
 
   const int64_t val = (int64_t)strtoul(p, (char **)&p, base);
+
+  bool l_suffix = false;
+  bool u_suffix = false;
+
+  if (startsWith(p, "LLU") || startsWith(p, "LLu") || startsWith(p, "llU") ||
+      startsWith(p, "llu") || startsWith(p, "ULL") || startsWith(p, "Ull") ||
+      startsWith(p, "uLL") || startsWith(p, "ull")) {
+    p += 3;
+    l_suffix = u_suffix = true;
+  } else if (!strncasecmp(p, "lu", 2) || !strncasecmp(p, "ul", 2)) {
+    p += 2;
+    l_suffix = u_suffix = true;
+  } else if (!strncasecmp(p, "LL", 2) || !strncasecmp(p, "ll", 2)) {
+    p += 2;
+    l_suffix = true;
+  } else if (*p == 'L' || *p == 'l') {
+    p++;
+    l_suffix = true;
+  } else if (*p == 'U' || *p == 'u') {
+    p++;
+    u_suffix = true;
+  }
+
   if (isalnum(*p)) {
     compErrorToken(p, "invalid digit");
   }
+
+  Type *ty = NULL;
+  if (base == 10) {
+    if (l_suffix && u_suffix) {
+      ty = ty_ulong;
+    } else if (l_suffix) {
+      ty = ty_long;
+    } else if (u_suffix) {
+      ty = (val >> 32) ? ty_ulong : ty_uint;
+    } else {
+      ty = (val >> 31) ? ty_long : ty_int;
+    }
+  } else {
+    if (l_suffix && u_suffix) {
+      ty = ty_ulong;
+    } else if (l_suffix) {
+      ty = (val >> 63) ? ty_ulong : ty_long;
+    } else if (u_suffix) {
+      ty = (val >> 32) ? ty_ulong : ty_uint;
+    } else if (val >> 63) {
+      ty = ty_ulong;
+    } else if (val >> 32) {
+      ty = ty_long;
+    } else if (val >> 31) {
+      ty = ty_uint;
+    } else {
+      ty = ty_int;
+    }
+  }
+  *ret_ty = ty;
 
   *start = p;
 

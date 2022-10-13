@@ -915,7 +915,10 @@ Node *primary(void) {
     Obj *var = newStrLitVar(tok, ty);
     return newNodeVar(var);
   }
-  return newNodeNum(expectNumber());
+  tok = expectNumber();
+  Node *node = newNodeNum(tok->val);
+  node->ty = tok->ty;
+  return node;
 }
 
 Node *mul(void) {
@@ -1078,7 +1081,7 @@ void addType(Node *node) {
 
   switch (node->kind) {
   case ND_NUM:
-    node->ty = (node->val == (int)node->val) ? ty_int : ty_long;
+    node->ty = ty_int;
     break;
   case ND_ADD:
   case ND_SUB:
@@ -1176,7 +1179,7 @@ Type *pointerTo(Type *base) {
 Type *arrayOf(Type *base, size_t len) {
   Type *ty = newType(TY_ARR, base->size * (ssize_t)len, base->align);
   ty->base = base;
-  ty->arr_len = len;
+  ty->arr_len = (ssize_t)len;
   return ty;
 }
 
