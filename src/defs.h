@@ -101,6 +101,7 @@ struct Type {
   bool is_flexible;
   Type *ret_ty;
   Type *params;
+  bool is_variadic;
   ssize_t size;
   size_t align;
   ssize_t arr_len;

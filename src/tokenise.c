@@ -176,7 +176,7 @@ void tokenise(const char *file_path) {
       ++p;
       continue;
     }
-    if (startsWith(p, ">>=") || startsWith(p, "<<=")) {
+    if (startsWith(p, ">>=") || startsWith(p, "<<=") || startsWith(p, "...")) {
       cur = newToken(TK_RESERVED, cur, p, 3, line_num);
       p += 3;
       continue;

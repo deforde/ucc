@@ -723,6 +723,7 @@ Obj *function(Type *ty, VarAttr *attr) {
 
   enterScope();
 
+  bool is_variadic = false;
   expect("(");
   if (equal(token, "void") && equal(token->next, ")")) {
     token = token->next->next;
@@ -733,6 +734,11 @@ Obj *function(Type *ty, VarAttr *attr) {
         expect(",");
       }
       first = false;
+      if (consume("...")) {
+        is_variadic = true;
+        expect(")");
+        break;
+      }
       Type *ty2 = declspec(NULL);
       Token *param_ident = NULL;
       ty2 = declarator(ty2, &param_ident);
@@ -752,6 +758,7 @@ Obj *function(Type *ty, VarAttr *attr) {
     param_ty = param_ty->next = new_param_ty;
   }
   fn->ty->params = param_ty;
+  fn->ty->is_variadic = is_variadic;
 
   if (!consume(";")) {
     expect("{");
