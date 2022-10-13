@@ -1174,6 +1174,7 @@ void addType(Node *node) {
 Type *pointerTo(Type *base) {
   Type *ty = newType(TY_PTR, 8, 8);
   ty->base = base;
+  ty->is_unsigned = true;
   return ty;
 }
 
