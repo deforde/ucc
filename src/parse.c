@@ -81,6 +81,7 @@ static Node *newNodeNum(int64_t val);
 static Node *newNodeReturn(void);
 static Node *newNodeSub(Node *lhs, Node *rhs);
 static Node *newNodeSwitch();
+static Node *newNodeUlong(int64_t val);
 static Node *newNodeVar(Obj *var);
 static Node *newNodeWhile(void);
 static Node *postfix(void);
@@ -368,7 +369,7 @@ Node *newNodeSub(Node *lhs, Node *rhs) {
   }
   if (lhs->ty->base && rhs->ty->base) {
     Node *node = newNodeBinary(ND_SUB, lhs, rhs);
-    node->ty = ty_int;
+    node->ty = ty_long;
     return newNodeBinary(ND_DIV, node,
                          newNodeNum((int64_t)lhs->ty->base->size));
   }
@@ -892,22 +893,22 @@ Node *primary(void) {
       expect("(");
       Type *ty = typename();
       expect(")");
-      return newNodeNum((int64_t)ty->size);
+      return newNodeUlong((int64_t)ty->size);
     }
     Node *node = unary();
     addType(node);
-    return newNodeNum((int64_t)node->ty->size);
+    return newNodeUlong((int64_t)node->ty->size);
   }
   if (consumeAlignof()) {
     if (equal(token, "(") && isTypename(token->next)) {
       token = token->next;
       Type *ty = typename();
       expect(")");
-      return newNodeNum((int64_t)ty->align);
+      return newNodeUlong((int64_t)ty->align);
     }
     Node *node = unary();
     addType(node);
-    return newNodeNum((int64_t)node->ty->align);
+    return newNodeUlong((int64_t)node->ty->align);
   }
   tok = consumeStrLit();
   if (tok) {
@@ -2284,4 +2285,10 @@ Token *createIdent(const char *name) {
   ident->str = name;
   ident->len = strlen(name);
   return ident;
+}
+
+Node *newNodeUlong(int64_t val) {
+  Node *node = newNodeNum(val);
+  node->ty = ty_ulong;
+  return node;
 }
