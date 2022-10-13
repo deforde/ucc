@@ -134,6 +134,7 @@ struct Obj {
   size_t param_cnt;
   size_t stack_size;
   Obj *locals;
+  Obj *va_area;
 };
 
 struct Node {

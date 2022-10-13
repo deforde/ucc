@@ -91,6 +91,7 @@ static Obj *newStrLitVar(Token *tok, Type *ty);
 static Obj *newVar(Type *ty, Token *ident, Obj **vars);
 static Relocation *writeGlobalVarData(Relocation *cur, Initialiser *init,
                                       Type *ty, char *buf, size_t offset);
+static Token *createIdent(const char *name);
 static Type *abstractDeclarator(Type *ty);
 static Type *arrayDimensions(Type *ty);
 static Type *arrayOf(Type *base, size_t len);
@@ -759,10 +760,13 @@ Obj *function(Type *ty, VarAttr *attr) {
   }
   fn->ty->params = param_ty;
   fn->ty->is_variadic = is_variadic;
-
   if (!consume(";")) {
     expect("{");
     fn->locals = fn->params;
+    if (fn->ty->is_variadic) {
+      Token *ident = createIdent("__va_area__");
+      fn->va_area = newLocalVar(arrayOf(ty_char, 136), ident);
+    }
     fn->body = cmpndStmt();
   }
 
@@ -792,9 +796,7 @@ Node *declaration(Type *basety, VarAttr *attr) {
       Obj *gvar = newAnonGlobalVar(ty);
       pushScope(strndup(ident->str, ident->len), gvar, NULL);
 
-      Token *ident = calloc(1, sizeof(Token));
-      ident->str = gvar->name;
-      ident->len = strlen(gvar->name);
+      Token *ident = createIdent(gvar->name);
       newLocalVar(ty, ident);
 
       if (consume("=")) {
@@ -1291,9 +1293,7 @@ Node *postfix(void) {
       return newNodeVar(var);
     }
 
-    Token *ident = calloc(1, sizeof(Token));
-    ident->str = "";
-    ident->len = 0;
+    Token *ident = createIdent("");
     Obj *var = newLocalVar(ty, ident);
     Node *lhs = lvalInitialiser(var);
     Node *rhs = newNodeVar(var);
@@ -1532,9 +1532,7 @@ Node *toAssign(Node *node) {
   addType(node->lhs);
   addType(node->rhs);
 
-  Token *ident = calloc(1, sizeof(Token));
-  ident->str = "";
-  ident->len = 0;
+  Token *ident = createIdent("");
   Obj *var = newLocalVar(pointerTo(node->lhs->ty), ident);
 
   Node *expr1 = newNodeBinary(ND_ASS, newNodeVar(var), newNodeAddr(node->lhs));
@@ -2215,4 +2213,11 @@ Node *newNodeDo(void) {
   expect(")");
   expect(";");
   return node;
+}
+
+Token *createIdent(const char *name) {
+  Token *ident = calloc(1, sizeof(Token));
+  ident->str = name;
+  ident->len = strlen(name);
+  return ident;
 }

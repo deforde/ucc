@@ -1,6 +1,7 @@
 #include "codegen.h"
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,6 +94,32 @@ void gen() {
     println("  mov rbp, rsp");
     println("  sub rsp, %zu", fn->stack_size);
 
+    if (fn->va_area) {
+      size_t gp = 0;
+      for (Obj *var = fn->params; var; var = var->next) {
+        gp++;
+      }
+      size_t offset = fn->va_area->offset;
+      println("  mov DWORD PTR [rbp-%zu], %zu", offset, gp * 8);
+      println("  mov DWORD PTR [rbp-%zu], 0", offset - 4);
+      println("  mov QWORD PTR [rbp-%zu], rbp", offset - 16);
+      println("  sub QWORD PTR [rbp-%zu], %zu", offset - 16, offset - 24);
+      println("  mov QWORD PTR [rbp-%zu], rdi", offset - 24);
+      println("  mov QWORD PTR [rbp-%zu], rsi", offset - 32);
+      println("  mov QWORD PTR [rbp-%zu], rdx", offset - 40);
+      println("  mov QWORD PTR [rbp-%zu], rcx", offset - 48);
+      println("  mov QWORD PTR [rbp-%zu], r8", offset - 56);
+      println("  mov QWORD PTR [rbp-%zu], r9", offset - 64);
+      println("  movsd [rbp-%zu], xmm0", offset - 72);
+      println("  movsd [rbp-%zu], xmm1", offset - 80);
+      println("  movsd [rbp-%zu], xmm2", offset - 88);
+      println("  movsd [rbp-%zu], xmm3", offset - 96);
+      println("  movsd [rbp-%zu], xmm4", offset - 104);
+      println("  movsd [rbp-%zu], xmm5", offset - 112);
+      println("  movsd [rbp-%zu], xmm6", offset - 120);
+      println("  movsd [rbp-%zu], xmm7", offset - 128);
+    }
+
     size_t i = 0;
     for (Obj *param = fn->params; param; param = param->next) {
       storeArgReg(fn->param_cnt - (i++) - 1, param->offset, param->ty->size);
@@ -102,7 +129,7 @@ void gen() {
 
     println(".L.return.%s:", fn->name);
     println("  mov rsp, rbp");
-    pop("rbp");
+    println("  pop rbp");
     println("  ret");
   }
 }
