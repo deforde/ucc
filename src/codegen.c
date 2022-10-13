@@ -320,6 +320,19 @@ void genExpr(Node *node) {
       println("  call %s", node->funcname);
       println("  add rsp, 8");
     }
+    switch (node->ty->kind) {
+    case TY_BOOL:
+      println("  movzx eax, al");
+      break;
+    case TY_CHAR:
+      println("  movsx eax, al");
+      break;
+    case TY_SHORT:
+      println("  movsx eax, ax");
+      break;
+    default:
+      break;
+    }
     return;
   }
   case ND_MEMZERO:
