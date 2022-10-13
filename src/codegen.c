@@ -41,56 +41,57 @@ static void genExpr(Node *node);
 static void genStmt(Node *node);
 static void load(Type *ty);
 static void pop(const char *arg);
+static void println(const char *fmt, ...);
 static void push(void);
 static void store(Type *ty);
 static void storeArgReg(size_t r, size_t offset, size_t sz);
 
 void gen() {
-  fprintf(output, ".file 1 \"%s\"\n", input_file_path);
-  fprintf(output, ".intel_syntax noprefix\n");
+  println(".file 1 \"%s\"", input_file_path);
+  println(".intel_syntax noprefix");
   for (Obj *var = globals; var; var = var->next) {
     if (!var->is_definition) {
       continue;
     }
     if (var->is_static) {
-      fprintf(output, ".local %s\n", var->name);
+      println(".local %s", var->name);
     } else {
-      fprintf(output, ".globl %s\n", var->name);
+      println(".globl %s", var->name);
     }
-    fprintf(output, ".align %zu\n", var->align);
+    println(".align %zu", var->align);
     if (var->init_data) {
-      fprintf(output, "  .data\n");
-      fprintf(output, "%s:\n", var->name);
+      println("  .data");
+      println("%s:", var->name);
       Relocation *rel = var->rel;
       ssize_t pos = 0;
       while (pos < var->ty->size) {
         if (rel && (ssize_t)rel->offset == pos) {
-          fprintf(output, "  .quad %s%+ld\n", rel->label, rel->addend);
+          println("  .quad %s%+ld", rel->label, rel->addend);
           rel = rel->next;
           pos += 8;
         } else {
-          fprintf(output, "  .byte %d\n", var->init_data[pos++]);
+          println("  .byte %d", var->init_data[pos++]);
         }
       }
       continue;
     }
-    fprintf(output, "  .bss\n");
-    fprintf(output, "%s:\n", var->name);
-    fprintf(output, "  .zero %zu\n", var->ty->size);
+    println("  .bss");
+    println("%s:", var->name);
+    println("  .zero %zu", var->ty->size);
   }
   for (Obj *fn = prog; fn; fn = fn->next) {
     if (!fn->body) {
       continue;
     }
 
-    fprintf(output, ".%s %s\n", fn->is_global ? "globl" : "local", fn->name);
-    fprintf(output, ".text\n");
-    fprintf(output, "%s:\n", fn->name);
+    println(".%s %s", fn->is_global ? "globl" : "local", fn->name);
+    println(".text");
+    println("%s:", fn->name);
     cur_fn = fn;
 
-    fprintf(output, "  push rbp\n");
-    fprintf(output, "  mov rbp, rsp\n");
-    fprintf(output, "  sub rsp, %zu\n", fn->stack_size);
+    println("  push rbp");
+    println("  mov rbp, rsp");
+    println("  sub rsp, %zu", fn->stack_size);
 
     size_t i = 0;
     for (Obj *param = fn->params; param; param = param->next) {
@@ -99,15 +100,15 @@ void gen() {
 
     genStmt(fn->body);
 
-    fprintf(output, ".L.return.%s:\n", fn->name);
-    fprintf(output, "  mov rsp, rbp\n");
+    println(".L.return.%s:", fn->name);
+    println("  mov rsp, rbp");
     pop("rbp");
-    fprintf(output, "  ret\n");
+    println("  ret");
   }
 }
 
 void genStmt(Node *node) {
-  fprintf(output, "  .loc 1 %zu\n", node->tok->line_num);
+  println("  .loc 1 %zu", node->tok->line_num);
   switch (node->kind) {
   case ND_BLK:
     for (Node *n = node->body; n; n = n->next) {
@@ -117,15 +118,15 @@ void genStmt(Node *node) {
   case ND_IF: {
     const size_t c = label_num++;
     genExpr(node->cond);
-    fprintf(output, "  cmp rax, 0\n");
-    fprintf(output, "  je .L.else%zu\n", c);
+    println("  cmp rax, 0");
+    println("  je .L.else%zu", c);
     genStmt(node->then);
-    fprintf(output, "  jmp .L.end%zu\n", c);
-    fprintf(output, ".L.else%zu:\n", c);
+    println("  jmp .L.end%zu", c);
+    println(".L.else%zu:", c);
     if (node->els) {
       genStmt(node->els);
     }
-    fprintf(output, ".L.end%zu:\n", c);
+    println(".L.end%zu:", c);
     return;
   }
   case ND_FOR: {
@@ -133,75 +134,75 @@ void genStmt(Node *node) {
     if (node->pre) {
       genStmt(node->pre);
     }
-    fprintf(output, ".L.begin%zu:\n", c);
+    println(".L.begin%zu:", c);
     if (node->cond) {
       genExpr(node->cond);
-      fprintf(output, "  cmp rax, 0\n");
-      fprintf(output, "  je %s\n", node->brk_label);
+      println("  cmp rax, 0");
+      println("  je %s", node->brk_label);
     }
     genStmt(node->body);
-    fprintf(output, "%s:\n", node->cont_label);
+    println("%s:", node->cont_label);
     if (node->post) {
       genExpr(node->post);
     }
-    fprintf(output, "  jmp .L.begin%zu\n", c);
-    fprintf(output, "%s:\n", node->brk_label);
+    println("  jmp .L.begin%zu", c);
+    println("%s:", node->brk_label);
     return;
   }
   case ND_WHILE: {
     const size_t c = label_num++;
-    fprintf(output, ".L.begin%zu:\n", c);
-    fprintf(output, "%s:\n", node->cont_label);
+    println(".L.begin%zu:", c);
+    println("%s:", node->cont_label);
     if (node->cond) {
       genExpr(node->cond);
-      fprintf(output, "  cmp rax, 0\n");
-      fprintf(output, "  je %s\n", node->brk_label);
+      println("  cmp rax, 0");
+      println("  je %s", node->brk_label);
     }
     genStmt(node->body);
-    fprintf(output, "  jmp .L.begin%zu\n", c);
-    fprintf(output, "%s:\n", node->brk_label);
+    println("  jmp .L.begin%zu", c);
+    println("%s:", node->brk_label);
     return;
   }
   case ND_GOTO:
-    fprintf(output, "  jmp %s\n", node->unique_label);
+    println("  jmp %s", node->unique_label);
     return;
   case ND_LABEL:
-    fprintf(output, "%s:\n", node->unique_label);
+    println("%s:", node->unique_label);
     genStmt(node->lhs);
     return;
   case ND_RET:
     if (node->lhs) {
       genExpr(node->lhs);
     }
-    fprintf(output, "  jmp .L.return.%s\n", cur_fn->name);
+    println("  jmp .L.return.%s", cur_fn->name);
     return;
   case ND_SWITCH:
     genExpr(node->cond);
     for (Node *n = node->case_next; n; n = n->case_next) {
       const char *reg = (node->cond->ty->size == 8) ? "rax" : "eax";
-      fprintf(output, "  cmp %s, %ld\n", reg, n->val);
-      fprintf(output, "  je %s\n", n->label);
+      println("  cmp %s, %ld", reg, n->val);
+      println("  je %s", n->label);
     }
     if (node->default_case) {
-      fprintf(output, "  jmp %s\n", node->default_case->label);
+      println("  jmp %s", node->default_case->label);
     }
-    fprintf(output, "  jmp %s\n", node->brk_label);
+    println("  jmp %s", node->brk_label);
     genStmt(node->then);
-    fprintf(output, "%s:\n", node->brk_label);
+    println("%s:", node->brk_label);
     return;
   case ND_CASE:
-    fprintf(output, "%s:\n", node->label);
+    println("%s:", node->label);
     genStmt(node->lhs);
     return;
   case ND_DO: {
     const size_t c = label_num++;
-    fprintf(output, ".L.begin%zu:\n", c);
+    println(".L.begin%zu:", c);
     genStmt(node->then);
-    fprintf(output, "%s:\n", node->cont_label);
+    println("%s:", node->cont_label);
     genExpr(node->cond);
-    fprintf(output, "  cmp rax, 0\n");
-    fprintf(output, "  jne .L.begin%zu\n", c);
-    fprintf(output, "%s:\n", node->brk_label);
+    println("  cmp rax, 0");
+    println("  jne .L.begin%zu", c);
+    println("%s:", node->brk_label);
     return;
   }
   default:
@@ -211,12 +212,12 @@ void genStmt(Node *node) {
 }
 
 void genExpr(Node *node) {
-  fprintf(output, "  .loc 1 %zu\n", node->tok->line_num);
+  println("  .loc 1 %zu", node->tok->line_num);
   switch (node->kind) {
   case ND_NULL_EXPR:
     return;
   case ND_NUM:
-    fprintf(output, "  mov rax, %ld\n", node->val);
+    println("  mov rax, %ld", node->val);
     return;
   case ND_VAR:
   case ND_MEMBER:
@@ -252,53 +253,53 @@ void genExpr(Node *node) {
   case ND_TERN: {
     const size_t c = label_num++;
     genExpr(node->cond);
-    fprintf(output, "  cmp rax, 0\n");
-    fprintf(output, "  je .L.else.%zu\n", c);
+    println("  cmp rax, 0");
+    println("  je .L.else.%zu", c);
     genExpr(node->then);
-    fprintf(output, "  jmp .L.end.%zu\n", c);
-    fprintf(output, ".L.else.%zu:\n", c);
+    println("  jmp .L.end.%zu", c);
+    println(".L.else.%zu:", c);
     genExpr(node->els);
-    fprintf(output, ".L.end.%zu:\n", c);
+    println(".L.end.%zu:", c);
     return;
   }
   case ND_NOT:
     genExpr(node->lhs);
-    fprintf(output, "  cmp rax, 0\n");
-    fprintf(output, "  sete al\n");
-    fprintf(output, "  movzx rax, al\n");
+    println("  cmp rax, 0");
+    println("  sete al");
+    println("  movzx rax, al");
     return;
   case ND_BITNOT:
     genExpr(node->lhs);
-    fprintf(output, "  not rax\n");
+    println("  not rax");
     return;
   case ND_LOGAND: {
     const size_t c = label_num++;
     genExpr(node->lhs);
-    fprintf(output, "  cmp rax, 0\n");
-    fprintf(output, "  je .L.false.%zu\n", c);
+    println("  cmp rax, 0");
+    println("  je .L.false.%zu", c);
     genExpr(node->rhs);
-    fprintf(output, "  cmp rax, 0\n");
-    fprintf(output, "  je .L.false.%zu\n", c);
-    fprintf(output, "  mov rax, 1\n");
-    fprintf(output, "  jmp .L.end.%zu\n", c);
-    fprintf(output, ".L.false.%zu:\n", c);
-    fprintf(output, "  mov rax, 0\n");
-    fprintf(output, ".L.end.%zu:\n", c);
+    println("  cmp rax, 0");
+    println("  je .L.false.%zu", c);
+    println("  mov rax, 1");
+    println("  jmp .L.end.%zu", c);
+    println(".L.false.%zu:", c);
+    println("  mov rax, 0");
+    println(".L.end.%zu:", c);
     return;
   }
   case ND_LOGOR: {
     const size_t c = label_num++;
     genExpr(node->lhs);
-    fprintf(output, "  cmp rax, 0\n");
-    fprintf(output, "  jne .L.true.%zu\n", c);
+    println("  cmp rax, 0");
+    println("  jne .L.true.%zu", c);
     genExpr(node->rhs);
-    fprintf(output, "  cmp rax, 0\n");
-    fprintf(output, "  jne .L.true.%zu\n", c);
-    fprintf(output, "  mov rax, 0\n");
-    fprintf(output, "  jmp .L.end.%zu\n", c);
-    fprintf(output, ".L.true.%zu:\n", c);
-    fprintf(output, "  mov rax, 1\n");
-    fprintf(output, ".L.end.%zu:\n", c);
+    println("  cmp rax, 0");
+    println("  jne .L.true.%zu", c);
+    println("  mov rax, 0");
+    println("  jmp .L.end.%zu", c);
+    println(".L.true.%zu:", c);
+    println("  mov rax, 1");
+    println(".L.end.%zu:", c);
     return;
   }
   case ND_FUNCCALL: {
@@ -311,21 +312,21 @@ void genExpr(Node *node) {
     for (ssize_t i = (ssize_t)nargs - 1; i >= 0; --i) {
       pop(argreg64[i]);
     }
-    fprintf(output, "  mov rax, 0\n");
+    println("  mov rax, 0");
     if (stack_depth % 2 == 0) {
-      fprintf(output, "  call %s\n", node->funcname);
+      println("  call %s", node->funcname);
     } else {
-      fprintf(output, "  sub rsp, 8\n");
-      fprintf(output, "  call %s\n", node->funcname);
-      fprintf(output, "  add rsp, 8\n");
+      println("  sub rsp, 8");
+      println("  call %s", node->funcname);
+      println("  add rsp, 8");
     }
     return;
   }
   case ND_MEMZERO:
-    fprintf(output, "  mov rcx, %zu\n", node->var->ty->size);
-    fprintf(output, "  lea rdi, [rbp-%zu]\n", node->var->offset);
-    fprintf(output, "  mov al, 0\n");
-    fprintf(output, "  rep stosb\n");
+    println("  mov rcx, %zu", node->var->ty->size);
+    println("  lea rdi, [rbp-%zu]", node->var->offset);
+    println("  mov al, 0");
+    println("  rep stosb");
     return;
   default:
     break;
@@ -349,67 +350,67 @@ void genExpr(Node *node) {
 
   switch (node->kind) {
   case ND_ADD:
-    fprintf(output, "  add %s, %s\n", ax, di);
+    println("  add %s, %s", ax, di);
     return;
   case ND_SUB:
-    fprintf(output, "  sub %s, %s\n", ax, di);
+    println("  sub %s, %s", ax, di);
     return;
   case ND_MUL:
-    fprintf(output, "  imul %s, %s\n", ax, di);
+    println("  imul %s, %s", ax, di);
     return;
   case ND_DIV:
     if (node->lhs->ty->size == 8) {
-      fprintf(output, "  cqo\n");
+      println("  cqo");
     } else {
-      fprintf(output, "  cdq\n");
+      println("  cdq");
     }
-    fprintf(output, "  idiv %s\n", di);
+    println("  idiv %s", di);
     return;
   case ND_MOD:
     if (node->lhs->ty->size == 8) {
-      fprintf(output, "  cqo\n");
+      println("  cqo");
     } else {
-      fprintf(output, "  cdq\n");
+      println("  cdq");
     }
-    fprintf(output, "  idiv %s\n", di);
-    fprintf(output, "  mov rax, rdx\n");
+    println("  idiv %s", di);
+    println("  mov rax, rdx");
     return;
   case ND_BITAND:
-    fprintf(output, "  and rax, rdi\n");
+    println("  and rax, rdi");
     return;
   case ND_BITOR:
-    fprintf(output, "  or rax, rdi\n");
+    println("  or rax, rdi");
     return;
   case ND_BITXOR:
-    fprintf(output, "  xor rax, rdi\n");
+    println("  xor rax, rdi");
     return;
   case ND_EQ:
-    fprintf(output, "  cmp %s, %s\n", ax, di);
-    fprintf(output, "  sete al\n");
-    fprintf(output, "  movzx %s, al\n", ax);
+    println("  cmp %s, %s", ax, di);
+    println("  sete al");
+    println("  movzx %s, al", ax);
     return;
   case ND_NE:
-    fprintf(output, "  cmp %s, %s\n", ax, di);
-    fprintf(output, "  setne al\n");
-    fprintf(output, "  movzx %s, al\n", ax);
+    println("  cmp %s, %s", ax, di);
+    println("  setne al");
+    println("  movzx %s, al", ax);
     return;
   case ND_LT:
-    fprintf(output, "  cmp %s, %s\n", ax, di);
-    fprintf(output, "  setl al\n");
-    fprintf(output, "  movzx %s, al\n", ax);
+    println("  cmp %s, %s", ax, di);
+    println("  setl al");
+    println("  movzx %s, al", ax);
     return;
   case ND_LE:
-    fprintf(output, "  cmp %s, %s\n", ax, di);
-    fprintf(output, "  setle al\n");
-    fprintf(output, "  movzx %s, al\n", ax);
+    println("  cmp %s, %s", ax, di);
+    println("  setle al");
+    println("  movzx %s, al", ax);
     return;
   case ND_SHL:
-    fprintf(output, "  mov rcx, rdi\n");
-    fprintf(output, "  shl %s, cl\n", ax);
+    println("  mov rcx, rdi");
+    println("  shl %s, cl", ax);
     return;
   case ND_SHR:
-    fprintf(output, "  mov rcx, rdi\n");
-    fprintf(output, "  sar %s, cl\n", ax);
+    println("  mov rcx, rdi");
+    println("  sar %s, cl", ax);
     return;
   default:
     break;
@@ -422,9 +423,9 @@ void genAddr(Node *node) {
   switch (node->kind) {
   case ND_VAR:
     if (node->var->is_global) {
-      fprintf(output, "  lea rax, [rip+%s]\n", node->var->name);
+      println("  lea rax, [rip+%s]", node->var->name);
     } else {
-      fprintf(output, "  lea rax, [rbp-%zu]\n", node->var->offset);
+      println("  lea rax, [rbp-%zu]", node->var->offset);
     }
     return;
   case ND_DEREF:
@@ -436,7 +437,7 @@ void genAddr(Node *node) {
     return;
   case ND_MEMBER:
     genAddr(node->lhs);
-    fprintf(output, "  add rax, %zu\n", node->var->offset);
+    println("  add rax, %zu", node->var->offset);
     return;
   default:
     break;
@@ -448,35 +449,35 @@ void store(Type *ty) {
   pop("rdi");
   if (ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
     for (ssize_t i = 0; i < ty->size; i++) {
-      fprintf(output, "  mov r8b, [rax+%zu]\n", i);
-      fprintf(output, "  mov [rdi+%zu], r8b\n", i);
+      println("  mov r8b, [rax+%zu]", i);
+      println("  mov [rdi+%zu], r8b", i);
     }
     return;
   }
   if (ty->size == 1) {
-    fprintf(output, "  mov [rdi], al\n");
+    println("  mov [rdi], al");
   } else if (ty->size == 2) {
-    fprintf(output, "  mov [rdi], ax\n");
+    println("  mov [rdi], ax");
   } else if (ty->size == 4) {
-    fprintf(output, "  mov [rdi], eax\n");
+    println("  mov [rdi], eax");
   } else {
-    fprintf(output, "  mov [rdi], rax\n");
+    println("  mov [rdi], rax");
   }
 }
 
 void storeArgReg(size_t r, size_t offset, size_t sz) {
   switch (sz) {
   case 1:
-    fprintf(output, "  mov [rbp-%zu], %s\n", offset, argreg8[r]);
+    println("  mov [rbp-%zu], %s", offset, argreg8[r]);
     return;
   case 2:
-    fprintf(output, "  mov [rbp-%zu], %s\n", offset, argreg16[r]);
+    println("  mov [rbp-%zu], %s", offset, argreg16[r]);
     return;
   case 4:
-    fprintf(output, "  mov [rbp-%zu], %s\n", offset, argreg32[r]);
+    println("  mov [rbp-%zu], %s", offset, argreg32[r]);
     return;
   case 8:
-    fprintf(output, "  mov [rbp-%zu], %s\n", offset, argreg64[r]);
+    println("  mov [rbp-%zu], %s", offset, argreg64[r]);
     return;
   }
   assert(false);
@@ -487,13 +488,13 @@ void load(Type *ty) {
     return;
   }
   if (ty->size == 1) {
-    fprintf(output, "  movsx eax, byte ptr [rax]\n");
+    println("  movsx eax, byte ptr [rax]");
   } else if (ty->size == 2) {
-    fprintf(output, "  movsx eax, word ptr [rax]\n");
+    println("  movsx eax, word ptr [rax]");
   } else if (ty->size == 4) {
-    fprintf(output, "  movsxd rax, [rax]\n");
+    println("  movsxd rax, [rax]");
   } else {
-    fprintf(output, "  mov rax, [rax]\n");
+    println("  mov rax, [rax]");
   }
 }
 
@@ -503,14 +504,14 @@ void cast(Type *from, Type *to) {
   }
   if (to->kind == TY_BOOL) {
     cmpZero(to);
-    fprintf(output, "  setne al\n");
-    fprintf(output, "  movzx eax, al\n");
+    println("  setne al");
+    println("  movzx eax, al");
     return;
   }
   int t1 = getTypeId(from);
   int t2 = getTypeId(to);
   if (cast_table[t1][t2]) {
-    fprintf(output, "  %s\n", cast_table[t1][t2]);
+    println("  %s", cast_table[t1][t2]);
   }
 }
 
@@ -530,18 +531,26 @@ int getTypeId(Type *ty) {
 
 void cmpZero(Type *ty) {
   if (isInteger(ty) && ty->size <= 4) {
-    fprintf(output, "  cmp eax, 0\n");
+    println("  cmp eax, 0");
   } else {
-    fprintf(output, "  cmp rax, 0\n");
+    println("  cmp rax, 0");
   }
 }
 
 void pop(const char *arg) {
-  fprintf(output, "  pop %s\n", arg);
+  println("  pop %s", arg);
   stack_depth--;
 }
 
 void push(void) {
-  fprintf(output, "  push rax\n");
+  println("  push rax");
   stack_depth++;
+}
+
+void println(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  vfprintf(output, fmt, args);
+  va_end(args);
+  fprintf(output, "\n");
 }
