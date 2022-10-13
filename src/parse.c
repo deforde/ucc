@@ -1800,11 +1800,11 @@ int64_t eval2(Node *node, char **label) {
     if (isInteger(node->ty)) {
       switch (node->ty->size) {
       case 1:
-        return (uint8_t)val;
+        return node->ty->is_unsigned ? (uint8_t)val : (int8_t)val;
       case 2:
-        return (uint16_t)val;
+        return node->ty->is_unsigned ? (uint16_t)val : (int16_t)val;
       case 4:
-        return (uint32_t)val;
+        return node->ty->is_unsigned ? (uint32_t)val : (int32_t)val;
       }
     }
     return val;
@@ -1815,18 +1815,30 @@ int64_t eval2(Node *node, char **label) {
     return eval(node->cond) ? eval2(node->then, label)
                             : eval2(node->els, label);
   case ND_DIV:
+    if (node->ty->is_unsigned) {
+      return (uint64_t)eval(node->lhs) / eval(node->rhs);
+    }
     return eval(node->lhs) / eval(node->rhs);
   case ND_EQ:
     return eval(node->lhs) == eval(node->rhs);
   case ND_LE:
+    if (node->lhs->ty->is_unsigned) {
+      return (uint64_t)eval(node->lhs) <= (uint64_t)eval(node->rhs);
+    }
     return eval(node->lhs) <= eval(node->rhs);
   case ND_LOGAND:
     return eval(node->lhs) && eval(node->rhs);
   case ND_LOGOR:
     return eval(node->lhs) || eval(node->rhs);
   case ND_LT:
+    if (node->lhs->ty->is_unsigned) {
+      return (uint64_t)eval(node->lhs) < (uint64_t)eval(node->rhs);
+    }
     return eval(node->lhs) < eval(node->rhs);
   case ND_MOD:
+    if (node->ty->is_unsigned) {
+      return (uint64_t)eval(node->lhs) % eval(node->rhs);
+    }
     return eval(node->lhs) % eval(node->rhs);
   case ND_MUL:
     return eval(node->lhs) * eval(node->rhs);
@@ -1839,6 +1851,9 @@ int64_t eval2(Node *node, char **label) {
   case ND_SHL:
     return eval(node->lhs) << eval(node->rhs);
   case ND_SHR:
+    if (node->ty->is_unsigned && node->ty->size == 8) {
+      return (uint64_t)eval(node->lhs) >> eval(node->rhs);
+    }
     return eval(node->lhs) >> eval(node->rhs);
   case ND_SUB:
     return eval2(node->lhs, label) - eval(node->rhs);
