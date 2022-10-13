@@ -749,14 +749,17 @@ Obj *function(Type *ty, VarAttr *attr) {
       }
       newParam(ty2, param_ident);
     }
+    if (first) {
+      is_variadic = true;
+    }
   }
 
-  Type params_head = {0};
-  Type *param_ty = &params_head;
+  Type *param_ty = NULL;
   for (Obj *param = fn->params; param; param = param->next) {
     Type *new_param_ty = calloc(1, sizeof(Type));
     *new_param_ty = *param->ty;
-    param_ty = param_ty->next = new_param_ty;
+    new_param_ty->next = param_ty;
+    param_ty = new_param_ty;
   }
   fn->ty->params = param_ty;
   fn->ty->is_variadic = is_variadic;
@@ -1243,6 +1246,10 @@ Node *funcCall(Token *tok) {
     Node *arg = assign();
     addType(arg);
 
+    if (!param_ty && !ty->is_variadic) {
+      compErrorToken(tok->str, "too many arguments");
+    }
+
     if (param_ty) {
       if (param_ty->kind == TY_STRUCT || param_ty->kind == TY_UNION) {
         compErrorToken(arg->tok->str,
@@ -1253,6 +1260,10 @@ Node *funcCall(Token *tok) {
     }
 
     cur = cur->next = arg;
+  }
+
+  if (param_ty) {
+    compErrorToken(tok->str, "too few arguments");
   }
 
   Node *node = newNode(ND_FUNCCALL);
