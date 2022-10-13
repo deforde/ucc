@@ -455,6 +455,7 @@ Type *declspec(VarAttr *attr) {
     INT = 1 << 8,
     LONG = 1 << 10,
     OTHER = 1 << 12,
+    SIGNED = 1 << 13,
   };
 
   size_t counter = 0;
@@ -536,6 +537,8 @@ Type *declspec(VarAttr *attr) {
       counter += INT;
     } else if (equal(tok, "long")) {
       counter += LONG;
+    } else if (equal(tok, "signed")) {
+      counter |= SIGNED;
     } else {
       assert(false);
     }
@@ -548,19 +551,28 @@ Type *declspec(VarAttr *attr) {
       ty = ty_bool;
       break;
     case CHAR:
+    case SIGNED + CHAR:
       ty = ty_char;
       break;
     case SHORT:
     case SHORT + INT:
+    case SIGNED + SHORT:
+    case SIGNED + SHORT + INT:
       ty = ty_short;
       break;
     case INT:
+    case SIGNED:
+    case SIGNED + INT:
       ty = ty_int;
       break;
     case LONG:
     case LONG + INT:
     case LONG + LONG:
     case LONG + LONG + INT:
+    case SIGNED + LONG:
+    case SIGNED + LONG + INT:
+    case SIGNED + LONG + LONG:
+    case SIGNED + LONG + LONG + INT:
       ty = ty_long;
       break;
     default:
@@ -1430,9 +1442,9 @@ Type *findTypedef(Token *tok) {
 }
 
 bool isTypename(Token *tok) {
-  static const char *kwds[] = {"_Bool", "char",   "enum",    "int",     "long",
-                               "short", "static", "struct",  "typedef", "union",
-                               "void",  "extern", "_Alignas"};
+  static const char *kwds[] = {
+      "_Bool",  "char",    "enum",  "int",  "long",   "short",    "static",
+      "struct", "typedef", "union", "void", "extern", "_Alignas", "signed"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == tok->len &&
         strncmp(tok->str, kwds[i], tok->len) == 0) {

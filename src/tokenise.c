@@ -403,10 +403,10 @@ char *readFile(const char *file_path) {
 
 bool isKeyword(const char *str, size_t len) {
   static const char *kwds[] = {
-      "int",      "char",     "short",  "void", "long",    "struct",
-      "union",    "typedef",  "_Bool",  "enum", "static",  "goto",
-      "break",    "continue", "switch", "case", "default", "extern",
-      "_Alignas", "_Alignof", "do"};
+      "int",      "char",     "short",  "void",  "long",    "struct",
+      "union",    "typedef",  "_Bool",  "enum",  "static",  "goto",
+      "break",    "continue", "switch", "case",  "default", "extern",
+      "_Alignas", "_Alignof", "do",     "signed"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == len && strncmp(str, kwds[i], len) == 0) {
       return true;
