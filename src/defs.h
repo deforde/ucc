@@ -104,6 +104,7 @@ struct Type {
   bool is_variadic;
   ssize_t size;
   size_t align;
+  bool is_unsigned;
   ssize_t arr_len;
 };
 

@@ -29,6 +29,14 @@ Type *ty_int = &(Type){.kind = TY_INT, .size = 4, .align = 4};
 Type *ty_long = &(Type){.kind = TY_LONG, .size = 8, .align = 8};
 Type *ty_short = &(Type){.kind = TY_SHORT, .size = 2, .align = 2};
 Type *ty_void = &(Type){.kind = TY_VOID, .size = 1, .align = 1};
+Type *ty_uchar =
+    &(Type){.kind = TY_CHAR, .size = 1, .align = 1, .is_unsigned = true};
+Type *ty_uint =
+    &(Type){.kind = TY_INT, .size = 4, .align = 4, .is_unsigned = true};
+Type *ty_ulong =
+    &(Type){.kind = TY_LONG, .size = 8, .align = 8, .is_unsigned = true};
+Type *ty_ushort =
+    &(Type){.kind = TY_SHORT, .size = 2, .align = 2, .is_unsigned = true};
 
 static Initialiser *initialiser(Type **ty);
 static Initialiser *newInitialiser(Type *ty, bool is_flexible);
@@ -456,6 +464,7 @@ Type *declspec(VarAttr *attr) {
     LONG = 1 << 10,
     OTHER = 1 << 12,
     SIGNED = 1 << 13,
+    UNSIGNED = 1 << 14,
   };
 
   size_t counter = 0;
@@ -539,6 +548,8 @@ Type *declspec(VarAttr *attr) {
       counter += LONG;
     } else if (equal(tok, "signed")) {
       counter |= SIGNED;
+    } else if (equal(tok, "unsigned")) {
+      counter |= UNSIGNED;
     } else {
       assert(false);
     }
@@ -554,16 +565,27 @@ Type *declspec(VarAttr *attr) {
     case SIGNED + CHAR:
       ty = ty_char;
       break;
+    case UNSIGNED + CHAR:
+      ty = ty_uchar;
+      break;
     case SHORT:
     case SHORT + INT:
     case SIGNED + SHORT:
     case SIGNED + SHORT + INT:
       ty = ty_short;
       break;
+    case UNSIGNED + SHORT:
+    case UNSIGNED + SHORT + INT:
+      ty = ty_ushort;
+      break;
     case INT:
     case SIGNED:
     case SIGNED + INT:
       ty = ty_int;
+      break;
+    case UNSIGNED:
+    case UNSIGNED + INT:
+      ty = ty_uint;
       break;
     case LONG:
     case LONG + INT:
@@ -574,6 +596,12 @@ Type *declspec(VarAttr *attr) {
     case SIGNED + LONG + LONG:
     case SIGNED + LONG + LONG + INT:
       ty = ty_long;
+      break;
+    case UNSIGNED + LONG:
+    case UNSIGNED + LONG + INT:
+    case UNSIGNED + LONG + LONG:
+    case UNSIGNED + LONG + LONG + INT:
+      ty = ty_ulong;
       break;
     default:
       compErrorToken(tok->str, "invalid type");
@@ -1442,9 +1470,10 @@ Type *findTypedef(Token *tok) {
 }
 
 bool isTypename(Token *tok) {
-  static const char *kwds[] = {
-      "_Bool",  "char",    "enum",  "int",  "long",   "short",    "static",
-      "struct", "typedef", "union", "void", "extern", "_Alignas", "signed"};
+  static const char *kwds[] = {"_Bool",    "char",   "enum",    "int",
+                               "long",     "short",  "static",  "struct",
+                               "typedef",  "union",  "void",    "extern",
+                               "_Alignas", "signed", "unsigned"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == tok->len &&
         strncmp(tok->str, kwds[i], tok->len) == 0) {
@@ -1488,10 +1517,19 @@ Type *getCommonType(Type *ty1, Type *ty2) {
   if (ty1->base) {
     return pointerTo(ty1->base);
   }
-  if (ty1->size == 8 || ty2->size == 8) {
-    return ty_long;
+  if (ty1->size < 4) {
+    ty1 = ty_int;
   }
-  return ty_int;
+  if (ty2->size < 4) {
+    ty2 = ty_int;
+  }
+  if (ty1->size != ty2->size) {
+    return (ty1->size < ty2->size) ? ty2 : ty1;
+  }
+  if (ty2->is_unsigned) {
+    return ty2;
+  }
+  return ty1;
 }
 
 void usualArithConv(Node **lhs, Node **rhs) {

@@ -403,10 +403,10 @@ char *readFile(const char *file_path) {
 
 bool isKeyword(const char *str, size_t len) {
   static const char *kwds[] = {
-      "int",      "char",     "short",  "void",  "long",    "struct",
-      "union",    "typedef",  "_Bool",  "enum",  "static",  "goto",
-      "break",    "continue", "switch", "case",  "default", "extern",
-      "_Alignas", "_Alignof", "do",     "signed"};
+      "int",      "char",     "short",  "void",   "long",    "struct",
+      "union",    "typedef",  "_Bool",  "enum",   "static",  "goto",
+      "break",    "continue", "switch", "case",   "default", "extern",
+      "_Alignas", "_Alignof", "do",     "signed", "unsigned"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == len && strncmp(str, kwds[i], len) == 0) {
       return true;
@@ -428,7 +428,7 @@ long readIntLiteral(const char **start) {
     base = 8;
   }
 
-  const long val = (long)strtoul(p, (char **)&p, base);
+  const int64_t val = (int64_t)strtoul(p, (char **)&p, base);
   if (isalnum(*p)) {
     compErrorToken(p, "invalid digit");
   }

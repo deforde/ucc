@@ -10,7 +10,7 @@
 #include "defs.h"
 #include "parse.h"
 
-enum { I8, I16, I32, I64 };
+enum { I8, I16, I32, I64, U8, U16, U32, U64 };
 
 extern FILE *output;
 extern const char *input_file_path;
@@ -26,12 +26,19 @@ static const char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static const char i32i8[] = "movsx eax, al";
 static const char i32i16[] = "movsx eax, ax";
 static const char i32i64[] = "movsxd rax, eax";
+static const char i32u8[] = "movzx eax, al";
+static const char i32u16[] = "movzx eax, ax";
+static const char u32i64[] = "mov eax, eax";
 
-static const char *cast_table[][4] = {
-    {NULL, NULL, NULL, i32i64},
-    {i32i8, NULL, NULL, i32i64},
-    {i32i8, i32i16, NULL, i32i64},
-    {i32i8, i32i16, NULL, NULL},
+static const char *cast_table[][8] = {
+    {NULL, NULL, NULL, i32i64, i32u8, i32u16, NULL, i32i64},
+    {i32i8, NULL, NULL, i32i64, i32u8, i32u16, NULL, i32i64},
+    {i32i8, i32i16, NULL, i32i64, i32u8, i32u16, NULL, i32i64},
+    {i32i8, i32i16, NULL, NULL, i32u8, i32u16, NULL, NULL},
+    {i32i8, NULL, NULL, i32i64, NULL, NULL, NULL, i32i64},
+    {i32i8, i32i16, NULL, i32i64, i32u8, NULL, NULL, i32i64},
+    {i32i8, i32i16, NULL, u32i64, i32u8, i32u16, NULL, u32i64},
+    {i32i8, i32i16, NULL, NULL, i32u8, i32u16, NULL, NULL},
 };
 
 static int getTypeId(Type *ty);
@@ -352,10 +359,18 @@ void genExpr(Node *node) {
       println("  movzx eax, al");
       break;
     case TY_CHAR:
-      println("  movsx eax, al");
+      if (node->ty->is_unsigned) {
+        println("  movzx eax, al");
+      } else {
+        println("  movsx eax, al");
+      }
       break;
     case TY_SHORT:
-      println("  movsx eax, ax");
+      if (node->ty->is_unsigned) {
+        println("  movzx eax, ax");
+      } else {
+        println("  movsx eax, ax");
+      }
       break;
     default:
       break;
@@ -379,13 +394,16 @@ void genExpr(Node *node) {
 
   char *ax = NULL;
   char *di = NULL;
+  char *dx = NULL;
 
   if (node->lhs->ty->kind == TY_LONG || node->lhs->ty->base) {
     ax = "rax";
     di = "rdi";
+    dx = "rdx";
   } else {
     ax = "eax";
     di = "edi";
+    dx = "edx";
   }
 
   switch (node->kind) {
@@ -399,20 +417,30 @@ void genExpr(Node *node) {
     println("  imul %s, %s", ax, di);
     return;
   case ND_DIV:
-    if (node->lhs->ty->size == 8) {
-      println("  cqo");
+    if (node->ty->is_unsigned) {
+      println("  mov %s, 0", dx);
+      println("  div %s", di);
     } else {
-      println("  cdq");
+      if (node->lhs->ty->size == 8) {
+        println("  cqo");
+      } else {
+        println("  cdq");
+      }
+      println("  idiv %s", di);
     }
-    println("  idiv %s", di);
     return;
   case ND_MOD:
-    if (node->lhs->ty->size == 8) {
-      println("  cqo");
+    if (node->ty->is_unsigned) {
+      println("  mov %s, 0", dx);
+      println("  div %s", di);
     } else {
-      println("  cdq");
+      if (node->lhs->ty->size == 8) {
+        println("  cqo");
+      } else {
+        println("  cdq");
+      }
+      println("  idiv %s", di);
     }
-    println("  idiv %s", di);
     println("  mov rax, rdx");
     return;
   case ND_BITAND:
@@ -436,12 +464,20 @@ void genExpr(Node *node) {
     return;
   case ND_LT:
     println("  cmp %s, %s", ax, di);
-    println("  setl al");
+    if (node->lhs->ty->is_unsigned) {
+      println("  setb al");
+    } else {
+      println("  setl al");
+    }
     println("  movzx %s, al", ax);
     return;
   case ND_LE:
     println("  cmp %s, %s", ax, di);
-    println("  setle al");
+    if (node->lhs->ty->is_unsigned) {
+      println("  setbe al");
+    } else {
+      println("  setle al");
+    }
     println("  movzx %s, al", ax);
     return;
   case ND_SHL:
@@ -450,7 +486,11 @@ void genExpr(Node *node) {
     return;
   case ND_SHR:
     println("  mov rcx, rdi");
-    println("  sar %s, cl", ax);
+    if (node->lhs->ty->is_unsigned) {
+      println("  shr %s, cl", ax);
+    } else {
+      println("  sar %s, cl", ax);
+    }
     return;
   default:
     break;
@@ -527,10 +567,11 @@ void load(Type *ty) {
   if (ty->kind == TY_ARR || ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
     return;
   }
+  char *mov_prefix = ty->is_unsigned ? "movz" : "movs";
   if (ty->size == 1) {
-    println("  movsx eax, byte ptr [rax]");
+    println("  %sx eax, byte ptr [rax]", mov_prefix);
   } else if (ty->size == 2) {
-    println("  movsx eax, word ptr [rax]");
+    println("  %sx eax, word ptr [rax]", mov_prefix);
   } else if (ty->size == 4) {
     println("  movsxd rax, [rax]");
   } else {
@@ -558,15 +599,17 @@ void cast(Type *from, Type *to) {
 int getTypeId(Type *ty) {
   switch (ty->kind) {
   case TY_CHAR:
-    return I8;
+    return ty->is_unsigned ? U8 : I8;
   case TY_SHORT:
-    return I16;
+    return ty->is_unsigned ? U16 : I16;
   case TY_INT:
-    return I32;
+    return ty->is_unsigned ? U32 : I32;
+  case TY_LONG:
+    return ty->is_unsigned ? U64 : I64;
   default:
     break;
   }
-  return I64;
+  return U64;
 }
 
 void cmpZero(Type *ty) {
