@@ -103,7 +103,7 @@ static Relocation *writeGlobalVarData(Relocation *cur, Initialiser *init,
 static Token *createIdent(const char *name);
 static Type *abstractDeclarator(Type *ty);
 static Type *arrayDimensions(Type *ty);
-static Type *arrayOf(Type *base, size_t len);
+static Type *arrayOf(Type *base, ssize_t len);
 static Type *copyStructType(Type *src);
 static Type *declarator(Type *ty, Token **ident);
 static Type *declspec(VarAttr *attr);
@@ -112,8 +112,8 @@ static Type *findTag(Token *tok);
 static Type *findTypedef(Token *tok);
 static Type *getCommonType(Type *ty1, Type *ty2);
 static Type *newType(TypeKind kind, ssize_t size, size_t align);
-static Type *pointers(Type *base);
-static Type *pointerTo(Type *ty);
+static Type *pointers(Type *ty);
+static Type *pointerTo(Type *base);
 static Type *structDecl(Type *ty);
 static Type *structUnionDecl(Type *ty);
 static Type *typeSuffix(Type *ty);
@@ -916,7 +916,7 @@ Node *primary(void) {
   }
   tok = consumeStrLit();
   if (tok) {
-    Type *ty = arrayOf(ty_char, tok->len);
+    Type *ty = arrayOf(ty_char, (ssize_t)tok->len);
     Obj *var = newStrLitVar(tok, ty);
     return newNodeVar(var);
   }
@@ -1178,10 +1178,11 @@ void addType(Node *node) {
 Type *pointers(Type *ty) {
   while (consume("*")) {
     ty = pointerTo(ty);
+    // clang-format off
     while (consumeKwdMatch("const") || consumeKwdMatch("volatile") ||
            consumeKwdMatch("restrict") || consumeKwdMatch("__restrict") ||
-           consumeKwdMatch("__restrict__"))
-      ;
+           consumeKwdMatch("__restrict__"));
+    // clang-format on
   }
   return ty;
 }
@@ -1193,10 +1194,10 @@ Type *pointerTo(Type *base) {
   return ty;
 }
 
-Type *arrayOf(Type *base, size_t len) {
-  Type *ty = newType(TY_ARR, base->size * (ssize_t)len, base->align);
+Type *arrayOf(Type *base, ssize_t len) {
+  Type *ty = newType(TY_ARR, base->size * len, base->align);
   ty->base = base;
-  ty->arr_len = (ssize_t)len;
+  ty->arr_len = len;
   return ty;
 }
 
@@ -1689,7 +1690,7 @@ Type *arrayDimensions(Type *ty) {
     ty = typeSuffix(ty);
     return arrayOf(ty, -1);
   }
-  const int sz = (int)constExpr(); // TODO: should this not be size_t?
+  const ssize_t sz = (int)constExpr();
   expect("]");
   ty = typeSuffix(ty);
   return arrayOf(ty, sz);
@@ -2069,7 +2070,7 @@ void skipExcessInitialiserElems(void) {
 
 void stringInitialiser(Initialiser *init, Token *tok) {
   if (init->is_flexible) {
-    *init = *newInitialiser(arrayOf(init->ty->base, tok->len), false);
+    *init = *newInitialiser(arrayOf(init->ty->base, (ssize_t)tok->len), false);
   }
   size_t len = MIN(init->ty->arr_len, (ssize_t)tok->len);
   for (size_t i = 0; i < len; i++) {
@@ -2081,7 +2082,7 @@ void arrayInitialiser1(Initialiser *init) {
   expect("{");
   if (init->is_flexible) {
     size_t len = countInitialserElems(init->ty);
-    *init = *newInitialiser(arrayOf(init->ty->base, len), false);
+    *init = *newInitialiser(arrayOf(init->ty->base, (ssize_t)len), false);
   }
   for (ssize_t i = 0; !consumeInitialiserListEnd(); i++) {
     if (i > 0) {
