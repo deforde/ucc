@@ -405,7 +405,9 @@ Type *typeSuffix(Type *ty) {
 Obj *newVar(Type *ty, Token *ident, Obj **vars) {
   Obj *var = calloc(1, sizeof(Obj));
   var->next = *vars;
-  var->name = strndup(ident->str, ident->len);
+  if (ident) {
+    var->name = strndup(ident->str, ident->len);
+  }
   var->ty = ty;
   var->align = ty->align;
   *vars = var;
@@ -471,6 +473,7 @@ Type *declspec(VarAttr *attr) {
 
   size_t counter = 0;
   Type *ty = ty_int;
+  ty->tok = token;
 
   while (isTypename(token)) {
     Token *tok = token;
@@ -743,7 +746,7 @@ Type *declarator(Type *ty, Token **ident) {
     }
     return ty;
   }
-  *ident = expectIdent();
+  *ident = consumeIdent();
   ty = typeSuffix(ty);
   return ty;
 }
@@ -751,6 +754,9 @@ Type *declarator(Type *ty, Token **ident) {
 Obj *function(Type *ty, VarAttr *attr) {
   Token *fn_ident = NULL;
   ty = declarator(ty, &fn_ident);
+  if (!fn_ident) {
+    compErrorToken(ty->tok->str, "function name omitted");
+  }
 
   Obj *fn = calloc(1, sizeof(Obj));
   fn->ty = newType(TY_FUNC, 0, 0);
@@ -809,6 +815,11 @@ Obj *function(Type *ty, VarAttr *attr) {
   fn->ty->params = param_ty;
   fn->ty->is_variadic = is_variadic;
   if (!consume(";")) {
+    for (Obj *param = fn->params; param; param = param->next) {
+      if (!param->name) {
+        compErrorToken(param->ty->tok->str, "argument name omitted");
+      }
+    }
     expect("{");
     fn->locals = fn->params;
     if (fn->ty->is_variadic) {
@@ -838,6 +849,9 @@ Node *declaration(Type *basety, VarAttr *attr) {
     Type *ty = declarator(basety, &ident);
     if (ty->kind == TY_VOID) {
       compError(ident->str, "variable declared void");
+    }
+    if (!ident) {
+      compErrorToken(ty->tok->str, "variable name omitted");
     }
 
     if (attr && attr->is_static) {
@@ -1027,7 +1041,7 @@ Node *unary(void) {
 VarScope *findVarScope(Token *tok) {
   for (Scope *sc = scopes; sc; sc = sc->next) {
     for (VarScope *vs = sc->vars; vs; vs = vs->next) {
-      if (strlen(vs->name) == tok->len &&
+      if (vs->name && strlen(vs->name) == tok->len &&
           memcmp(tok->str, vs->name, strlen(vs->name)) == 0) {
         return vs;
       }
@@ -1411,6 +1425,9 @@ void globalVar(Type *base_ty, VarAttr *attr) {
     first = false;
     Token *ident = NULL;
     Type *ty = declarator(base_ty, &ident);
+    if (!ident) {
+      compErrorToken(ty->tok->str, "variable name omitted");
+    }
     Obj *var = newGlobalVar(ty, ident);
     var->is_definition = !attr->is_extern;
     var->is_static = attr->is_static;
@@ -1475,6 +1492,9 @@ void parseTypedef(Type *basety) {
 
     Token *ident = NULL;
     Type *ty = declarator(basety, &ident);
+    if (!ident) {
+      compErrorToken(ty->tok->str, "typedef name omitted");
+    }
 
     pushScope(strndup(ident->str, ident->len), NULL, ty);
   }

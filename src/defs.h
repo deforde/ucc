@@ -106,6 +106,7 @@ struct Type {
   size_t align;
   bool is_unsigned;
   ssize_t arr_len;
+  Token *tok;
 };
 
 struct Token {
