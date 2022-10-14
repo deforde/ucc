@@ -27,7 +27,6 @@ const char *file_content = NULL;
 static Token *newIdent(Token *cur, const char **p, size_t line_num);
 static Token *newToken(TokenKind kind, Token *cur, const char *str, size_t len,
                        size_t line_num);
-static bool consumeKwdMatch(const char *kwd);
 static bool consumeTokKind(TokenKind kind);
 static bool isIdentChar(char c);
 static bool isKeyword(const char *str, size_t len);
@@ -417,10 +416,13 @@ char *readFile(const char *file_path) {
 
 bool isKeyword(const char *str, size_t len) {
   static const char *kwds[] = {
-      "int",      "char",     "short",  "void",   "long",    "struct",
-      "union",    "typedef",  "_Bool",  "enum",   "static",  "goto",
-      "break",    "continue", "switch", "case",   "default", "extern",
-      "_Alignas", "_Alignof", "do",     "signed", "unsigned"};
+      "int",      "char",     "short",    "void",       "long",
+      "struct",   "union",    "typedef",  "_Bool",      "enum",
+      "static",   "goto",     "break",    "continue",   "switch",
+      "case",     "default",  "extern",   "_Alignas",   "_Alignof",
+      "do",       "signed",   "unsigned", "const",      "volatile",
+      "auto",     "register", "restrict", "__restrict", "__restrict__",
+      "_Noreturn"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == len && strncmp(str, kwds[i], len) == 0) {
       return true;

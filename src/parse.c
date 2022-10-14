@@ -112,7 +112,8 @@ static Type *findTag(Token *tok);
 static Type *findTypedef(Token *tok);
 static Type *getCommonType(Type *ty1, Type *ty2);
 static Type *newType(TypeKind kind, ssize_t size, size_t align);
-static Type *pointerTo(Type *base);
+static Type *pointers(Type *base);
+static Type *pointerTo(Type *ty);
 static Type *structDecl(Type *ty);
 static Type *structUnionDecl(Type *ty);
 static Type *typeSuffix(Type *ty);
@@ -497,6 +498,13 @@ Type *declspec(VarAttr *attr) {
       continue;
     }
 
+    if (equal(tok, "const") || equal(tok, "volatile") || equal(tok, "auto") ||
+        equal(tok, "register") || equal(tok, "restrict") ||
+        equal(tok, "__restrict") || equal(tok, "__restrict__") ||
+        equal(tok, "_Noreturn")) {
+      continue;
+    }
+
     if (equal(tok, "_Alignas")) {
       if (!attr) {
         compErrorToken(tok->str, "_Alignas is not allowed in this context");
@@ -708,9 +716,7 @@ Type *unionDecl(Type *ty) {
 }
 
 Type *abstractDeclarator(Type *ty) {
-  while (consume("*")) {
-    ty = pointerTo(ty);
-  }
+  ty = pointers(ty);
   if (consume("(")) {
     Type *super_ty = abstractDeclarator(ty_int);
     expect(")");
@@ -726,9 +732,7 @@ Type *abstractDeclarator(Type *ty) {
 }
 
 Type *declarator(Type *ty, Token **ident) {
-  while (consume("*")) {
-    ty = pointerTo(ty);
-  }
+  ty = pointers(ty);
   if (consume("(")) {
     Type *super_ty = declarator(ty_int, ident);
     expect(")");
@@ -1171,6 +1175,17 @@ void addType(Node *node) {
   }
 }
 
+Type *pointers(Type *ty) {
+  while (consume("*")) {
+    ty = pointerTo(ty);
+    while (consumeKwdMatch("const") || consumeKwdMatch("volatile") ||
+           consumeKwdMatch("restrict") || consumeKwdMatch("__restrict") ||
+           consumeKwdMatch("__restrict__"))
+      ;
+  }
+  return ty;
+}
+
 Type *pointerTo(Type *base) {
   Type *ty = newType(TY_PTR, 8, 8);
   ty->base = base;
@@ -1475,10 +1490,12 @@ Type *findTypedef(Token *tok) {
 }
 
 bool isTypename(Token *tok) {
-  static const char *kwds[] = {"_Bool",    "char",   "enum",    "int",
-                               "long",     "short",  "static",  "struct",
-                               "typedef",  "union",  "void",    "extern",
-                               "_Alignas", "signed", "unsigned"};
+  static const char *kwds[] = {
+      "_Bool",      "char",         "enum",     "int",      "long",
+      "short",      "static",       "struct",   "typedef",  "union",
+      "void",       "extern",       "_Alignas", "signed",   "unsigned",
+      "const",      "volatile",     "auto",     "register", "restrict",
+      "__restrict", "__restrict__", "_Noreturn"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == tok->len &&
         strncmp(tok->str, kwds[i], tok->len) == 0) {

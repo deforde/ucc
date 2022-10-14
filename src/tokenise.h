@@ -24,6 +24,7 @@ bool consumeElse(void);
 bool consumeFor(void);
 bool consumeGoto(void);
 bool consumeIf(void);
+bool consumeKwdMatch(const char *kwd);
 bool consumeReturn(void);
 bool consumeSizeof(void);
 bool consumeSwitch(void);
