@@ -37,6 +37,8 @@ Type *ty_ulong =
     &(Type){.kind = TY_LONG, .size = 8, .align = 8, .is_unsigned = true};
 Type *ty_ushort =
     &(Type){.kind = TY_SHORT, .size = 2, .align = 2, .is_unsigned = true};
+Type *ty_float = &(Type){.kind = TY_FLOAT, .size = 4, .align = 4};
+Type *ty_double = &(Type){.kind = TY_DOUBLE, .size = 8, .align = 8};
 
 static Initialiser *initialiser(Type **ty);
 static Initialiser *newInitialiser(Type *ty, bool is_flexible);
@@ -69,6 +71,7 @@ static Node *newNodeCont();
 static Node *newNodeDefault();
 static Node *newNodeDeref(Node *body);
 static Node *newNodeDo(void);
+static Node *newNodeFlonum(double fval);
 static Node *newNodeFor(void);
 static Node *newNodeGoto(Token *label);
 static Node *newNodeIdent(Token *tok);
@@ -328,6 +331,12 @@ Node *newNodeBinary(NodeKind kind, Node *lhs, Node *rhs) {
 Node *newNodeNum(int64_t val) {
   Node *node = newNode(ND_NUM);
   node->val = val;
+  return node;
+}
+
+Node *newNodeFlonum(double fval) {
+  Node *node = newNode(ND_NUM);
+  node->fval = fval;
   return node;
 }
 
@@ -935,7 +944,12 @@ Node *primary(void) {
     return newNodeVar(var);
   }
   tok = expectNumber();
-  Node *node = newNodeNum(tok->val);
+  Node *node = NULL;
+  if (isFloat(tok->ty)) {
+    node = newNodeFlonum(tok->val);
+  } else {
+    node = newNodeNum(tok->val);
+  }
   node->ty = tok->ty;
   return node;
 }
@@ -1063,19 +1077,11 @@ Type *findTag(Token *tok) {
 }
 
 bool isInteger(Type *ty) {
-  switch (ty->kind) {
-  case TY_BOOL:
-  case TY_CHAR:
-  case TY_ENUM:
-  case TY_INT:
-  case TY_LONG:
-  case TY_SHORT:
-    return true;
-  default:
-    break;
-  }
-  return false;
+  return ty->kind == TY_BOOL || ty->kind == TY_CHAR || ty->kind == TY_ENUM ||
+         ty->kind == TY_INT || ty->kind == TY_LONG || ty->kind == TY_SHORT;
 }
+
+bool isFloat(Type *ty) { return ty->kind == TY_FLOAT || ty->kind == TY_DOUBLE; }
 
 void addType(Node *node) {
   if (!node || node->ty) {

@@ -67,7 +67,9 @@ typedef enum {
   TY_ARR,
   TY_BOOL,
   TY_CHAR,
+  TY_DOUBLE,
   TY_ENUM,
+  TY_FLOAT,
   TY_FUNC,
   TY_INT,
   TY_LONG,
@@ -113,6 +115,7 @@ struct Token {
   TokenKind kind;
   Token *next;
   int64_t val;
+  double fval;
   Type *ty;
   const char *str;
   size_t len;
@@ -155,6 +158,7 @@ struct Node {
   Node *post;
   Obj *var;
   int64_t val;
+  double fval;
   const char *funcname;
   Node *args;
   Token *tok;

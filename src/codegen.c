@@ -250,9 +250,29 @@ void genExpr(Node *node) {
   switch (node->kind) {
   case ND_NULL_EXPR:
     return;
-  case ND_NUM:
-    println("  mov rax, %ld", node->val);
-    return;
+  case ND_NUM: {
+    union {
+      float f32;
+      double f64;
+      uint32_t u32;
+      uint64_t u64;
+    } u;
+    switch (node->ty->kind) {
+    case TY_FLOAT:
+      u.f32 = (float)node->fval;
+      println("  mov eax, %u", u.u32);
+      println("  movq xmm0, rax");
+      return;
+    case TY_DOUBLE:
+      u.f64 = node->fval;
+      println("  mov rax, %lu", u.u64);
+      println("  movq xmm0, rax");
+      return;
+    default:
+      println("  mov rax, %ld", node->val);
+      return;
+    }
+  }
   case ND_VAR:
   case ND_MEMBER:
     genAddr(node);

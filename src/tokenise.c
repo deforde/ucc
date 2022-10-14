@@ -20,6 +20,8 @@ extern Type *ty_uchar;
 extern Type *ty_uint;
 extern Type *ty_ulong;
 extern Type *ty_ushort;
+extern Type *ty_float;
+extern Type *ty_double;
 
 Token *token = NULL;
 const char *file_content = NULL;
@@ -202,17 +204,37 @@ void tokenise(const char *file_path) {
       p += 2;
       continue;
     }
-    if (strchr("+-*/()<>=;{}&,[].!~%|^:?", *p)) {
-      cur = newToken(TK_RESERVED, cur, p++, 1, line_num);
-      continue;
-    }
-    if (isdigit(*p)) {
+    if (isdigit(*p) || (*p == '.' && isdigit(p[1]))) {
       const char *q = p;
       Type *ty = NULL;
       const long val = readIntLiteral(&p, &ty);
+
+      if (!strchr(".eEfF", *p)) {
+        cur = newToken(TK_NUM, cur, q, p - q, line_num);
+        cur->ty = ty;
+        cur->val = val;
+        continue;
+      }
+
+      const double fval = strtod(q, (char **)&p);
+
+      if (*p == 'f' || *p == 'F') {
+        ty = ty_float;
+        p++;
+      } else if (*p == 'l' || *p == 'L') {
+        ty = ty_double;
+        p++;
+      } else {
+        ty = ty_double;
+      }
+
       cur = newToken(TK_NUM, cur, q, p - q, line_num);
       cur->ty = ty;
-      cur->val = val;
+      cur->fval = fval;
+      continue;
+    }
+    if (strchr("+-*/()<>=;{}&,[].!~%|^:?", *p)) {
+      cur = newToken(TK_RESERVED, cur, p++, 1, line_num);
       continue;
     }
     if (strncmp(p, "if", 2) == 0 && !isIdentChar(p[2])) {
@@ -466,10 +488,6 @@ long readIntLiteral(const char **start, Type **ret_ty) {
   } else if (*p == 'U' || *p == 'u') {
     p++;
     u_suffix = true;
-  }
-
-  if (isalnum(*p)) {
-    compErrorToken(p, "invalid digit");
   }
 
   Type *ty = NULL;
