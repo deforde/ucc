@@ -1686,6 +1686,9 @@ Node *logor(void) {
 }
 
 Type *arrayDimensions(Type *ty) {
+  // clang-format off
+  while (consumeKwdMatch("static") || consumeKwdMatch("restrict"));
+  // clang-format on
   if (consume("]")) {
     ty = typeSuffix(ty);
     return arrayOf(ty, -1);
