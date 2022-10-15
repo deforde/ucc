@@ -349,7 +349,7 @@ Node *newNodeLong(int64_t val) {
 Node *newNodeAdd(Node *lhs, Node *rhs) {
   addType(lhs);
   addType(rhs);
-  if (isInteger(lhs->ty) && isInteger(rhs->ty)) {
+  if (isNumeric(lhs->ty) && isNumeric(rhs->ty)) {
     return newNodeBinary(ND_ADD, lhs, rhs);
   }
   if (lhs->ty->base && rhs->ty->base) {
@@ -367,7 +367,7 @@ Node *newNodeAdd(Node *lhs, Node *rhs) {
 Node *newNodeSub(Node *lhs, Node *rhs) {
   addType(lhs);
   addType(rhs);
-  if (isInteger(lhs->ty) && isInteger(rhs->ty)) {
+  if (isNumeric(lhs->ty) && isNumeric(rhs->ty)) {
     return newNodeBinary(ND_SUB, lhs, rhs);
   }
   if (lhs->ty->base && isInteger(rhs->ty)) {
@@ -1094,6 +1094,8 @@ bool isInteger(Type *ty) {
 }
 
 bool isFloat(Type *ty) { return ty->kind == TY_FLOAT || ty->kind == TY_DOUBLE; }
+
+bool isNumeric(Type *ty) { return isInteger(ty) || isFloat(ty); }
 
 void addType(Node *node) {
   if (!node || node->ty) {

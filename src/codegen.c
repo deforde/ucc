@@ -454,6 +454,18 @@ void genExpr(Node *node) {
     const char *sz = (node->lhs->ty->kind == TY_FLOAT) ? "ss" : "sd";
 
     switch (node->kind) {
+    case ND_ADD:
+      println("  add%s xmm0, xmm1", sz);
+      return;
+    case ND_SUB:
+      println("  sub%s xmm0, xmm1", sz);
+      return;
+    case ND_MUL:
+      println("  mul%s xmm0, xmm1", sz);
+      return;
+    case ND_DIV:
+      println("  div%s xmm0, xmm1", sz);
+      return;
     case ND_EQ:
     case ND_NE:
     case ND_LT:
@@ -539,13 +551,13 @@ void genExpr(Node *node) {
     println("  mov rax, rdx");
     return;
   case ND_BITAND:
-    println("  and rax, rdi");
+    println("  and %s, %s", ax, di);
     return;
   case ND_BITOR:
-    println("  or rax, rdi");
+    println("  or %s, %s", ax, di);
     return;
   case ND_BITXOR:
-    println("  xor rax, rdi");
+    println("  xor %s, %s", ax, di);
     return;
   case ND_EQ:
     println("  cmp %s, %s", ax, di);
