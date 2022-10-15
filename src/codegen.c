@@ -85,8 +85,10 @@ static void genExpr(Node *node);
 static void genStmt(Node *node);
 static void load(Type *ty);
 static void pop(const char *arg);
+static void popf(const char *arg);
 static void println(const char *fmt, ...);
 static void push(void);
+static void pushf(void);
 static void store(Type *ty);
 static void storeArgReg(size_t r, size_t offset, size_t sz);
 
@@ -443,6 +445,43 @@ void genExpr(Node *node) {
     break;
   }
 
+  if (isFloat(node->lhs->ty)) {
+    genExpr(node->rhs);
+    pushf();
+    genExpr(node->lhs);
+    popf("xmm1");
+
+    const char *sz = (node->lhs->ty->kind == TY_FLOAT) ? "ss" : "sd";
+
+    switch (node->kind) {
+    case ND_EQ:
+    case ND_NE:
+    case ND_LT:
+    case ND_LE:
+      println("  ucomi%s xmm1, xmm0", sz);
+      if (node->kind == ND_EQ) {
+        println("  sete al");
+        println("  setnp dl");
+        println("  and al, dl");
+      } else if (node->kind == ND_NE) {
+        println("  setne al");
+        println("  setp dl");
+        println("  or al, dl");
+      } else if (node->kind == ND_LT) {
+        println("  seta al");
+      } else {
+        println("  setae al");
+      }
+      println("  and al, 1");
+      println("  movzx rax, al");
+      return;
+    default:
+      break;
+    }
+
+    compErrorToken(node->tok->str, "invalid expression");
+  }
+
   genExpr(node->rhs);
   push();
   genExpr(node->lhs);
@@ -720,4 +759,16 @@ void println(const char *fmt, ...) {
   vfprintf(output, fmt, args);
   va_end(args);
   fprintf(output, "\n");
+}
+
+void popf(const char *arg) {
+  println("  movsd %s, [rsp]", arg);
+  println("  add rsp, 8");
+  stack_depth--;
+}
+
+void pushf(void) {
+  println("  sub rsp, 8");
+  println("  movsd [rsp], xmm0");
+  stack_depth++;
 }
