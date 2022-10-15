@@ -97,8 +97,8 @@ char *fmt(char *buf, char *fmt, ...) {
   vsprintf(buf, fmt, ap);
 }
 
-float add_float(float x, float y);
 double add_double(double x, double y);
+float add_float(float x, float y);
 
 int main() {
   ASSERT(3, ret3());
