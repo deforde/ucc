@@ -85,9 +85,10 @@ static void genExpr(Node *node);
 static void genStmt(Node *node);
 static void load(Type *ty);
 static void pop(const char *arg);
-static void popf(const char *arg);
+static void popf(size_t i);
 static void println(const char *fmt, ...);
 static void push(void);
+static void pushArgs(Node *args);
 static void pushf(void);
 static void store(Type *ty);
 static void storeArgReg(size_t r, size_t offset, size_t sz);
@@ -395,16 +396,16 @@ void genExpr(Node *node) {
     return;
   }
   case ND_FUNCCALL: {
-    size_t nargs = 0;
+    pushArgs(node->args);
+    size_t gp = 0;
+    size_t fp = 0;
     for (Node *arg = node->args; arg; arg = arg->next) {
-      genExpr(arg);
-      push();
-      ++nargs;
+      if (isFloat(arg->ty)) {
+        popf(fp++);
+      } else {
+        pop(argreg64[gp++]);
+      }
     }
-    for (ssize_t i = (ssize_t)nargs - 1; i >= 0; --i) {
-      pop(argreg64[i]);
-    }
-    println("  mov rax, 0");
     if (stack_depth % 2 == 0) {
       println("  call %s", node->funcname);
     } else {
@@ -449,7 +450,7 @@ void genExpr(Node *node) {
     genExpr(node->rhs);
     pushf();
     genExpr(node->lhs);
-    popf("xmm1");
+    popf(1);
 
     const char *sz = (node->lhs->ty->kind == TY_FLOAT) ? "ss" : "sd";
 
@@ -785,8 +786,8 @@ void println(const char *fmt, ...) {
   fprintf(output, "\n");
 }
 
-void popf(const char *arg) {
-  println("  movsd %s, [rsp]", arg);
+void popf(size_t i) {
+  println("  movsd xmm%zu, [rsp]", i);
   println("  add rsp, 8");
   stack_depth--;
 }
@@ -795,4 +796,16 @@ void pushf(void) {
   println("  sub rsp, 8");
   println("  movsd [rsp], xmm0");
   stack_depth++;
+}
+
+void pushArgs(Node *args) {
+  if (args) {
+    pushArgs(args->next);
+    genExpr(args);
+    if (isFloat(args->ty)) {
+      pushf();
+    } else {
+      push();
+    }
+  }
 }
