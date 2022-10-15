@@ -190,7 +190,7 @@ void genStmt(Node *node) {
   case ND_IF: {
     const size_t c = label_num++;
     genExpr(node->cond);
-    println("  cmp rax, 0");
+    cmpZero(node->cond->ty);
     println("  je .L.else%zu", c);
     genStmt(node->then);
     println("  jmp .L.end%zu", c);
@@ -209,7 +209,7 @@ void genStmt(Node *node) {
     println(".L.begin%zu:", c);
     if (node->cond) {
       genExpr(node->cond);
-      println("  cmp rax, 0");
+      cmpZero(node->cond->ty);
       println("  je %s", node->brk_label);
     }
     genStmt(node->body);
@@ -227,7 +227,7 @@ void genStmt(Node *node) {
     println("%s:", node->cont_label);
     if (node->cond) {
       genExpr(node->cond);
-      println("  cmp rax, 0");
+      cmpZero(node->cond->ty);
       println("  je %s", node->brk_label);
     }
     genStmt(node->body);
@@ -272,7 +272,7 @@ void genStmt(Node *node) {
     genStmt(node->then);
     println("%s:", node->cont_label);
     genExpr(node->cond);
-    println("  cmp rax, 0");
+    cmpZero(node->cond->ty);
     println("  jne .L.begin%zu", c);
     println("%s:", node->brk_label);
     return;
@@ -345,7 +345,7 @@ void genExpr(Node *node) {
   case ND_TERN: {
     const size_t c = label_num++;
     genExpr(node->cond);
-    println("  cmp rax, 0");
+    cmpZero(node->cond->ty);
     println("  je .L.else.%zu", c);
     genExpr(node->then);
     println("  jmp .L.end.%zu", c);
@@ -356,7 +356,7 @@ void genExpr(Node *node) {
   }
   case ND_NOT:
     genExpr(node->lhs);
-    println("  cmp rax, 0");
+    cmpZero(node->lhs->ty);
     println("  sete al");
     println("  movzx rax, al");
     return;
@@ -367,10 +367,10 @@ void genExpr(Node *node) {
   case ND_LOGAND: {
     const size_t c = label_num++;
     genExpr(node->lhs);
-    println("  cmp rax, 0");
+    cmpZero(node->lhs->ty);
     println("  je .L.false.%zu", c);
     genExpr(node->rhs);
-    println("  cmp rax, 0");
+    cmpZero(node->rhs->ty);
     println("  je .L.false.%zu", c);
     println("  mov rax, 1");
     println("  jmp .L.end.%zu", c);
@@ -382,10 +382,10 @@ void genExpr(Node *node) {
   case ND_LOGOR: {
     const size_t c = label_num++;
     genExpr(node->lhs);
-    println("  cmp rax, 0");
+    cmpZero(node->lhs->ty);
     println("  jne .L.true.%zu", c);
     genExpr(node->rhs);
-    println("  cmp rax, 0");
+    cmpZero(node->rhs->ty);
     println("  jne .L.true.%zu", c);
     println("  mov rax, 0");
     println("  jmp .L.end.%zu", c);
@@ -643,10 +643,10 @@ void store(Type *ty) {
     }
     return;
   case TY_FLOAT:
-    println("  movss rdi, xmm0");
+    println("  movss [rdi], xmm0");
     return;
   case TY_DOUBLE:
-    println("  movsd rdi, xmm0");
+    println("  movsd [rdi], xmm0");
     return;
   default:
     break;
@@ -690,10 +690,10 @@ void load(Type *ty) {
   case TY_UNION:
     return;
   case TY_FLOAT:
-    println("  movss xmm0, rax");
+    println("  movss xmm0, [rax]");
     return;
   case TY_DOUBLE:
-    println("  movsd xmm0, rax");
+    println("  movsd xmm0, [rax]");
     return;
   default:
     break;
@@ -748,6 +748,18 @@ int getTypeId(Type *ty) {
 }
 
 void cmpZero(Type *ty) {
+  switch (ty->kind) {
+  case TY_FLOAT:
+    println("  xorps xmm1, xmm1");
+    println("  ucomiss xmm0, xmm1");
+    return;
+  case TY_DOUBLE:
+    println("  xorpd xmm1, xmm1");
+    println("  ucomisd xmm0, xmm1");
+    return;
+  default:
+    break;
+  }
   if (isInteger(ty) && ty->size <= 4) {
     println("  cmp eax, 0");
   } else {
