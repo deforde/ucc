@@ -10,7 +10,7 @@
 #include "defs.h"
 #include "parse.h"
 
-enum { I8, I16, I32, I64, U8, U16, U32, U64 };
+enum { I8, I16, I32, I64, U8, U16, U32, U64, F32, F64 };
 
 extern FILE *output;
 extern const char *input_file_path;
@@ -23,22 +23,58 @@ static const char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 static const char *argreg16[] = {"di", "si", "dx", "cx", "r8w", "r9w"};
 static const char *argreg32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
 static const char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-static const char i32i8[] = "movsx eax, al";
+static const char f32f64[] = "cvtss2sd  xmm0, xmm0";
+static const char f32i16[] = "cvttss2si eax, xmm0; movsx eax, ax";
+static const char f32i32[] = "cvttss2si  eax, xmm0";
+static const char f32i64[] = "cvttss2si  rax, xmm0";
+static const char f32i8[] = "cvttss2si eax, xmm0; movsx eax, al";
+static const char f32u16[] = "cvttss2si eax, xmm0; movzx eax, ax";
+static const char f32u32[] = "cvttss2si  rax, xmm0";
+static const char f32u64[] = "cvttss2si  rax, xmm0";
+static const char f32u8[] = "cvttss2si eax, xmm0; movzx eax, al";
+static const char f64f32[] = "cvtsd2ss  xmm0, xmm0";
+static const char f64i16[] = "cvttsd2si eax, xmm0; movsx eax, ax";
+static const char f64i32[] = "cvttsd2si  eax, xmm0";
+static const char f64i64[] = "cvttsd2si  rax, xmm0";
+static const char f64i8[] = "cvttsd2si eax, xmm0; movsx eax, al";
+static const char f64u16[] = "cvttsd2si eax, xmm0; movzx eax, ax";
+static const char f64u32[] = "cvttsd2si  rax, xmm0";
+static const char f64u64[] = "cvttsd2si  rax, xmm0";
+static const char f64u8[] = "cvttsd2si eax, xmm0; movzx eax, al";
+static const char i32f32[] = "cvtsi2ss  xmm0, eax";
+static const char i32f64[] = "cvtsi2sd  xmm0, eax";
 static const char i32i16[] = "movsx eax, ax";
 static const char i32i64[] = "movsxd rax, eax";
-static const char i32u8[] = "movzx eax, al";
+static const char i32i8[] = "movsx eax, al";
 static const char i32u16[] = "movzx eax, ax";
+static const char i32u8[] = "movzx eax, al";
+static const char i64f32[] = "cvtsi2ss  xmm0, rax";
+static const char i64f64[] = "cvtsi2sd  xmm0, rax";
+static const char u32f32[] = "mov eax, eax; cvtsi2ss xmm0, rax";
+static const char u32f64[] = "mov eax, eax; cvtsi2sd xmm0, rax";
 static const char u32i64[] = "mov eax, eax";
+static const char u64f32[] = "cvtsi2ss  xmm0, rax";
+static const char u64f64[] =
+    "test rax, rax; js 1f; pxor xmm0, xmm0; cvtsi2sd xmm0, rax; jmp 2f; "
+    "1: mov rdi, rax; and eax, 1; pxor xmm0, xmm0; shr rdi; "
+    "or rdi, rax; cvtsi2sd xmm0, rdi; addsd xmm0, xmm0; 2:";
 
-static const char *cast_table[][8] = {
-    {NULL, NULL, NULL, i32i64, i32u8, i32u16, NULL, i32i64},
-    {i32i8, NULL, NULL, i32i64, i32u8, i32u16, NULL, i32i64},
-    {i32i8, i32i16, NULL, i32i64, i32u8, i32u16, NULL, i32i64},
-    {i32i8, i32i16, NULL, NULL, i32u8, i32u16, NULL, NULL},
-    {i32i8, NULL, NULL, i32i64, NULL, NULL, NULL, i32i64},
-    {i32i8, i32i16, NULL, i32i64, i32u8, NULL, NULL, i32i64},
-    {i32i8, i32i16, NULL, u32i64, i32u8, i32u16, NULL, u32i64},
-    {i32i8, i32i16, NULL, NULL, i32u8, i32u16, NULL, NULL},
+static const char *cast_table[][10] = {
+    // clang-format off
+  // i8   i16     i32     i64     u8     u16     u32     u64     f32     f64
+  {NULL,  NULL,   NULL,   i32i64, i32u8, i32u16, NULL,   i32i64, i32f32, i32f64}, // i8
+  {i32i8, NULL,   NULL,   i32i64, i32u8, i32u16, NULL,   i32i64, i32f32, i32f64}, // i16
+  {i32i8, i32i16, NULL,   i32i64, i32u8, i32u16, NULL,   i32i64, i32f32, i32f64}, // i32
+  {i32i8, i32i16, NULL,   NULL,   i32u8, i32u16, NULL,   NULL,   i64f32, i64f64}, // i64
+
+  {i32i8, NULL,   NULL,   i32i64, NULL,  NULL,   NULL,   i32i64, i32f32, i32f64}, // u8
+  {i32i8, i32i16, NULL,   i32i64, i32u8, NULL,   NULL,   i32i64, i32f32, i32f64}, // u16
+  {i32i8, i32i16, NULL,   u32i64, i32u8, i32u16, NULL,   u32i64, u32f32, u32f64}, // u32
+  {i32i8, i32i16, NULL,   NULL,   i32u8, i32u16, NULL,   NULL,   u64f32, u64f64}, // u64
+
+  {f32i8, f32i16, f32i32, f32i64, f32u8, f32u16, f32u32, f32u64, NULL,   f32f64}, // f32
+  {f64i8, f64i16, f64i32, f64i64, f64u8, f64u16, f64u32, f64u64, f64f32, NULL},   // f64
+    // clang-format on
 };
 
 static int getTypeId(Type *ty);
@@ -547,12 +583,22 @@ void genAddr(Node *node) {
 
 void store(Type *ty) {
   pop("rdi");
-  if (ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
+  switch (ty->kind) {
+  case TY_STRUCT:
+  case TY_UNION:
     for (ssize_t i = 0; i < ty->size; i++) {
       println("  mov r8b, [rax+%zu]", i);
       println("  mov [rdi+%zu], r8b", i);
     }
     return;
+  case TY_FLOAT:
+    println("  movss rdi, xmm0");
+    return;
+  case TY_DOUBLE:
+    println("  movsd rdi, xmm0");
+    return;
+  default:
+    break;
   }
   if (ty->size == 1) {
     println("  mov [rdi], al");
@@ -587,6 +633,20 @@ void load(Type *ty) {
   if (ty->kind == TY_ARR || ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
     return;
   }
+  switch (ty->kind) {
+  case TY_ARR:
+  case TY_STRUCT:
+  case TY_UNION:
+    return;
+  case TY_FLOAT:
+    println("  movss xmm0, rax");
+    return;
+  case TY_DOUBLE:
+    println("  movsd xmm0, rax");
+    return;
+  default:
+    break;
+  }
   char *mov_prefix = ty->is_unsigned ? "movz" : "movs";
   if (ty->size == 1) {
     println("  %sx eax, byte ptr [rax]", mov_prefix);
@@ -604,7 +664,7 @@ void cast(Type *from, Type *to) {
     return;
   }
   if (to->kind == TY_BOOL) {
-    cmpZero(to);
+    cmpZero(from);
     println("  setne al");
     println("  movzx eax, al");
     return;
@@ -626,6 +686,10 @@ int getTypeId(Type *ty) {
     return ty->is_unsigned ? U32 : I32;
   case TY_LONG:
     return ty->is_unsigned ? U64 : I64;
+  case TY_FLOAT:
+    return F32;
+  case TY_DOUBLE:
+    return F64;
   default:
     break;
   }

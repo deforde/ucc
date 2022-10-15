@@ -475,9 +475,11 @@ Type *declspec(VarAttr *attr) {
     SHORT = 1 << 6,
     INT = 1 << 8,
     LONG = 1 << 10,
-    OTHER = 1 << 12,
-    SIGNED = 1 << 13,
-    UNSIGNED = 1 << 14,
+    FLOAT = 1 << 12,
+    DOUBLE = 1 << 14,
+    OTHER = 1 << 16,
+    SIGNED = 1 << 17,
+    UNSIGNED = 1 << 18,
   };
 
   size_t counter = 0;
@@ -567,6 +569,10 @@ Type *declspec(VarAttr *attr) {
       counter += INT;
     } else if (equal(tok, "long")) {
       counter += LONG;
+    } else if (equal(tok, "float")) {
+      counter += FLOAT;
+    } else if (equal(tok, "double")) {
+      counter += DOUBLE;
     } else if (equal(tok, "signed")) {
       counter |= SIGNED;
     } else if (equal(tok, "unsigned")) {
@@ -623,6 +629,12 @@ Type *declspec(VarAttr *attr) {
     case UNSIGNED + LONG + LONG:
     case UNSIGNED + LONG + LONG + INT:
       ty = ty_ulong;
+      break;
+    case FLOAT:
+      ty = ty_float;
+      break;
+    case DOUBLE:
+      ty = ty_double;
       break;
     default:
       compErrorToken(tok->str, "invalid type");
@@ -946,7 +958,7 @@ Node *primary(void) {
   tok = expectNumber();
   Node *node = NULL;
   if (isFloat(tok->ty)) {
-    node = newNodeFlonum(tok->val);
+    node = newNodeFlonum(tok->fval);
   } else {
     node = newNodeNum(tok->val);
   }
@@ -1518,11 +1530,11 @@ Type *findTypedef(Token *tok) {
 
 bool isTypename(Token *tok) {
   static const char *kwds[] = {
-      "_Bool",      "char",         "enum",     "int",      "long",
-      "short",      "static",       "struct",   "typedef",  "union",
-      "void",       "extern",       "_Alignas", "signed",   "unsigned",
-      "const",      "volatile",     "auto",     "register", "restrict",
-      "__restrict", "__restrict__", "_Noreturn"};
+      "_Bool",      "char",         "enum",      "int",      "long",
+      "short",      "static",       "struct",    "typedef",  "union",
+      "void",       "extern",       "_Alignas",  "signed",   "unsigned",
+      "const",      "volatile",     "auto",      "register", "restrict",
+      "__restrict", "__restrict__", "_Noreturn", "float",    "double"};
   for (size_t i = 0; i < sizeof(kwds) / sizeof(*kwds); ++i) {
     if (strlen(kwds[i]) == tok->len &&
         strncmp(tok->str, kwds[i], tok->len) == 0) {
