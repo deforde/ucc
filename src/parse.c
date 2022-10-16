@@ -1352,6 +1352,8 @@ Node *funcCall(Token *tok) {
       }
       arg = newNodeCast(arg, param_ty);
       param_ty = param_ty->next;
+    } else if (arg->ty->kind == TY_FLOAT) {
+      arg = newNodeCast(arg, ty_double);
     }
 
     cur = cur->next = arg;

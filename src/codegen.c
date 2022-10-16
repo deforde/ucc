@@ -143,12 +143,17 @@ void gen() {
 
     if (fn->va_area) {
       size_t gp = 0;
+      size_t fp = 0;
       for (Obj *var = fn->params; var; var = var->next) {
-        gp++;
+        if (isFloat(var->ty)) {
+          fp++;
+        } else {
+          gp++;
+        }
       }
       size_t offset = fn->va_area->offset;
       println("  mov DWORD PTR [rbp-%zu], %zu", offset, gp * 8);
-      println("  mov DWORD PTR [rbp-%zu], 0", offset - 4);
+      println("  mov DWORD PTR [rbp-%zu], %zu", offset - 4, fp * 8 + 48);
       println("  mov QWORD PTR [rbp-%zu], rbp", offset - 16);
       println("  sub QWORD PTR [rbp-%zu], %zu", offset - 16, offset - 24);
       println("  mov QWORD PTR [rbp-%zu], rdi", offset - 24);
