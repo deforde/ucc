@@ -8,31 +8,46 @@
 #include "parse.h"
 #include "tokenise.h"
 
+static char output_file_path[PATH_MAX] = {0};
+static bool do_cc1 = false;
 const char *input_file_path = NULL;
 FILE *output = NULL;
 
-static void usage() { puts("ucc [-o <path>] <file>\n"); }
+static void usage(void);
+static void parseArgs(int argc, char* argv[]);
+static void cleanUp(void);
 
-int main(int argc, char *argv[]) {
-  char output_file_path[PATH_MAX] = {0};
+void usage(void) {
+  puts(
+      "Usage: ucc [options] file\n"
+      "Options:\n"
+      "\t-o <file>"
+    );
+}
+
+void parseArgs(int argc, char* argv[]) {
   int opt = 0;
   struct option longopts[] = {{"help", no_argument, NULL, 'h'},
                               {"output", required_argument, NULL, 'o'},
+                              {"cc1", no_argument, NULL, 0},
                               {0, 0, 0, 0}};
   while ((opt = getopt_long(argc, argv, "ho:", longopts, NULL)) != -1) {
     switch (opt) {
     case 'h':
       usage();
-      return EXIT_SUCCESS;
+      exit(EXIT_SUCCESS);
     case 'o':
       strncpy(output_file_path, optarg, sizeof(output_file_path));
       output_file_path[sizeof(output_file_path) - 1] = '\0';
+      break;
+    case 0:
+      do_cc1 = true;
       break;
     case '?':
     case ':':
     default:
       usage();
-      return EXIT_FAILURE;
+      exit(EXIT_FAILURE);
     }
   }
   if (optind >= argc) {
@@ -49,16 +64,23 @@ int main(int argc, char *argv[]) {
   } else {
     output = stdout;
   }
-
   input_file_path = argv[optind];
+}
+
+void cleanUp(void) {
+  if (output != stdout) {
+    fclose(output);
+  }
+}
+
+int main(int argc, char *argv[]) {
+  parseArgs(argc, argv);
 
   tokenise(input_file_path);
   parse();
   gen();
 
-  if (output != stdout) {
-    fclose(output);
-  }
+  cleanUp();
 
   return EXIT_SUCCESS;
 }
