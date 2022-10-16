@@ -14,19 +14,24 @@
 
 static char output_file_path[PATH_MAX] = {0};
 static bool do_cc1 = false;
-const char *input_file_path = NULL;
+static bool do_assemble = true;
+char *input_file_path = NULL;
 FILE *output = NULL;
 
+static const char *createTmpfile(void);
 static void cc1(void);
 static void cleanUp(void);
+static void openOutput(void);
 static void parseArgs(int argc, char *argv[]);
+static void replaceExt(char (*path)[PATH_MAX], char *ext);
 static void runSubprocess(char **argv);
-static void runcc1(int argc, char *argv[]);
+static void runcc1(int argc, char *argv[], char *input, char *output);
 static void usage(void);
 
 void usage(void) {
   puts("Usage: ucc [options] file\n"
        "Options:\n"
+       "\t-S\n"
        "\t-o <file>");
 }
 
@@ -35,8 +40,9 @@ void parseArgs(int argc, char *argv[]) {
   struct option longopts[] = {{"help", no_argument, NULL, 'h'},
                               {"output", required_argument, NULL, 'o'},
                               {"cc1", no_argument, NULL, 0},
+                              {"", no_argument, NULL, 'S'},
                               {0, 0, 0, 0}};
-  while ((opt = getopt_long(argc, argv, "ho:", longopts, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "ho:S", longopts, NULL)) != -1) {
     switch (opt) {
     case 'h':
       usage();
@@ -47,6 +53,9 @@ void parseArgs(int argc, char *argv[]) {
       break;
     case 0:
       do_cc1 = true;
+      break;
+    case 'S':
+      do_assemble = false;
       break;
     case '?':
     case ':':
@@ -60,20 +69,19 @@ void parseArgs(int argc, char *argv[]) {
     usage();
     exit(EXIT_FAILURE);
   }
-  if (output_file_path[0] != 0) {
-    output = fopen(output_file_path, "w");
-    if (!output) {
-      fprintf(stderr, "failed to open output file: '%s'\n", output_file_path);
-      exit(EXIT_FAILURE);
-    }
-  } else {
-    output = stdout;
-  }
   input_file_path = argv[optind];
+  if (output_file_path[0] == 0) {
+    strncpy(output_file_path, input_file_path, PATH_MAX);
+    if (do_assemble) {
+      replaceExt(&output_file_path, "o");
+    } else {
+      replaceExt(&output_file_path, "s");
+    }
+  }
 }
 
 void cleanUp(void) {
-  if (output != stdout) {
+  if (output && output != stdout) {
     fclose(output);
   }
 }
@@ -84,11 +92,34 @@ void cc1(void) {
   gen();
 }
 
-void runcc1(int argc, char *argv[]) {
-  char **args = calloc(argc + 1, sizeof(char *));
+void runcc1(int argc, char *argv[], char *input, char *output) {
+  char **args = calloc(argc + 4, sizeof(char *));
   memcpy(args, argv, argc * sizeof(char *));
   args[argc++] = "--cc1";
+  if (input) {
+    args[argc++] = input;
+  }
+  if (output) {
+    args[argc++] = "-o";
+    args[argc++] = output;
+  }
   runSubprocess(args);
+}
+
+void replaceExt(char (*path)[PATH_MAX], char *ext) {
+  char *p = strrchr(*path, '.') + 1;
+  *p = 0;
+  strncat(*path, ext, PATH_MAX - (p - *path));
+}
+
+__attribute__((unused)) const char *createTmpfile(void) {
+  char *path = strdup("/tmp/ucc-XXXXXX");
+  int fd = mkstemp(path);
+  if (fd == -1) {
+    compError("mkstemp failed: %s", strerror(errno));
+  }
+  close(fd);
+  return path;
 }
 
 void runSubprocess(char **argv) {
@@ -106,15 +137,28 @@ void runSubprocess(char **argv) {
   }
 }
 
+void openOutput(void) {
+  if (output_file_path[0] == '-' && output_file_path[1] == 0) {
+    output = stdout;
+  } else {
+    output = fopen(output_file_path, "w");
+    if (!output) {
+      fprintf(stderr, "failed to open output file: '%s'\n", output_file_path);
+      exit(EXIT_FAILURE);
+    }
+  }
+}
+
 int main(int argc, char *argv[]) {
   parseArgs(argc, argv);
 
   if (do_cc1) {
+    openOutput();
     cc1();
     return EXIT_SUCCESS;
   }
 
-  runcc1(argc, argv);
+  runcc1(argc, argv, input_file_path, output_file_path);
 
   cleanUp();
 
