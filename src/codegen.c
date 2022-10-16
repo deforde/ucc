@@ -91,6 +91,7 @@ static void push(void);
 static void pushArgs(Node *args);
 static void pushf(void);
 static void store(Type *ty);
+static void storeFp(size_t r, size_t offset, size_t sz);
 static void storeArgReg(size_t r, size_t offset, size_t sz);
 
 void gen() {
@@ -166,9 +167,14 @@ void gen() {
       println("  movsd [rbp-%zu], xmm7", offset - 128);
     }
 
-    size_t i = 0;
+    size_t gp = 0;
+    size_t fp = 0;
     for (Obj *param = fn->params; param; param = param->next) {
-      storeArgReg(fn->param_cnt - (i++) - 1, param->offset, param->ty->size);
+      if (isFloat(param->ty)) {
+        storeFp(fn->param_cnt - (fp++) - 1, param->offset, param->ty->size);
+      } else {
+        storeArgReg(fn->param_cnt - (gp++) - 1, param->offset, param->ty->size);
+      }
     }
 
     genStmt(fn->body);
@@ -808,4 +814,18 @@ void pushArgs(Node *args) {
       push();
     }
   }
+}
+
+void storeFp(size_t r, size_t offset, size_t sz) {
+  switch (sz) {
+  case 4:
+    println("  movss [rbp-%zu], xmm%zu", offset, r);
+    return;
+  case 8:
+    println("  movsd [rbp-%zu], xmm%zu", offset, r);
+    return;
+  default:
+    break;
+  }
+  assert(false);
 }
