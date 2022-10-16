@@ -129,6 +129,7 @@ static bool equal(Token *tok, const char *str);
 static bool isFunc(void);
 static bool isTypename(Token *tok);
 static char *newUniqueLabel(void);
+static double evalDouble(Node *node);
 static int64_t constExpr(void);
 static int64_t eval(Node *node);
 static int64_t eval2(Node *node, char **label);
@@ -1853,6 +1854,9 @@ int64_t eval(Node *node) { return eval2(node, NULL); }
 
 int64_t eval2(Node *node, char **label) {
   addType(node);
+  if (isFloat(node->ty)) {
+    return evalDouble(node);
+  }
   switch (node->kind) {
   case ND_ADD:
     return eval2(node->lhs, label) + eval(node->rhs);
@@ -2248,6 +2252,14 @@ Relocation *writeGlobalVarData(Relocation *cur, Initialiser *init, Type *ty,
   if (!init->expr) {
     return cur;
   }
+  if (ty->kind == TY_FLOAT) {
+    *(float *)(buf + offset) = evalDouble(init->expr);
+    return cur;
+  }
+  if (ty->kind == TY_DOUBLE) {
+    *(double *)(buf + offset) = evalDouble(init->expr);
+    return cur;
+  }
   char *label = NULL;
   uint64_t val = eval2(init->expr, &label);
   if (!label) {
@@ -2376,4 +2388,40 @@ Node *newNodeUlong(int64_t val) {
   Node *node = newNodeNum(val);
   node->ty = ty_ulong;
   return node;
+}
+
+double evalDouble(Node *node) {
+  addType(node);
+  if (isInteger(node->ty)) {
+    if (node->ty->is_unsigned) {
+      return (unsigned long)eval(node);
+    }
+    return eval(node);
+  }
+  switch (node->kind) {
+  case ND_ADD:
+    return evalDouble(node->lhs) + evalDouble(node->rhs);
+  case ND_SUB:
+    return evalDouble(node->lhs) - evalDouble(node->rhs);
+  case ND_MUL:
+    return evalDouble(node->lhs) * evalDouble(node->rhs);
+  case ND_DIV:
+    return evalDouble(node->lhs) / evalDouble(node->rhs);
+  case ND_TERN:
+    return evalDouble(node->cond) ? evalDouble(node->then)
+                                  : evalDouble(node->els);
+  case ND_COMMA:
+    return evalDouble(node->rhs);
+  case ND_CAST:
+    if (isFloat(node->lhs->ty)) {
+      return evalDouble(node->lhs);
+    }
+    return eval(node->lhs);
+  case ND_NUM:
+    return node->fval;
+  default:
+    break;
+  }
+  compErrorToken(node->tok->str, "not a compile-time constant");
+  return 0.;
 }
