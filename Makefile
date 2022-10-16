@@ -45,8 +45,8 @@ clean:
 
 $(TEST_DIR)/%.out: debug
 	$(CC) -o $(TEST_DIR)/$*.pre -E -P -C $(TEST_DIR)/$*.c
-	ASAN_OPTIONS=detect_leaks=0 ./$(UCC) -o $(TEST_DIR)/$*.s $(TEST_DIR)/$*.pre
-	$(CC) -g3 -o $@ $(TEST_DIR)/$*.s -xc $(TEST_DIR)/common
+	ASAN_OPTIONS=detect_leaks=0 ./$(UCC) -o $(TEST_DIR)/$*.o $(TEST_DIR)/$*.pre
+	$(CC) -g3 -o $@ $(TEST_DIR)/$*.o -xc $(TEST_DIR)/common
 
 test: $(TESTS)
 	for i in $^; do echo $$i; ./$$i || exit 1; echo; done

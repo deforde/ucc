@@ -18,7 +18,8 @@ static bool do_assemble = true;
 char *input_file_path = NULL;
 FILE *output = NULL;
 
-static const char *createTmpfile(void);
+static char *createTmpfile(void);
+static void assemble(char *input_path, char *output_path);
 static void cc1(void);
 static void cleanUp(void);
 static void openOutput(void);
@@ -112,7 +113,7 @@ void replaceExt(char (*path)[PATH_MAX], char *ext) {
   strncat(*path, ext, PATH_MAX - (p - *path));
 }
 
-__attribute__((unused)) const char *createTmpfile(void) {
+char *createTmpfile(void) {
   char *path = strdup("/tmp/ucc-XXXXXX");
   int fd = mkstemp(path);
   if (fd == -1) {
@@ -149,6 +150,11 @@ void openOutput(void) {
   }
 }
 
+void assemble(char *input_path, char *output_path) {
+  char *cmd[] = {"as", "-c", input_path, "-o", output_path, NULL};
+  runSubprocess(cmd);
+}
+
 int main(int argc, char *argv[]) {
   parseArgs(argc, argv);
 
@@ -158,7 +164,13 @@ int main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
   }
 
-  runcc1(argc, argv, input_file_path, output_file_path);
+  if (do_assemble) {
+    char *tmpFile = createTmpfile();
+    runcc1(argc, argv, input_file_path, tmpFile);
+    assemble(tmpFile, output_file_path);
+  } else {
+    runcc1(argc, argv, input_file_path, output_file_path);
+  }
 
   cleanUp();
 
