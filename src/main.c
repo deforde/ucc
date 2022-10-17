@@ -24,9 +24,10 @@ static void cc1(void);
 static void cleanUp(void);
 static void openOutput(void);
 static void parseArgs(int argc, char *argv[]);
+static void preprocess(char *input_path, char *output_path);
 static void replaceExt(char (*path)[PATH_MAX], char *ext);
 static void runSubprocess(char **argv);
-static void runcc1(int argc, char *argv[], char *input, char *output);
+static void runcc1(char *arg0, char *input, char *output);
 static void usage(void);
 
 void usage(void) {
@@ -93,9 +94,10 @@ void cc1(void) {
   gen();
 }
 
-void runcc1(int argc, char *argv[], char *input, char *output) {
-  char **args = calloc(argc + 4, sizeof(char *));
-  memcpy(args, argv, argc * sizeof(char *));
+void runcc1(char *arg0, char *input, char *output) {
+  char **args = calloc(6, sizeof(char *));
+  args[0] = arg0;
+  int argc = 1;
   args[argc++] = "--cc1";
   if (input) {
     args[argc++] = input;
@@ -155,6 +157,11 @@ void assemble(char *input_path, char *output_path) {
   runSubprocess(cmd);
 }
 
+void preprocess(char *input_path, char *output_path) {
+  char *cmd[] = {"cpp", "-E", "-P", "-C", input_path, output_path, NULL};
+  runSubprocess(cmd);
+}
+
 int main(int argc, char *argv[]) {
   parseArgs(argc, argv);
 
@@ -164,12 +171,15 @@ int main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
   }
 
+  char *compiler_input = createTmpfile();
+  preprocess(input_file_path, compiler_input);
+
   if (do_assemble) {
-    char *tmpFile = createTmpfile();
-    runcc1(argc, argv, input_file_path, tmpFile);
-    assemble(tmpFile, output_file_path);
+    char *compiler_output = createTmpfile();
+    runcc1(argv[0], compiler_input, compiler_output);
+    assemble(compiler_output, output_file_path);
   } else {
-    runcc1(argc, argv, input_file_path, output_file_path);
+    runcc1(argv[0], compiler_input, output_file_path);
   }
 
   cleanUp();

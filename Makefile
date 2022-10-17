@@ -44,8 +44,7 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 $(TEST_DIR)/%.out: debug
-	$(CC) -o $(TEST_DIR)/$*.pre -E -P -C $(TEST_DIR)/$*.c
-	ASAN_OPTIONS=detect_leaks=0 ./$(UCC) -o $(TEST_DIR)/$*.o $(TEST_DIR)/$*.pre
+	ASAN_OPTIONS=detect_leaks=0 ./$(UCC) -o $(TEST_DIR)/$*.o $(TEST_DIR)/$*.c
 	$(CC) -g3 -o $@ $(TEST_DIR)/$*.o -xc $(TEST_DIR)/common
 
 test: $(TESTS)
