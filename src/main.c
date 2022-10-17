@@ -110,8 +110,12 @@ void runcc1(char *arg0, char *input, char *output) {
 }
 
 void replaceExt(char (*path)[PATH_MAX], char *ext) {
-  char *p = strrchr(*path, '.') + 1;
-  *p = 0;
+  char *p = strrchr(*path, '.');
+  if (p != NULL) {
+    *(++p) = 0;
+  } else {
+    p = &(*path)[strlen(*path)];
+  }
   strncat(*path, ext, PATH_MAX - (p - *path));
 }
 

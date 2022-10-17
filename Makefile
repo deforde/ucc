@@ -42,6 +42,7 @@ $(BUILD_DIR)/%.c.o: %.c
 
 clean:
 	rm -rf $(BUILD_DIR)
+	rm -f $(TEST_DIR)/*.o $(TEST_DIR)/*.out
 
 $(TEST_DIR)/%.out: debug
 	ASAN_OPTIONS=detect_leaks=0 ./$(UCC) -o $(TEST_DIR)/$*.o $(TEST_DIR)/$*.c
