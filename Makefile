@@ -25,6 +25,8 @@ UCC_STAGE2 := $(STAGE2_DIR)/$(TARGET_EXEC)
 TEST_DIR := test
 TEST_SRCS := $(wildcard $(TEST_DIR)/*.c)
 TESTS := $(TEST_SRCS:.c=.out)
+TESTS_STG2 := $(TEST_SRCS:%=$(STAGE2_DIR)/%.out)
+$(info $(TESTS_STG2))
 
 CC := clang
 
@@ -53,9 +55,10 @@ $(STAGE2_DIR)/$(SRC_DIR)/%.c.o: $(STAGE2_DIR)/$(SRC_DIR)/%.c $(UCC_STAGE1)
 	ASAN_OPTIONS=detect_leaks=0 ./$(UCC_STAGE1) -o $@ $<
 
 $(UCC_STAGE2): $(S2_OBJS)
-	$(CC) $(OBJS) -o $@ $(LDFLAGS)
+	mkdir -p $(dir $@)
+	$(CC) $(S2_OBJS) -o $@ $(LDFLAGS)
 
-.PHONY: clean test compdb
+.PHONY: clean test compdb test-stg2 test-all
 
 clean:
 	rm -rf $(BUILD_DIR)
@@ -69,6 +72,15 @@ $(TEST_DIR)/%.out: debug
 
 test: $(TESTS)
 	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
+
+$(STAGE2_DIR)/%.out: $(UCC_STAGE2)
+	./$(UCC_STAGE2) -o $(STAGE2_DIR)/$(*F).o $*
+	$(CC) -g3 -o $(STAGE2_DIR)/$(@F) $(STAGE2_DIR)/$(*F).o -xc $(TEST_DIR)/common
+
+test-stg2: $(TESTS_STG2)
+	for i in $(^F); do echo $$i; ./$(STAGE2_DIR)/$$i || exit 1; echo; done
+
+test-all: test test-stg2
 
 compdb: clean
 	bear -- $(MAKE)

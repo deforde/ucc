@@ -292,7 +292,7 @@ void tokenise(const char *file_path) {
       } else {
         const char *temp = strndup(cur->str, cur->len);
         cur->str = calloc(1, max_len + cur->len);
-        memcpy((void*)cur->str, temp, cur->len);
+        memcpy((void*)cur->str, temp, strlen(temp));
         len = cur->len;
       }
       for (const char *c = start; c != p;) {
