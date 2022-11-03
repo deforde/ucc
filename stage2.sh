@@ -92,6 +92,10 @@ printf "%s\n" \
 "int fork (void);" \
 "int execvp (const char *__file, char *const __argv[]);" \
 "int wait (int *__stat_loc);" \
+"int isalnum(int c);" \
+"int fseek(FILE *stream, long offset, int origin);" \
+"long int ftell (FILE *__stream);" \
+"void free (void *__ptr);" \
 "void exit(int code);" > $OUTPUT_FILE
 
 for f in $@; do
@@ -105,9 +109,12 @@ done
 sed -i 's/PATH_MAX/4096/g' $OUTPUT_FILE
 sed -i 's/EXIT_SUCCESS/0/g' $OUTPUT_FILE
 sed -i 's/EXIT_FAILURE/1/g' $OUTPUT_FILE
+sed -i 's/SEEK_SET/0/g' $OUTPUT_FILE
+sed -i 's/SEEK_CUR/1/g' $OUTPUT_FILE
+sed -i 's/SEEK_END/2/g' $OUTPUT_FILE
 sed -i 's/no_argument/0/g' $OUTPUT_FILE
 sed -i 's/required_argument/1/g' $OUTPUT_FILE
-sed -i '/^#define COMP_ERR_BODY/! s/^\s*#.*//g' $OUTPUT_FILE
+sed -i '/^#define \(COMP_ERR_BODY\|MIN\)/! s/^\s*#.*//g' $OUTPUT_FILE
 sed -i 's/"\n\s*"//g' $OUTPUT_FILE
 sed -i 's/\bbool\b/_Bool/g' $OUTPUT_FILE
 sed -i 's/\berrno\b/*__errno_location()/g' $OUTPUT_FILE

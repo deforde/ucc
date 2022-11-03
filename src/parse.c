@@ -101,8 +101,8 @@ static Obj *newGlobalVar(Type *ty, Token *ident);
 static Obj *newLocalVar(Type *ty, Token *ident);
 static Obj *newStrLitVar(Token *tok, Type *ty);
 static Obj *newVar(Type *ty, Token *ident, Obj **vars);
-static Relocation *writeGlobalVarData(Relocation *cur, Initialiser *init,
-                                      Type *ty, char *buf, size_t offset);
+static Obj *structDesignator(Type *ty, size_t *idx);
+static Relocation *writeGlobalVarData(Relocation *cur, Initialiser *init, Type *ty, char *buf, size_t offset);
 static Token *createIdent(const char *name);
 static Type *abstractDeclarator(Type *ty);
 static Type *arrayDimensions(Type *ty);
@@ -115,8 +115,8 @@ static Type *findTag(Token *tok);
 static Type *findTypedef(Token *tok);
 static Type *getCommonType(Type *ty1, Type *ty2);
 static Type *newType(TypeKind kind, ssize_t size, size_t align);
-static Type *pointers(Type *ty);
 static Type *pointerTo(Type *base);
+static Type *pointers(Type *ty);
 static Type *structDecl(Type *ty);
 static Type *structUnionDecl(Type *ty);
 static Type *typeSuffix(Type *ty);
@@ -139,6 +139,7 @@ static size_t countInitialserElems(Type *ty);
 static void addType(Node *node);
 static void arrayInitialiser1(Initialiser *init);
 static void arrayInitialiser2(Initialiser *init);
+static void designation(Initialiser *init);
 static void enterScope(void);
 static void exitScope(void);
 static void globalVar(Type *ty, VarAttr *attr);
@@ -152,7 +153,7 @@ static void resolveGotoLabels(void);
 static void skipExcessInitialiserElems(void);
 static void stringInitialiser(Initialiser *init, Token *tok);
 static void structInitialiser1(Initialiser *init);
-static void structInitialiser2(Initialiser *init);
+static void structInitialiser2(Initialiser *init, Obj *mem);
 static void unionInitialiser(Initialiser *init);
 static void usualArithConv(Node **lhs, Node **rhs);
 static void writeBuf(char *buf, uint64_t val, size_t sz);
@@ -2044,7 +2045,7 @@ void initialiser2(Initialiser *init) {
       return;
     }
     token = start;
-    structInitialiser2(init);
+    structInitialiser2(init, init->ty->members);
     return;
   }
   if (init->ty->kind == TY_UNION) {
@@ -2183,9 +2184,17 @@ void structInitialiser1(Initialiser *init) {
   expect("{");
   Obj *mem = init->ty->members;
   size_t idx = 0;
+  bool first = true;
   while (!consumeInitialiserListEnd()) {
-    if (mem != init->ty->members) {
+    if (!first) {
       expect(",");
+    }
+    first = false;
+    if (consume(".")) {
+      mem = structDesignator(init->ty, &idx);
+      designation(init->children[idx++]);
+      mem = mem->next;
+      continue;
     }
     if (mem) {
       initialiser2(init->children[idx++]);
@@ -2196,15 +2205,19 @@ void structInitialiser1(Initialiser *init) {
   }
 }
 
-void structInitialiser2(Initialiser *init) {
+void structInitialiser2(Initialiser *init, Obj *mem) {
   bool first = true;
   size_t idx = 0;
-  for (Obj *mem = init->ty->members; mem && !atInitialiserListEnd();
-       mem = mem->next) {
+  for (; mem && !atInitialiserListEnd(); mem = mem->next) {
+    Token *start = token;
     if (!first) {
       expect(",");
     }
     first = false;
+    if (consume(".")) {
+      token = start;
+      return;
+    }
     initialiser2(init->children[idx++]);
   }
 }
@@ -2425,4 +2438,33 @@ double evalDouble(Node *node) {
   }
   compErrorToken(node->tok->str, "not a compile-time constant");
   return 0.;
+}
+
+Obj *structDesignator(Type *ty, size_t *idx) {
+  Token *tok = expectIdent();
+  *idx = 0;
+  for (Obj *mem = ty->members; mem; mem = mem->next) {
+    if (equal(tok, mem->name)) {
+      return mem;
+    }
+    (*idx)++;
+  }
+  compErrorToken(tok->str, "struct has no such member");
+  assert(false);
+}
+
+void designation(Initialiser *init) {
+  if (consume(".") && init->ty->kind == TY_STRUCT) {
+    size_t idx = 0;
+    Obj *mem = structDesignator(init->ty, &idx);
+    designation(init->children[idx]);
+    init->expr = NULL;
+    structInitialiser2(init, mem);
+    return;
+  }
+  if (consume(".")) {
+    compError("field name not in struct initializer");
+  }
+  consume("=");
+  initialiser2(init);
 }
