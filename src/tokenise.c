@@ -285,9 +285,16 @@ void tokenise(const char *file_path) {
         }
       }
       const size_t max_len = p - start + 1;
-      cur = newToken(TK_STR, cur, start, max_len, line_num);
-      cur->str = calloc(1, max_len);
       size_t len = 0;
+      if (cur->kind != TK_STR) {
+        cur = newToken(TK_STR, cur, start, max_len, line_num);
+        cur->str = calloc(1, max_len);
+      } else {
+        const char *temp = strndup(cur->str, cur->len);
+        cur->str = calloc(1, max_len + cur->len);
+        memcpy((void*)cur->str, temp, cur->len);
+        len = cur->len;
+      }
       for (const char *c = start; c != p;) {
         if (*c == '\\') {
           c++;

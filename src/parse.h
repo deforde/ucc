@@ -1,9 +1,10 @@
 #ifndef PARSE_H
 #define PARSE_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
-#include "defs.h"
+typedef struct Type Type;
 
 void parse(void);
 bool isInteger(Type *ty);

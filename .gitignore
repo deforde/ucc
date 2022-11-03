@@ -3,3 +3,5 @@ build/
 test/*.out
 test/*.pre
 test/*.o
+stage1/
+stage2/
