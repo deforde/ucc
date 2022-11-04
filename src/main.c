@@ -14,6 +14,7 @@
 
 static char output_file_path[PATH_MAX] = {0};
 static bool do_cc1 = false;
+static bool do_argprint = false;
 static bool do_assemble = true;
 char *input_file_path = NULL;
 FILE *output = NULL;
@@ -42,6 +43,7 @@ void parseArgs(int argc, char *argv[]) {
   struct option longopts[] = {{"help", no_argument, NULL, 'h'},
                               {"output", required_argument, NULL, 'o'},
                               {"cc1", no_argument, NULL, 0},
+                              {"###", no_argument, NULL, 1},
                               {"", no_argument, NULL, 'S'},
                               {0, 0, 0, 0}};
   while ((opt = getopt_long(argc, argv, "ho:S", longopts, NULL)) != -1) {
@@ -55,6 +57,9 @@ void parseArgs(int argc, char *argv[]) {
       break;
     case 0:
       do_cc1 = true;
+      break;
+    case 1:
+      do_argprint = true;
       break;
     case 'S':
       do_assemble = false;
@@ -130,6 +135,15 @@ char *createTmpfile(void) {
 }
 
 void runSubprocess(char **argv) {
+  if (do_argprint) {
+    size_t idx = 0;
+    printf("args = [ ");
+    for (const char *arg = argv[idx]; arg; arg = argv[++idx]) {
+      printf("%s%s", arg, argv[idx + 1] ? ", " : "");
+    }
+    puts(" ]");
+    exit(EXIT_SUCCESS);
+  }
   if (fork() == 0) {
     execvp(argv[0], argv);
     compError("exec failed: %s: %s", argv[0], strerror(errno));
