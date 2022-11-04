@@ -103,7 +103,8 @@ static Obj *newLocalVar(Type *ty, Token *ident);
 static Obj *newStrLitVar(Token *tok, Type *ty);
 static Obj *newVar(Type *ty, Token *ident, Obj **vars);
 static Obj *structDesignator(Type *ty, size_t *idx);
-static Relocation *writeGlobalVarData(Relocation *cur, Initialiser *init, Type *ty, char *buf, size_t offset);
+static Relocation *writeGlobalVarData(Relocation *cur, Initialiser *init,
+                                      Type *ty, char *buf, size_t offset);
 static Token *createIdent(const char *name);
 static Type *abstractDeclarator(Type *ty);
 static Type *arrayDimensions(Type *ty);
@@ -794,7 +795,8 @@ Obj *function(Type *ty, VarAttr *attr) {
   cur_fn = fn;
 
   for (Obj *fn_decl = fn_decls; fn_decl; fn_decl = fn_decl->next) {
-    if (!fn_decl->body && strncmp(fn_decl->name, fn->name, strlen(fn->name)) == 0) {
+    if (!fn_decl->body &&
+        strncmp(fn_decl->name, fn->name, strlen(fn->name)) == 0) {
       fn->is_static = fn_decl->is_static;
       fn->is_global = !fn_decl->is_static;
     }
