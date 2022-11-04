@@ -293,7 +293,7 @@ void tokenise(const char *file_path) {
         const char *temp = strndup(cur->str, cur->len);
         cur->str = calloc(1, max_len + cur->len);
         memcpy((void*)cur->str, temp, strlen(temp));
-        len = cur->len;
+        len = cur->len - 1;
       }
       for (const char *c = start; c != p;) {
         if (*c == '\\') {

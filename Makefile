@@ -40,7 +40,7 @@ ucc: $(UCC_STAGE1)
 
 $(UCC_STAGE1): $(OBJS)
 	mkdir -p $(dir $@)
-	$(CC) $(OBJS) -o $@ $(LDFLAGS)
+	$(CC) -g3 $(OBJS) -o $@ $(LDFLAGS)
 
 $(BUILD_DIR)/$(SRC_DIR)/%.c.o: $(SRC_DIR)/%.c
 	mkdir -p $(dir $@)
@@ -56,7 +56,7 @@ $(STAGE2_DIR)/$(SRC_DIR)/%.c.o: $(STAGE2_DIR)/$(SRC_DIR)/%.c $(UCC_STAGE1)
 
 $(UCC_STAGE2): $(S2_OBJS)
 	mkdir -p $(dir $@)
-	$(CC) $(S2_OBJS) -o $@ $(LDFLAGS)
+	$(CC) -g3 $(S2_OBJS) -o $@ $(LDFLAGS)
 
 .PHONY: clean test compdb test-stg2 test-all
 

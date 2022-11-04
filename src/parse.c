@@ -15,6 +15,7 @@
 extern Type *ty_int;
 extern Token *token;
 static Obj *cur_fn = NULL;
+static Obj *fn_decls = NULL;
 static Scope *scopes = &(Scope){0};
 static Node *gotos = NULL;
 static Node *labels = NULL;
@@ -439,6 +440,7 @@ Obj *newGlobalVar(Type *ty, Token *ident) {
   var->name = strndup(ident->str, ident->len);
   var->ty = ty;
   var->align = ty->align;
+  var->is_static = true;
   var->is_global = true;
   var->is_definition = true;
   globals = var;
@@ -787,8 +789,16 @@ Obj *function(Type *ty, VarAttr *attr) {
   fn->align = fn->ty->align;
   fn->ty->ret_ty = ty;
   fn->name = strndup(fn_ident->str, fn_ident->len);
+  fn->is_static = attr->is_static;
   fn->is_global = !attr->is_static;
   cur_fn = fn;
+
+  for (Obj *fn_decl = fn_decls; fn_decl; fn_decl = fn_decl->next) {
+    if (!fn_decl->body && strncmp(fn_decl->name, fn->name, strlen(fn->name)) == 0) {
+      fn->is_static = fn_decl->is_static;
+      fn->is_global = !fn_decl->is_static;
+    }
+  }
 
   Obj *var = calloc(1, sizeof(Obj));
   var->name = strndup(fn_ident->str, fn_ident->len);
@@ -851,6 +861,11 @@ Obj *function(Type *ty, VarAttr *attr) {
       fn->va_area = newLocalVar(arrayOf(ty_char, 136), ident);
     }
     fn->body = cmpndStmt();
+  } else {
+    Obj *fn_decl = calloc(1, sizeof(Obj));
+    *fn_decl = *fn;
+    fn_decl->next = fn_decls;
+    fn_decls = fn_decl;
   }
 
   exitScope();
@@ -2364,6 +2379,7 @@ Obj *newAnonGlobalVar(Type *ty) {
   var->name = newUniqueLabel();
   var->ty = ty;
   var->align = ty->align;
+  var->is_static = true;
   var->is_global = true;
   var->is_definition = true;
   globals = var;
