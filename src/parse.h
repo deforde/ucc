@@ -6,6 +6,7 @@
 
 typedef struct Type Type;
 
+size_t alignTo(size_t n, size_t align);
 void parse(void);
 bool isInteger(Type *ty);
 bool isFloat(Type *ty);

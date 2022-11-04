@@ -136,7 +136,6 @@ static int64_t constExpr(void);
 static int64_t eval(Node *node);
 static int64_t eval2(Node *node, char **label);
 static int64_t evalRval(Node *node, char **label);
-static size_t alignTo(size_t n, size_t align);
 static size_t countInitialserElems(Type *ty);
 static void addType(Node *node);
 static void arrayInitialiser1(Initialiser *init);
@@ -424,13 +423,6 @@ Obj *newVar(Type *ty, Token *ident, Obj **vars) {
   var->ty = ty;
   var->align = ty->align;
   *vars = var;
-  size_t offset = 0;
-  for (Obj *ext_var = *vars; ext_var; ext_var = ext_var->next) {
-    offset += ext_var->ty->size;
-    offset = alignTo(offset, ext_var->align);
-    ext_var->offset = offset;
-  }
-  cur_fn->stack_size = alignTo(offset, 16);
   pushScope(var->name, var, NULL);
   return var;
 }

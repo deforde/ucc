@@ -78,6 +78,7 @@ static const char *cast_table[][10] = {
 };
 
 static int getTypeId(Type *ty);
+static void assignLvarOffsets(Obj *prog);
 static void cast(Type *from, Type *to);
 static void cmpZero(Type *ty);
 static void genAddr(Node *node);
@@ -91,10 +92,27 @@ static void push(void);
 static void pushArgs(Node *args);
 static void pushf(void);
 static void store(Type *ty);
-static void storeFp(size_t r, size_t offset, size_t sz);
 static void storeArgReg(size_t r, size_t offset, size_t sz);
+static void storeFp(size_t r, size_t offset, size_t sz);
+
+void assignLvarOffsets(Obj *prog) {
+  for (Obj *fn = prog; fn; fn = fn->next) {
+    if (!fn->body) {
+      continue;
+    }
+
+    size_t offset = 0;
+    for (Obj *var = fn->locals; var; var = var->next) {
+      offset += var->ty->size;
+      offset = alignTo(offset, var->align);
+      var->offset = offset;
+    }
+    fn->stack_size = alignTo(offset, 16);
+  }
+}
 
 void gen() {
+  assignLvarOffsets(prog);
   println(".file 1 \"%s\"", input_file_path);
   println(".intel_syntax noprefix");
   for (Obj *var = globals; var; var = var->next) {
