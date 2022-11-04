@@ -83,7 +83,7 @@ printf "%s\n" \
 "double strtod(char *nptr, char **endptr);" \
 "static void va_end(va_list ap) {}" \
 "long strtoul(char *nptr, char **endptr, int base);" \
-"int getopt_long (int argc, char* argv[], const char * opts, struct option *lopts, );" \
+"int getopt_long (int argc, char* argv[], const char * opts, struct option *lopts, int *lind);" \
 "char *strncpy (char *dst, const char *src, size_t n);" \
 "char *strrchr (const char *__s, int __c);" \
 "char *strncat (char *__restrict __dest, const char *__restrict __src, size_t __n);" \
