@@ -100,7 +100,6 @@ void assignLvarOffsets(Obj *prog) {
     if (!fn->body) {
       continue;
     }
-
     size_t offset = 0;
     for (Obj *var = fn->locals; var; var = var->next) {
       offset += var->ty->size;
