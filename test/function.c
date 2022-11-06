@@ -108,6 +108,12 @@ double add_double3(double x, double y, double z) {
   return x + y + z;
 }
 
+int static_flex_arr_lvar_func(int *p) {
+  static int *i[] = {0};
+  i[0] = p;
+  return *(i[0]);
+}
+
 int main() {
   ASSERT(3, ret3());
   ASSERT(8, add2(3, 5));
@@ -177,6 +183,8 @@ int main() {
   ASSERT(0, ({ char buf[100]; sprintf(buf, "%.1f", (float)3.5); strcmp(buf, "3.5"); }));
 
   ASSERT(0, ({ char buf[100]; fmt(buf, "%.1f", (float)3.5); strcmp(buf, "3.5"); }));
+
+  ASSERT(3, ({ int i = 3; static_flex_arr_lvar_func(&i); }));
 
   printf("OK\n");
   return 0;
