@@ -891,12 +891,12 @@ Node *declaration(Type *basety, VarAttr *attr) {
       Obj *gvar = newAnonGlobalVar(ty);
       pushScope(strndup(ident->str, ident->len), gvar, NULL);
 
-      Token *ident = createIdent(gvar->name);
-      newLocalVar(ty, ident);
-
       if (consume("=")) {
         globalVarInitialiser(gvar);
       }
+
+      Token *ident = createIdent(gvar->name);
+      newLocalVar(gvar->ty, ident);
 
       continue;
     }
