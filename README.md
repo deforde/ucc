@@ -14,8 +14,7 @@ source code → │ preprocessing │ → │ tokenisation │ → │ AST gen �
                                     ucc implements these stages of compilation
 ```
 
-`ucc` uses `cpp` to pre-process the source code, and `as` in order to assemble the generated code.
-The linking stage is not currently incorporated into `ucc`, linking must still be invoked externally (TODO).
+`ucc` uses `cpp` to pre-process the source code, `as` to assemble the generated code and `cc` to perform linking.
 
 The assembly produced by `ucc` is written in the Intel syntax.
 
