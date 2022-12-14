@@ -52,11 +52,11 @@ $(STAGE2_DIR)/%.c: %.c
 	./stage2.sh $@ $<
 
 $(STAGE2_DIR)/$(SRC_DIR)/%.c.o: $(STAGE2_DIR)/$(SRC_DIR)/%.c $(UCC_STAGE1)
-	ASAN_OPTIONS=detect_leaks=0 ./$(UCC_STAGE1) -o $@ $<
+	ASAN_OPTIONS=detect_leaks=0 ./$(UCC_STAGE1) -c -o $@ $<
 
 $(UCC_STAGE2): $(S2_OBJS)
 	mkdir -p $(dir $@)
-	$(CC) -g3 $(S2_OBJS) -o $@ $(LDFLAGS)
+	./$(UCC_STAGE1) $(S2_OBJS) -o $@ $(LDFLAGS)
 
 .PHONY: clean test compdb test-stg2 test-all
 
@@ -67,14 +67,14 @@ clean:
 	rm -f $(TEST_DIR)/*.o $(TEST_DIR)/*.out
 
 $(TEST_DIR)/%.out: debug
-	ASAN_OPTIONS=detect_leaks=0 ./$(UCC_STAGE1) -o $(TEST_DIR)/$*.o $(TEST_DIR)/$*.c
+	ASAN_OPTIONS=detect_leaks=0 ./$(UCC_STAGE1) -c -o $(TEST_DIR)/$*.o $(TEST_DIR)/$*.c
 	$(CC) -g3 -o $@ $(TEST_DIR)/$*.o -xc $(TEST_DIR)/common
 
 test: $(TESTS)
 	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
 
 $(STAGE2_DIR)/%.out: $(UCC_STAGE2)
-	./$(UCC_STAGE2) -o $(STAGE2_DIR)/$(*F).o $*
+	./$(UCC_STAGE2) -c -o $(STAGE2_DIR)/$(*F).o $*
 	$(CC) -g3 -o $(STAGE2_DIR)/$(@F) $(STAGE2_DIR)/$(*F).o -xc $(TEST_DIR)/common
 
 test-stg2: $(TESTS_STG2)

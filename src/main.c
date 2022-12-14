@@ -16,6 +16,7 @@ static char output_file_path[PATH_MAX] = {0};
 static bool do_cc1 = false;
 static bool do_argprint = false;
 static bool do_assemble = true;
+static bool do_link = true;
 char *input_file_path = NULL;
 FILE *output = NULL;
 
@@ -30,12 +31,18 @@ static void replaceExt(char (*path)[PATH_MAX], char *ext);
 static void runSubprocess(char **argv);
 static void runcc1(char *arg0, char *input, char *output);
 static void usage(void);
+static void dolink(char **argv);
 
 void usage(void) {
+  // clang-format off
   puts("Usage: ucc [options] file\n"
        "Options:\n"
-       "\t-S\n"
-       "\t-o <file>");
+       "\t-c              Compile and assemble, but do not link. Outputs an object file.\n"
+       "\t-S              Compile only, do not assemble. Outputs assembly code.\n"
+       "\t-o <file>       Optional. If unspecified the default output filename: '<input-file-stem>.<ext>'\n" \
+       "\t                will be used. If '-' is passed as <file>, then the output will be written\n" \
+       "\t                to stdout (only applicable if -S is also applied).");
+  // clang-format on
 }
 
 void parseArgs(int argc, char *argv[]) {
@@ -46,7 +53,7 @@ void parseArgs(int argc, char *argv[]) {
                               {"###", no_argument, NULL, 1},
                               {"", no_argument, NULL, 'S'},
                               {0, 0, 0, 0}};
-  while ((opt = getopt_long(argc, argv, "ho:S", longopts, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "hcSo:", longopts, NULL)) != -1) {
     switch (opt) {
     case 'h':
       usage();
@@ -63,6 +70,9 @@ void parseArgs(int argc, char *argv[]) {
       break;
     case 'S':
       do_assemble = false;
+      break;
+    case 'c':
+      do_link = false;
       break;
     case '?':
     case ':':
@@ -180,12 +190,23 @@ void preprocess(char *input_path, char *output_path) {
   runSubprocess(cmd);
 }
 
+void dolink(char **argv) {
+  char **cmd = argv;
+  cmd[0] = "cc";
+  runSubprocess(cmd);
+}
+
 int main(int argc, char *argv[]) {
   parseArgs(argc, argv);
 
   if (do_cc1) {
     openOutput();
     cc1();
+    return EXIT_SUCCESS;
+  }
+
+  if (do_link) {
+    dolink(argv);
     return EXIT_SUCCESS;
   }
 
